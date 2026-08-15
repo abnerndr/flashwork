@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 
-interface Window {
-  flashwork?: {
-    versions: {
-      electron: string;
-      chrome: string;
-      node: string;
-    };
-  };
+import type { FlashworkApi } from '../shared/flashwork-api';
+
+declare global {
+  interface Window {
+    flashwork?: FlashworkApi;
+  }
 }
+
+export {};

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 
+import { registerPtyIpc } from './ipc/pty';
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
@@ -33,6 +35,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerPtyIpc();
   createWindow();
 
   app.on('activate', () => {
@@ -43,7 +46,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // Keep the main process alive so future PTY sessions can survive window close (PRD 1.6).
+  // Keep the main process alive so PTY sessions survive window close (PRD 1.6).
   // On non-macOS, users can still quit via app menu / Cmd+Q equivalent.
   if (process.platform !== 'darwin') {
     // Intentionally do not call app.quit() here during MVP shell.

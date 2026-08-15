@@ -12,11 +12,19 @@
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit"
   },
   "dependencies": {
+    "@flashwork/pty-bridge": "workspace:*",
     "@flashwork/shared-types": "workspace:*",
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
+    "@xyflow/react": "^12.4.4",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@xterm/xterm": "^5.5.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",

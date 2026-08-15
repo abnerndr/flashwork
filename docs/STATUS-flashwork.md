@@ -17,7 +17,7 @@
 
 Produto desktop **local-first** (Electron + TS + React) com três pilares:
 
-1. **Canvas infinito** (`@xyflow/react`) para orquestrar agentes de IA (PTY reais via `node-pty` + xterm)
+1. **Canvas infinito** (`@xyflow/react`) para orquestrar agentes de IA (PTY reais via node-pty + xterm)
 2. **IDE embutido** (`openvscode-server` em webview; Monaco como preview leve)
 3. **Gateway multi-modelo** (OmniRoute como sidecar, bind `127.0.0.1`)
 
@@ -43,7 +43,7 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 
 ### Bloqueios críticos
 
-**Nenhum bloqueio que impeça iniciar a Fase 1.** Fase 0 verificada (install/test/build/lint).
+**Nenhum** para Fase 2.
 
 ## Checklist de tasks (tasks-PRD-flashwork.md)
 
@@ -54,10 +54,16 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 - [x] 0.4 `apps/desktop` electron-vite (janela em branco)
 - [x] 0.5 CI básico (lint + test + build)
 
-### 1.0 Shell + Canvas + Terminal — PENDENTE (próximo)
-- [ ] 1.1–1.7 (canvas, pty-bridge, IPC Zod, TerminalNode, spawn UI, PTY background, aceite Fase 1)
+### 1.0 Shell + Canvas + Terminal — FEITO
+- [x] 1.1 `@xyflow/react` canvas com pan/zoom
+- [x] 1.2 `packages/pty-bridge` (spawn/write/resize/kill) + vitest (mock)
+- [x] 1.3 IPC main→preload→renderer com Zod (`PTYMessageSchema`)
+- [x] 1.4 `TerminalNode` + `@xterm/xterm` (+ WebGL addon com fallback)
+- [x] 1.5 Drag/palette + seletor `bash`/`claude`/`codex`
+- [x] 1.6 PTY no main; `window-all-closed` não encerra o app; reattach via `pty:list` + scrollback
+- [x] 1.7 Aceite: build + unit tests + smoke nativo bash (GUI Electron não aberta neste ambiente)
 
-### 2.0 Floors / worktrees — PENDENTE
+### 2.0 Floors / worktrees — PENDENTE (próximo)
 - [ ] 2.1–2.6
 
 ### 3.0 IDE sidecar — PENDENTE
@@ -78,14 +84,25 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 2. ✅ Workspace explorado
 3. ✅ Revisão crítica — sem bloqueio hard para Fase 0
 4. ✅ Git init + branch `feat/prd-mvp` + monorepo 0.0
-5. ✅ Verificação: `pnpm install`, shared-types test, desktop build, lint
-6. ⏳ Executar tasks via subagentes (próximo: **1.0**)
+5. ✅ Verificação 0.0: install/test/build/lint
+6. ✅ Task group **1.0** canvas + pty-bridge + TerminalNode + IPC
+7. ⏳ Próximo: **2.0** Floors / worktrees
 
-## Como validar (quando houver código)
+## Notas 1.0
+
+- PTY nativo: `@homebridge/node-pty-prebuilt-multiarch` (MIT) — o ambiente WSL não tinha `make` para compilar `node-pty` puro; prebuild cobre Node ABI 127.
+- GUI Electron: não validada visualmente neste host (sem display/X11 confiável no fluxo do agente). Aceite 1.7 coberto por build + testes + smoke `bash` via binding nativo.
+- `claude`/`codex` no PATH são opcionais; UI sugere fallback para `bash`.
+
+## Como validar
 
 ```bash
-cd /home/abner/www/ruperth/flashwork   # ou path do worktree
+cd /home/abner/www/ruperth/flashwork
 pnpm install
-pnpm lint && pnpm test && pnpm build
-pnpm --filter @flashwork/desktop dev
+pnpm --filter @flashwork/pty-bridge test
+pnpm --filter @flashwork/shared-types test
+pnpm typecheck
+pnpm lint
+pnpm --filter @flashwork/desktop build
+pnpm --filter @flashwork/desktop dev   # GUI local
 ```

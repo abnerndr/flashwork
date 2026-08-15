@@ -8,10 +8,10 @@
 | Item | Valor |
 |------|--------|
 | Workspace raiz | `/home/abner/www/ruperth/flashwork` |
-| Worktree isolado | *pendente — criar após `git init`* |
-| Branch feature | `feat/prd-mvp` (planejada) |
-| Branch base | `main` (planejada) |
-| Isolamento | Repo ainda vazio (só `.cursor/`); git a inicializar |
+| Worktree isolado | *em-place* (branch `feat/prd-mvp` no root; `.worktrees/` reservado) |
+| Branch feature | `feat/prd-mvp` |
+| Branch base | `main` |
+| Isolamento | Branch feature; execução no path raiz |
 
 ## O que foi entendido do PRD
 
@@ -43,18 +43,18 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 
 ### Bloqueios críticos
 
-**Nenhum bloqueio que impeça iniciar a Fase 0 (monorepo).** Premissas acima documentadas; decisões finais do autor podem ajustar Fases 4–6 sem invalidar 0–2.
+**Nenhum bloqueio que impeça iniciar a Fase 1.** Fase 0 verificada (install/test/build/lint).
 
 ## Checklist de tasks (tasks-PRD-flashwork.md)
 
-### 0.0 Setup monorepo — PENDENTE
-- [ ] 0.1 pnpm + turborepo, `apps/` + `packages/`
-- [ ] 0.2 TypeScript base + ESLint/Prettier
-- [ ] 0.3 `packages/shared-types`
-- [ ] 0.4 `apps/desktop` electron-vite (janela em branco)
-- [ ] 0.5 CI básico (lint + test + build)
+### 0.0 Setup monorepo — FEITO
+- [x] 0.1 pnpm + turborepo, `apps/` + `packages/`
+- [x] 0.2 TypeScript base + ESLint/Prettier
+- [x] 0.3 `packages/shared-types`
+- [x] 0.4 `apps/desktop` electron-vite (janela em branco)
+- [x] 0.5 CI básico (lint + test + build)
 
-### 1.0 Shell + Canvas + Terminal — PENDENTE
+### 1.0 Shell + Canvas + Terminal — PENDENTE (próximo)
 - [ ] 1.1–1.7 (canvas, pty-bridge, IPC Zod, TerminalNode, spawn UI, PTY background, aceite Fase 1)
 
 ### 2.0 Floors / worktrees — PENDENTE
@@ -75,14 +75,11 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 ## Progresso
 
 1. ✅ PRD + tasks lidos por completo
-2. ✅ Workspace explorado (vazio; sem git)
+2. ✅ Workspace explorado
 3. ✅ Revisão crítica — sem bloqueio hard para Fase 0
-4. ✅ Arquivos STATUS + CONTEXT + `.gitignore` criados
-5. 🔄 Subagente `cf054e43` executando bootstrap git + Task 0.0 (monorepo)
-6. ⏳ Reviews spec/quality após 0.0
-7. ⏳ Tasks 1.0–6.0
-
-**Nota infra:** Shell foreground do host Windows/WSL está instável (sem exit status). Execução via subagentes + Write.
+4. ✅ Git init + branch `feat/prd-mvp` + monorepo 0.0
+5. ✅ Verificação: `pnpm install`, shared-types test, desktop build, lint
+6. ⏳ Executar tasks via subagentes (próximo: **1.0**)
 
 ## Como validar (quando houver código)
 

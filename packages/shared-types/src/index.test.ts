@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { CanvasNodeKind, Floor, PTYMessage, RouterStatus } from './index.js'
+import {
+  CanvasNodeKindSchema,
+  FloorSchema,
+  PTYMessageSchema,
+  RouterStatusSchema,
+  type CanvasNodeKind,
+  type Floor,
+  type PTYMessage,
+  type RouterStatus,
+} from './index.js'
 
 describe('@flashwork/shared-types smoke', () => {
   it('defines Floor shape', () => {
@@ -12,7 +21,7 @@ describe('@flashwork/shared-types smoke', () => {
       createdAt: new Date(0).toISOString(),
     }
 
-    expect(floor.id).toBe('floor-1')
+    expect(FloorSchema.parse(floor).id).toBe('floor-1')
     expect(floor.branch).toBe('feat/prd-mvp')
   })
 
@@ -21,11 +30,12 @@ describe('@flashwork/shared-types smoke', () => {
       'terminal',
       'ide',
       'portal',
-      'sticky-note',
-      'router-status',
-      'floor-container',
+      'sticky',
+      'routerStatus',
+      'floorContainer',
     ]
     expect(kinds).toHaveLength(6)
+    expect(CanvasNodeKindSchema.options).toEqual(kinds)
   })
 
   it('accepts PTYMessage variants', () => {
@@ -34,16 +44,15 @@ describe('@flashwork/shared-types smoke', () => {
       sessionId: 'pty-1',
       data: 'hello',
     }
-    expect(message.type).toBe('data')
+    expect(PTYMessageSchema.parse(message).type).toBe('data')
   })
 
   it('accepts RouterStatus shape', () => {
     const status: RouterStatus = {
-      activeProvider: 'openai',
+      provider: 'openai',
       fallbackActive: false,
-      providers: [{ id: 'openai', status: 'healthy', quotaRemaining: 100 }],
-      updatedAt: new Date(0).toISOString(),
+      quotaRemaining: 100,
     }
-    expect(status.fallbackActive).toBe(false)
+    expect(RouterStatusSchema.parse(status).fallbackActive).toBe(false)
   })
 })

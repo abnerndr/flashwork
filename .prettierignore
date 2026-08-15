@@ -1,0 +1,11 @@
+dist
+out
+build
+release
+coverage
+.turbo
+node_modules
+.worktrees
+pnpm-lock.yaml
+*.md
+LICENSE

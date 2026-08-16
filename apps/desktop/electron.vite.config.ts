@@ -5,7 +5,11 @@ import react from '@vitejs/plugin-react';
 // Bundle workspace packages into main/preload so CJS output can use ESM-only deps safely.
 // Keep native PTY binding external.
 const externalize = externalizeDepsPlugin({
-  exclude: ['@flashwork/shared-types', '@flashwork/pty-bridge'],
+  exclude: [
+    '@flashwork/shared-types',
+    '@flashwork/pty-bridge',
+    '@flashwork/worktree-manager',
+  ],
 });
 
 export default defineConfig({

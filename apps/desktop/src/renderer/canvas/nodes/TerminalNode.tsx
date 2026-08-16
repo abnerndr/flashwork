@@ -1,13 +1,15 @@
+import type { Node, NodeProps } from '@xyflow/react';
 import { useCallback, useEffect, useRef } from 'react';
-import type { NodeProps } from '@xyflow/react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 
-import type { FlashworkNode } from '../../state/canvasStore';
+import type { TerminalNodeData } from '../../state/canvasStore';
 
-export function TerminalNode({ data, selected }: NodeProps<FlashworkNode>) {
+type TerminalFlowNode = Node<TerminalNodeData, 'terminal'>;
+
+export function TerminalNode({ data, selected }: NodeProps<TerminalFlowNode>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -110,7 +112,10 @@ export function TerminalNode({ data, selected }: NodeProps<FlashworkNode>) {
     <div className={`terminal-node ${selected ? 'is-selected' : ''}`}>
       <div className="terminal-node__header">
         <strong>{data.label}</strong>
-        <span>{data.commandPreset}</span>
+        <span title={data.worktreePath ?? undefined}>
+          {data.commandPreset}
+          {data.worktreePath ? ' · floor' : ''}
+        </span>
       </div>
       <div className="terminal-node__body nowheel nodrag nopan" ref={containerRef} />
     </div>

@@ -45,6 +45,16 @@ describe('@flashwork/shared-types smoke', () => {
       data: 'hello',
     }
     expect(PTYMessageSchema.parse(message).type).toBe('data')
+
+    const spawn = PTYMessageSchema.parse({
+      type: 'spawn',
+      sessionId: 'pty-2',
+      preset: 'bash',
+    })
+    expect(spawn.type).toBe('spawn')
+    if (spawn.type === 'spawn') {
+      expect(spawn.preset).toBe('bash')
+    }
   })
 
   it('accepts RouterStatus shape', () => {

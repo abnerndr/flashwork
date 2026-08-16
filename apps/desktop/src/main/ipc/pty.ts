@@ -1,10 +1,15 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import {
   PTYMessageSchema,
+  PtyScrollbackRequestSchema,
   type PTYMessage,
 } from '@flashwork/shared-types';
 import { PtySessionManager } from '@flashwork/pty-bridge';
 import * as nativePty from '@homebridge/node-pty-prebuilt-multiarch';
+
+import { assertAllowedCwd } from '../pty/cwd-guard';
+import { resolveCommandPreset } from '../pty/resolve-preset';
+import { getFloorsRoot } from '../floors/paths';
 
 export const PTY_IPC = {
   message: 'pty:message',
@@ -25,6 +30,10 @@ function broadcast(message: PTYMessage): void {
   }
 }
 
+function allowedCwdRoots(): string[] {
+  return [process.cwd(), getFloorsRoot()];
+}
+
 export function getPtyManager(): PtySessionManager {
   return manager;
 }
@@ -43,14 +52,16 @@ export function registerPtyIpc(): void {
 
     switch (message.type) {
       case 'spawn': {
+        const resolved = resolveCommandPreset(message.preset);
+        const cwd = assertAllowedCwd(message.cwd, allowedCwdRoots());
+        // Renderer env is intentionally ignored — only process env from main.
         const result = manager.spawn({
           sessionId: message.sessionId,
-          command: message.command,
-          args: message.args,
-          cwd: message.cwd,
+          command: resolved.command,
+          args: resolved.args,
+          cwd,
           cols: message.cols,
           rows: message.rows,
-          env: message.env,
         });
         return result;
       }
@@ -81,9 +92,7 @@ export function registerPtyIpc(): void {
   ipcMain.handle(PTY_IPC.list, () => manager.list());
 
   ipcMain.handle(PTY_IPC.scrollback, (_event, sessionId: unknown) => {
-    if (typeof sessionId !== 'string' || sessionId.length === 0) {
-      throw new Error('sessionId must be a non-empty string');
-    }
-    return manager.getScrollback(sessionId);
+    const id = PtyScrollbackRequestSchema.parse(sessionId);
+    return manager.getScrollback(id);
   });
 }

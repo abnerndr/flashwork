@@ -1,12 +1,15 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 
+import { registerFloorsIpc } from './ipc/floors';
 import { registerPtyIpc } from './ipc/pty';
 
-let mainWindow: BrowserWindow | null = null;
+export const APP_IPC = {
+  createWindow: 'app:create-window',
+} as const;
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
+function createWindow(): BrowserWindow {
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
     title: 'Flashwork',
@@ -18,37 +21,128 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  return win;
 }
 
-app.whenReady().then(() => {
-  registerPtyIpc();
-  createWindow();
+function ensureWindow(): BrowserWindow {
+  const existing = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed());
+  if (existing) {
+    if (existing.isMinimized()) existing.restore();
+    existing.focus();
+    return existing;
+  }
+  return createWindow();
+}
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+function setupApplicationMenu(): void {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Arquivo',
+      submenu: [
+        {
+          label: 'Nova janela',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => {
+            createWindow();
+          },
+        },
+        { type: 'separator' },
+        process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    {
+      label: 'Editar',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'Janela',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        {
+          label: 'Nova janela',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => {
+            createWindow();
+          },
+        },
+      ],
+    },
+  ];
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    });
+  }
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function registerAppIpc(): void {
+  ipcMain.handle(APP_IPC.createWindow, () => {
+    createWindow();
+    return { ok: true as const };
+  });
+}
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    ensureWindow();
+  });
+
+  app.whenReady().then(() => {
+    registerPtyIpc();
+    registerFloorsIpc();
+    registerAppIpc();
+    setupApplicationMenu();
+    createWindow();
+
+    // macOS dock click + non-macOS reactivation path when no windows remain.
+    app.on('activate', () => {
+      ensureWindow();
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    // Keep the main process alive so PTY sessions survive window close (PRD 1.6).
+    // Reopen via: menu "Nova janela", Ctrl/Cmd+Shift+N, app:create-window IPC,
+    // second-instance focus, or platform activate (dock / taskbar).
+    if (process.platform !== 'darwin') {
+      // Intentionally do not call app.quit() during MVP shell.
     }
   });
-});
-
-app.on('window-all-closed', () => {
-  // Keep the main process alive so PTY sessions survive window close (PRD 1.6).
-  // On non-macOS, users can still quit via app menu / Cmd+Q equivalent.
-  if (process.platform !== 'darwin') {
-    // Intentionally do not call app.quit() here during MVP shell.
-  }
-});
+}

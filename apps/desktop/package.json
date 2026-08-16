@@ -8,12 +8,13 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "lint": "eslint src --max-warnings=0",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit"
   },
   "dependencies": {
     "@flashwork/pty-bridge": "workspace:*",
     "@flashwork/shared-types": "workspace:*",
+    "@flashwork/worktree-manager": "workspace:*",
     "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
     "@xyflow/react": "^12.4.4",
     "@xterm/addon-fit": "^0.10.0",

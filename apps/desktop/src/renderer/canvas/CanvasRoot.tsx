@@ -13,17 +13,16 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import type { TerminalCommandPreset } from '@flashwork/shared-types';
 
+import { FloorContainer } from './nodes/FloorContainer';
 import { TerminalNode } from './nodes/TerminalNode';
-import {
-  resolveCommandPreset,
-  useCanvasStore,
-  type FlashworkNode,
-  type TerminalCommandPreset,
-} from '../state/canvasStore';
+import { useCanvasStore, type FlashworkNode } from '../state/canvasStore';
+import { useFloorsStore } from '../state/floorsStore';
 
 const nodeTypes = {
   terminal: TerminalNode,
+  floorContainer: FloorContainer,
 } as NodeTypes;
 
 const DND_MIME = 'application/flashwork-terminal-preset';
@@ -33,6 +32,14 @@ function createSessionId(): string {
     return crypto.randomUUID();
   }
   return `pty-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function killPtySessions(sessionIds: string[]): void {
+  const api = window.flashwork;
+  if (!api) return;
+  for (const sessionId of sessionIds) {
+    void api.pty.send({ type: 'kill', sessionId });
+  }
 }
 
 type SpawnTerminalFn = (
@@ -45,17 +52,42 @@ function CanvasToolbar({
   setPreset,
   busy,
   error,
-  onAdd,
+  activeFloorId,
+  floors,
+  onSelectFloor,
+  onAddFloor,
+  onAddTerminal,
 }: {
   preset: TerminalCommandPreset;
   setPreset: (preset: TerminalCommandPreset) => void;
   busy: boolean;
   error: string | null;
-  onAdd: () => void;
+  activeFloorId: string | null;
+  floors: { id: string; name: string }[];
+  onSelectFloor: (floorId: string | null) => void;
+  onAddFloor: () => void;
+  onAddTerminal: () => void;
 }) {
   return (
     <div className="canvas-toolbar">
       <div className="brand">Flashwork</div>
+      <label className="toolbar-field">
+        <span>Floor</span>
+        <select
+          value={activeFloorId ?? ''}
+          onChange={(event) => onSelectFloor(event.target.value || null)}
+        >
+          <option value="">(sem floor)</option>
+          {floors.map((floor) => (
+            <option key={floor.id} value={floor.id}>
+              {floor.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" disabled={busy} onClick={onAddFloor}>
+        {busy ? 'Criando…' : 'Novo Floor'}
+      </button>
       <label className="toolbar-field">
         <span>Comando</span>
         <select
@@ -78,7 +110,7 @@ function CanvasToolbar({
       >
         Terminal ({preset})
       </div>
-      <button type="button" disabled={busy} onClick={onAdd}>
+      <button type="button" disabled={busy} onClick={onAddTerminal}>
         {busy ? 'Criando…' : 'Adicionar Terminal'}
       </button>
       {error ? <p className="toolbar-error">{error}</p> : null}
@@ -95,7 +127,15 @@ function CanvasBoard() {
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
   const addTerminalNode = useCanvasStore((s) => s.addTerminalNode);
+  const addFloorContainer = useCanvasStore((s) => s.addFloorContainer);
   const upsertTerminalFromSession = useCanvasStore((s) => s.upsertTerminalFromSession);
+  const takeRemovedTerminalSessions = useCanvasStore((s) => s.takeRemovedTerminalSessions);
+  const floors = useFloorsStore((s) => s.floors);
+  const activeFloorId = useFloorsStore((s) => s.activeFloorId);
+  const upsertFloor = useFloorsStore((s) => s.upsertFloor);
+  const setFloors = useFloorsStore((s) => s.setFloors);
+  const setActiveFloorId = useFloorsStore((s) => s.setActiveFloorId);
+  const getFloor = useFloorsStore((s) => s.getFloor);
   const { screenToFlowPosition } = useReactFlow();
 
   const spawnTerminal = useCallback<SpawnTerminalFn>(
@@ -109,28 +149,32 @@ function CanvasBoard() {
       setBusy(true);
       setError(null);
       const sessionId = createSessionId();
-      const resolved = resolveCommandPreset(commandPreset);
+      const floor = activeFloorId ? getFloor(activeFloorId) : undefined;
       const flowPosition =
         position ??
-        screenToFlowPosition({
-          x: window.innerWidth / 2 - 160,
-          y: window.innerHeight / 2 - 120,
-        });
+        (floor
+          ? { x: 24, y: 64 }
+          : screenToFlowPosition({
+              x: window.innerWidth / 2 - 160,
+              y: window.innerHeight / 2 - 120,
+            }));
 
       try {
         await api.pty.send({
           type: 'spawn',
           sessionId,
-          command: resolved.command,
-          args: resolved.args,
+          preset: commandPreset,
+          cwd: floor?.worktreePath,
           cols: 80,
           rows: 24,
         });
         addTerminalNode({
           sessionId,
           commandPreset,
-          command: resolved.command,
-          args: resolved.args,
+          command: commandPreset,
+          args: [],
+          floorId: floor?.id ?? null,
+          worktreePath: floor?.worktreePath,
           position: flowPosition,
         });
       } catch (err) {
@@ -144,14 +188,50 @@ function CanvasBoard() {
         setBusy(false);
       }
     },
-    [addTerminalNode, screenToFlowPosition],
+    [activeFloorId, addTerminalNode, getFloor, screenToFlowPosition],
   );
+
+  const createFloor = useCallback(async () => {
+    const api = window.flashwork;
+    if (!api) {
+      setError('Preload IPC indisponível');
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const floor = await api.floors.create({
+        name: `Floor ${floors.length + 1}`,
+      });
+      upsertFloor(floor);
+      setActiveFloorId(floor.id);
+      addFloorContainer({
+        floorId: floor.id,
+        name: floor.name,
+        branch: floor.branch,
+        worktreePath: floor.worktreePath,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }, [addFloorContainer, floors.length, setActiveFloorId, upsertFloor]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlashworkNode>[]) => {
-      setNodes((current) => applyNodeChanges(changes, current));
+      setNodes((current) => {
+        const next = applyNodeChanges(changes, current);
+        const removedSessions = takeRemovedTerminalSessions(current, next);
+        if (removedSessions.length > 0) {
+          killPtySessions(removedSessions);
+        }
+        return next;
+      });
     },
-    [setNodes],
+    [setNodes, takeRemovedTerminalSessions],
   );
 
   const onEdgesChange = useCallback(
@@ -183,16 +263,28 @@ function CanvasBoard() {
   useEffect(() => {
     const api = window.flashwork;
     if (!api) return;
+    void api.floors.list().then((listed) => {
+      setFloors(listed);
+      for (const floor of listed) {
+        addFloorContainer({
+          floorId: floor.id,
+          name: floor.name,
+          branch: floor.branch,
+          worktreePath: floor.worktreePath,
+        });
+      }
+    });
     void api.pty.list().then((sessions) => {
       for (const session of sessions) {
         upsertTerminalFromSession({
           sessionId: session.sessionId,
           command: session.command,
           args: session.args,
+          cwd: session.cwd,
         });
       }
     });
-  }, [upsertTerminalFromSession]);
+  }, [addFloorContainer, setFloors, upsertTerminalFromSession]);
 
   return (
     <div className="canvas-shell">
@@ -201,7 +293,11 @@ function CanvasBoard() {
         setPreset={setPreset}
         busy={busy}
         error={error}
-        onAdd={() => void spawnTerminal(preset)}
+        activeFloorId={activeFloorId}
+        floors={floors}
+        onSelectFloor={setActiveFloorId}
+        onAddFloor={() => void createFloor()}
+        onAddTerminal={() => void spawnTerminal(preset)}
       />
       <div className="canvas-stage">
         <ReactFlow

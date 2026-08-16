@@ -73,16 +73,19 @@ export const CanvasNodeSchema = z.discriminatedUnion('kind', [
 ]);
 export type CanvasNode = z.infer<typeof CanvasNodeSchema>;
 
+/** Allowlisted terminal presets — main process resolves real command paths. */
+export const TerminalCommandPresetSchema = z.enum(['bash', 'claude', 'codex']);
+export type TerminalCommandPreset = z.infer<typeof TerminalCommandPresetSchema>;
+
 export const PTYMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('spawn'),
     sessionId: z.string().min(1),
-    command: z.string().min(1),
-    args: z.array(z.string()).default([]),
+    /** Preset id only — renderer must not send arbitrary command strings. */
+    preset: TerminalCommandPresetSchema,
     cwd: z.string().optional(),
     cols: z.number().int().positive().default(80),
     rows: z.number().int().positive().default(24),
-    env: z.record(z.string()).optional(),
   }),
   z.object({
     type: z.literal('write'),
@@ -111,6 +114,21 @@ export const PTYMessageSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type PTYMessage = z.infer<typeof PTYMessageSchema>;
+
+export const PtyScrollbackRequestSchema = z.string().min(1);
+export type PtyScrollbackRequest = z.infer<typeof PtyScrollbackRequestSchema>;
+
+export const CreateFloorRequestSchema = z.object({
+  name: z.string().min(1).optional(),
+  branch: z.string().min(1).optional(),
+  baseRef: z.string().min(1).optional(),
+});
+export type CreateFloorRequest = z.infer<typeof CreateFloorRequestSchema>;
+
+export const RemoveFloorRequestSchema = z.object({
+  floorId: z.string().min(1),
+});
+export type RemoveFloorRequest = z.infer<typeof RemoveFloorRequestSchema>;
 
 export const RouterStatusSchema = z.object({
   provider: z.string().min(1),

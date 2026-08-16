@@ -43,7 +43,7 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 
 ### Bloqueios críticos
 
-**Nenhum** para Fase 2.
+**Nenhum** para Fase 3.
 
 ## Checklist de tasks (tasks-PRD-flashwork.md)
 
@@ -54,7 +54,7 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 - [x] 0.4 `apps/desktop` electron-vite (janela em branco)
 - [x] 0.5 CI básico (lint + test + build)
 
-### 1.0 Shell + Canvas + Terminal — FEITO
+### 1.0 Shell + Canvas + Terminal — FEITO (+ hardenings)
 - [x] 1.1 `@xyflow/react` canvas com pan/zoom
 - [x] 1.2 `packages/pty-bridge` (spawn/write/resize/kill) + vitest (mock)
 - [x] 1.3 IPC main→preload→renderer com Zod (`PTYMessageSchema`)
@@ -62,11 +62,20 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 - [x] 1.5 Drag/palette + seletor `bash`/`claude`/`codex`
 - [x] 1.6 PTY no main; `window-all-closed` não encerra o app; reattach via `pty:list` + scrollback
 - [x] 1.7 Aceite: build + unit tests + smoke nativo bash (GUI Electron não aberta neste ambiente)
+- [x] **QA fix:** kill PTY ao remover TerminalNode (`removeNode` + `onNodesChange`)
+- [x] **QA fix:** spawn allowlist por preset (`bash`/`claude`/`codex`); main resolve path; `env` do renderer ignorado; `cwd` validado sob roots permitidos
+- [x] **QA fix:** `pty:scrollback` com `PtyScrollbackRequestSchema` (Zod)
+- [x] **QA fix:** reopen de janela — menu "Nova janela" / Ctrl+Shift+N / `app:create-window` / `activate` / second-instance
 
-### 2.0 Floors / worktrees — PENDENTE (próximo)
-- [ ] 2.1–2.6
+### 2.0 Floors / worktrees — FEITO
+- [x] 2.1 `packages/worktree-manager` (create/list/remove) + vitest (repos temp)
+- [x] 2.2 `FloorContainer.tsx` (path + branch)
+- [x] 2.3 Criar Floor → worktree via IPC + container no canvas
+- [x] 2.4 Vários TerminalNodes no mesmo Floor / Floors distintos (`cwd` = worktree)
+- [x] 2.5 `floorsStore.ts` (Zustand)
+- [x] 2.6 Aceite: 2 worktrees distintos + isolamento de arquivos (teste unitário)
 
-### 3.0 IDE sidecar — PENDENTE
+### 3.0 IDE sidecar — PENDENTE (próximo)
 - [ ] 3.1–3.6
 
 ### 4.0 OmniRoute — PENDENTE
@@ -86,12 +95,16 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 4. ✅ Git init + branch `feat/prd-mvp` + monorepo 0.0
 5. ✅ Verificação 0.0: install/test/build/lint
 6. ✅ Task group **1.0** canvas + pty-bridge + TerminalNode + IPC
-7. ⏳ Próximo: **2.0** Floors / worktrees
+7. ✅ Hardenings 1.0 (kill/preset/cwd/scrollback/reopen)
+8. ✅ Task group **2.0** Floors / worktrees
+9. ⏳ Próximo: **3.0** IDE sidecar
 
-## Notas 1.0
+## Notas 1.0 / 2.0
 
 - PTY nativo: `@homebridge/node-pty-prebuilt-multiarch` (MIT) — o ambiente WSL não tinha `make` para compilar `node-pty` puro; prebuild cobre Node ABI 127.
-- GUI Electron: não validada visualmente neste host (sem display/X11 confiável no fluxo do agente). Aceite 1.7 coberto por build + testes + smoke `bash` via binding nativo.
+- GUI Electron: não validada visualmente neste host (sem display/X11 confiável no fluxo do agente). Aceite coberto por build + testes.
+- Spawn: renderer envia só `preset`; main resolve executável e ignora `env` arbitrário.
+- Floors: worktrees sob `.worktrees/` (ou `FLASHWORK_FLOORS_ROOT`); `cwd` do terminal associado ao `worktreePath` do Floor.
 - `claude`/`codex` no PATH são opcionais; UI sugere fallback para `bash`.
 
 ## Como validar
@@ -100,6 +113,7 @@ Isolamento por **Floor** = 1 `git worktree`. Persistência SQLite. Empacotamento
 cd /home/abner/www/ruperth/flashwork
 pnpm install
 pnpm --filter @flashwork/pty-bridge test
+pnpm --filter @flashwork/worktree-manager test
 pnpm --filter @flashwork/shared-types test
 pnpm typecheck
 pnpm lint

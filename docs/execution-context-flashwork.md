@@ -1,6 +1,6 @@
 # Contexto de continuação — Flashwork PRD
 
-**Última atualização:** 2026-08-15 (task 1.0 concluída)  
+**Última atualização:** 2026-08-15 (tasks 1.0 hardenings + 2.0 concluídas)  
 **Objetivo:** outro agente deve poder retomar daqui sem reler o chat.
 
 ## Skills em uso
@@ -20,7 +20,8 @@
 
 - Path: `/home/abner/www/ruperth/flashwork`
 - Branch atual: `feat/prd-mvp`
-- Task group **1.0** implementado (canvas + pty-bridge + TerminalNode + IPC Zod)
+- Task group **1.0** FEITO + hardenings de qualidade
+- Task group **2.0** FEITO (worktree-manager + FloorContainer + floorsStore + cwd por floor)
 - Worktree: execução in-place na branch feature (`.worktrees/` no `.gitignore`)
 
 ## Premissas (revisão crítica)
@@ -36,20 +37,30 @@ Ver tabela completa em `docs/STATUS-flashwork.md`. Resumo:
 ## Ordem de execução (não pular fases)
 
 1. **0.0** monorepo + electron-vite blank window + CI — **FEITO**
-2. **1.0** canvas + pty-bridge + TerminalNode + PTY sobrevive ao fechar janela — **FEITO**
-3. **2.0** worktree-manager + FloorContainer + floorsStore ← **PRÓXIMO**
-4. **3.0** ide-sidecar + IdeNode + Monaco leve
+2. **1.0** canvas + pty-bridge + TerminalNode + PTY sobrevive ao fechar janela — **FEITO** (+ QA)
+3. **2.0** worktree-manager + FloorContainer + floorsStore — **FEITO**
+4. **3.0** ide-sidecar + IdeNode + Monaco leve ← **PRÓXIMO**
 5. **4.0** omniroute-sidecar + RouterStatusNode
 6. **5.0** persistence SQLite + electron-builder + audit 127.0.0.1
 7. **6.0** Portal/Sticky/visual/E2E/licenças
 
-## O que entrou em 1.0
+## O que entrou em 1.0 (+ hardenings)
 
 - `packages/pty-bridge` — `PtySessionManager` (spawn/write/resize/kill, scrollback, subscribe)
 - Native: `@homebridge/node-pty-prebuilt-multiarch` (MIT; sem `make` no WSL)
-- IPC: `apps/desktop/src/main/ipc/pty.ts` + preload `flashwork.pty.*` + Zod `PTYMessageSchema`
-- UI: `CanvasRoot` (@xyflow/react), `TerminalNode` (xterm + WebGL opcional), zustand `canvasStore`
-- Keep-alive: main não dá `app.quit()` em `window-all-closed`; reattach via `pty:list` + scrollback
+- IPC: spawn por **preset** allowlisted; main resolve path; `env` do renderer ignorado; `cwd` sob roots (`process.cwd()` + floors root)
+- Kill PTY ao deletar nó (store + React Flow Backspace/`onNodesChange`)
+- `pty:scrollback` validado com Zod
+- Reopen: menu Nova janela, Ctrl/Cmd+Shift+N, `app:create-window`, `activate`, second-instance
+- UI: `CanvasRoot`, `TerminalNode`, zustand `canvasStore`
+
+## O que entrou em 2.0
+
+- `packages/worktree-manager` — create/list/remove + testes com repos temporários (prova 2.6 de isolamento)
+- `apps/desktop` IPC `floors:create|list|remove`
+- `floorsStore.ts` + `FloorContainer.tsx` (nome, branch, path)
+- Terminal spawn com `cwd = floor.worktreePath` quando há `floorId` ativo
+- Múltiplos terminais no mesmo Floor (parent React Flow) e em Floors distintos
 
 ## Workflow por task (obrigatório)
 
@@ -69,8 +80,8 @@ Ver tabela completa em `docs/STATUS-flashwork.md`. Resumo:
 
 ## Próxima ação imediata
 
-1. Implementar task group **2.0** (Floors / worktrees) na branch `feat/prd-mvp`
-2. Ver `docs/briefs/task-2.0.md` se existir
+1. Implementar task group **3.0** (IDE sidecar) na branch `feat/prd-mvp`
+2. Ver `docs/briefs/task-3.0.md` se existir
 
 ## Notas de ambiente (host)
 
@@ -90,6 +101,7 @@ Plano do usuário: commitar quando pedido / ao fechar task group. Não push sem 
 ```
 [x] Ler STATUS-flashwork.md
 [x] Verificar branch/worktree path → feat/prd-mvp
-[x] Task 1.0 FEITO
-[ ] Continuar com próximo subagente implementer (2.0)
+[x] Task 1.0 FEITO (+ hardenings)
+[x] Task 2.0 FEITO
+[ ] Continuar com próximo subagente implementer (3.0)
 ```

@@ -1,0 +1,10 @@
+{
+  "name": "Flashwork Remote",
+  "short_name": "Flashwork",
+  "description": "Flashwork LAN remote workspace",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1014",
+  "theme_color": "#0e1014",
+  "icons": []
+}

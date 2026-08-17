@@ -1,18 +1,13 @@
 # Dependencies
 node_modules/
-.pnpm-store/
 
-# Builds
+# Builds / caches
 dist/
 out/
 build/
-release/
-*.tsbuildinfo
-
-# Turbo / caches
-.turbo/
-.cache/
 coverage/
+.cache/
+*.tsbuildinfo
 
 # Env / secrets
 .env
@@ -22,28 +17,16 @@ coverage/
 # Logs / OS
 *.log
 npm-debug.log*
-pnpm-debug.log*
 .DS_Store
 Thumbs.db
-
-# Electron
-*.asar
-*.dmg
-*.exe
-*.AppImage
-*.deb
-*.rpm
-*.snap
-
-# Test / IDE
-.nyc_output/
-.vscode-test/
 .idea/
 
-# Git worktrees (local isolation)
-.worktrees/
+# Tauri / Rust
+target/
+apps/orchestrator/node_modules/
+apps/orchestrator/src-tauri/target/
+apps/orchestrator/dist/
 
 # Misc
 *.local
-fw-bootstrap.sh
 fw-status.txt

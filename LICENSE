@@ -1,3 +1,21 @@
+# Flashwork licensing
+
+The default desktop product lives in `apps/orchestrator/` and is an
+**AGPL-3.0-or-later** derivative of [Flashwork Agents](https://github.com/abnerndr/flashwork-agents).
+
+See:
+
+- `apps/orchestrator/LICENSE`
+- `apps/orchestrator/NOTICE`
+- `docs/license-audit.md`
+- `docs/THIRD_PARTY_FLASHWORK.md`
+
+Root documentation and helper scripts in this repository that are original to
+Flashwork (not copied from Flashwork) may be used under MIT as stated below.
+**Do not treat a shipped Flashwork orchestrator binary as MIT.**
+
+---
+
 MIT License
 
 Copyright (c) 2026 Flashwork contributors

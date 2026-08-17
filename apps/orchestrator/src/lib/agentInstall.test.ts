@@ -67,6 +67,13 @@ describe('installMethodsFor', () => {
     )
     expect(installMethodsFor('mimo', BARE).map((method) => method.id)).toEqual(['native'])
   })
+
+  it('installs Gemini CLI through the official npm package', () => {
+    expect(installMethodsFor('gemini', { ...BARE, npm: true })[0].command).toBe(
+      'npm install -g @google/gemini-cli',
+    )
+    expect(needsNodeToolchain('gemini', BARE)).toBe(true)
+  })
 })
 
 describe('needsNodeToolchain', () => {

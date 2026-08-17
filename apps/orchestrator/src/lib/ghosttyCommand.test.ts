@@ -13,6 +13,7 @@ describe('buildGhosttyCommand', () => {
     expect(buildGhosttyCommand('codex')).toBe('codex')
     expect(buildGhosttyCommand('opencode')).toBe('opencode')
     expect(buildGhosttyCommand('antigravity')).toBe('agy')
+    expect(buildGhosttyCommand('gemini')).toBe('gemini')
   })
 
   it('inclui extraArgs simples sem aspas', () => {

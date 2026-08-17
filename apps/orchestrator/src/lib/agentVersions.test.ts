@@ -6,6 +6,7 @@ describe('npmPackageFor', () => {
   it('reads the package out of the documented install command', () => {
     expect(npmPackageFor('freebuff')).toBe('freebuff')
     expect(npmPackageFor('mimo')).toBe('@mimo-ai/cli')
+    expect(npmPackageFor('gemini')).toBe('@google/gemini-cli')
     expect(npmPackageFor('claude')).toBe('@anthropic-ai/claude-code')
   })
 

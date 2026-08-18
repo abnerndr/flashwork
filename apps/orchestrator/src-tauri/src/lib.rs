@@ -35,6 +35,7 @@ mod mcp_catalog;
 mod mcp_health;
 mod mcp_model;
 mod mcp_store;
+mod omniroute;
 mod opencode_bridge;
 mod opencode_gsd_plugin;
 mod opencode_sessions;
@@ -147,6 +148,8 @@ pub fn run() {
     pty::install_kill_on_close_guard();
     let sessions: PtySessions = Arc::new(Mutex::new(HashMap::<String, PtySession>::new()));
     let codex_app_server_state = codex_app_server::CodexAppServerState::default();
+    let omniroute_state = omniroute::OmniRouteState::default();
+    let omniroute_for_exit = omniroute_state.clone();
     let sessions_for_exit = Arc::clone(&sessions);
     let sessions_for_resources = Arc::clone(&sessions);
     let resource_supervisor = Arc::new(resources::ResourceSupervisor::default());
@@ -155,6 +158,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .manage(sessions.clone())
         .manage(codex_app_server_state)
+        .manage(omniroute_state)
         .manage(remote::hub())
         .manage(resource_supervisor)
         .manage(ghostty_bridge::GhosttySurfaces::default())
@@ -366,6 +370,10 @@ pub fn run() {
             prompt_run::load_prompt_run,
             prompt_run::list_prompt_runs,
             prompt_run::append_prompt_run_journal,
+            omniroute::omniroute_start,
+            omniroute::omniroute_stop,
+            omniroute::omniroute_set_gateway_key,
+            omniroute::omniroute_get_gateway_key,
             antigravity_sessions::snapshot_antigravity_sessions,
             claude_usage::get_claude_usage,
             codex_usage::get_codex_usage,
@@ -449,19 +457,26 @@ pub fn run() {
 
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 pty::kill_all_sessions_background(&sessions_for_exit);
+                let _ = omniroute::stop_owned_sidecar(&omniroute_for_exit);
             }
 
             if let tauri::RunEvent::Exit = event {
+                let _ = omniroute::stop_owned_sidecar(&omniroute_for_exit);
                 crash_watch::mark_clean_exit();
             }
         });
 }
 
 #[tauri::command]
-fn quit_app(app: tauri::AppHandle, sessions: tauri::State<'_, PtySessions>) {
+fn quit_app(
+    app: tauri::AppHandle,
+    sessions: tauri::State<'_, PtySessions>,
+    omniroute: tauri::State<'_, omniroute::OmniRouteState>,
+) {
     // The Windows job object remains the hard guarantee that descendants die with the app. The
     // best-effort explicit teardown runs in the background so a slow process tree cannot block exit.
     pty::kill_all_sessions_background(sessions.inner());
+    let _ = omniroute::stop_owned_sidecar(omniroute.inner());
     crash_watch::mark_clean_exit();
     app.exit(0);
 }

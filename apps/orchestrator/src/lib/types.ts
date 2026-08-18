@@ -130,6 +130,46 @@ export type AgentHandoffBootstrap = {
   sourceSessionId: string
 }
 
+export type PromptRunStatus =
+  | 'running'
+  | 'handing-off'
+  | 'waiting'
+  | 'done'
+  | 'failed'
+  | 'cancelled'
+
+export type PromptRunStepReason =
+  | 'heuristic'
+  | 'quota'
+  | 'error'
+  | 'user'
+  | 'only-installed'
+  | 'project-preference'
+  | 'last-used'
+
+export type PromptRunStep = {
+  agent: AgentType
+  reason: PromptRunStepReason
+  startedAt: number
+  endedAt?: number
+  handoffId?: string
+  terminalId?: string
+}
+
+export type PromptRun = {
+  id: string
+  projectId: string
+  cwd: string
+  prompt: string
+  status: PromptRunStatus
+  activeAgent: AgentType
+  activeTerminalId: string
+  unrestricted: boolean
+  steps: PromptRunStep[]
+  journalPath: string
+  createdAt: number
+}
+
 export type AgentRuntimeProfile = 'full' | 'lean' | 'diagnostic'
 
 /** Flag de "modo irrestrito" por agente (skip permissions / approvals). */

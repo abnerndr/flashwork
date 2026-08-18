@@ -3,6 +3,7 @@ import {
   type HandoffArtifact,
   type HandoffDraft,
   type HandoffProvider,
+  loadPromptRun,
   materializeAgentHandoff,
   prepareAgentHandoff,
 } from '../tauri'
@@ -43,16 +44,22 @@ export function buildHandoffTerminalArgs(input: BuildHandoffTerminalArgsInput): 
   }
 }
 
-export function looksLikeFilesystemPath(path: string): boolean {
-  if (!path) return false
-  if (path.startsWith('/')) return true
-  if (path.startsWith('\\\\')) return true
-  return /^[A-Za-z]:[\\/]/.test(path)
+export function stripVerbatimPrefix(path: string): string {
+  return path.replace(/^\\\\\?\\/, '')
 }
 
-export function buildFallbackBootstrap(journalPath: string, prompt: string): string {
-  if (looksLikeFilesystemPath(journalPath)) {
-    return `Read the run journal at "${journalPath}" and continue this user request.\n\n${prompt}`
+export function looksLikeFilesystemPath(path: string): boolean {
+  if (!path) return false
+  const normalized = stripVerbatimPrefix(path)
+  if (normalized.startsWith('/')) return true
+  if (normalized.startsWith('\\\\')) return true
+  return /^[A-Za-z]:[\\/]/.test(normalized)
+}
+
+export function buildFallbackBootstrap(journalPath: string | undefined, prompt: string): string {
+  if (journalPath && looksLikeFilesystemPath(journalPath)) {
+    const absolute = stripVerbatimPrefix(journalPath)
+    return `Read the run journal at "${absolute}" and continue this user request.\n\n${prompt}`
   }
   return `Continue this user request.\n\n${prompt}`
 }
@@ -64,15 +71,19 @@ export type ExecuteAutoHandoffInput = {
   cwd: string
   extraArgs?: string[]
   paneName: string
-  journalPath: string
+  runId?: string
+  journalPath?: string
   prompt: string
   bootstrapForCapsule?: (path: string) => string
 }
+
+export type LoadPromptRunJournal = (runId: string) => Promise<{ journalPath: string } | null>
 
 export type ExecuteAutoHandoffDeps = {
   prepareAgentHandoff?: typeof prepareAgentHandoff
   materializeAgentHandoff?: typeof materializeAgentHandoff
   bootstrapForCapsule?: (path: string) => string
+  loadPromptRun?: LoadPromptRunJournal
 }
 
 export type ExecuteAutoHandoffResult = {
@@ -84,6 +95,25 @@ export type ExecuteAutoHandoffResult = {
 
 function defaultCapsuleBootstrap(path: string): string {
   return translate(getLocale(), 'handoff.bootstrapPrompt', { path })
+}
+
+async function resolveJournalPath(
+  input: ExecuteAutoHandoffInput,
+  load: LoadPromptRunJournal,
+): Promise<string | undefined> {
+  if (input.journalPath && looksLikeFilesystemPath(input.journalPath)) {
+    return stripVerbatimPrefix(input.journalPath)
+  }
+  if (!input.runId) return undefined
+  try {
+    const loaded = await load(input.runId)
+    if (loaded?.journalPath && looksLikeFilesystemPath(loaded.journalPath)) {
+      return stripVerbatimPrefix(loaded.journalPath)
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
 }
 
 function syntheticDraft(
@@ -110,6 +140,7 @@ export async function executeAutoHandoff(
 ): Promise<ExecuteAutoHandoffResult> {
   const prepare = deps.prepareAgentHandoff ?? prepareAgentHandoff
   const materialize = deps.materializeAgentHandoff ?? materializeAgentHandoff
+  const load = deps.loadPromptRun ?? loadPromptRun
   const bootstrapForCapsule =
     deps.bootstrapForCapsule ?? input.bootstrapForCapsule ?? defaultCapsuleBootstrap
 
@@ -142,7 +173,8 @@ export async function executeAutoHandoff(
       }),
     }
   } catch {
-    const bootstrap = buildFallbackBootstrap(input.journalPath, input.prompt)
+    const journalPath = await resolveJournalPath(input, load)
+    const bootstrap = buildFallbackBootstrap(journalPath, input.prompt)
     return {
       draft: prepared ?? syntheticDraft(input, bootstrap),
       artifact: null,

@@ -86,6 +86,7 @@ export function usePromptRunWatcher() {
         cwd: run.cwd,
         extraArgs: flag ? [flag] : [],
         paneName: t('handoff.paneName', { agent: AGENT_TYPE_LABELS[target] }),
+        runId: run.id,
         journalPath: run.journalPath,
         prompt: run.prompt,
       })

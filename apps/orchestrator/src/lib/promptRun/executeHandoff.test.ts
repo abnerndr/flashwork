@@ -25,6 +25,15 @@ describe('buildHandoffTerminalArgs', () => {
   })
 })
 
+const failingPrepare = {
+  prepareAgentHandoff: async () => {
+    throw new Error('no session')
+  },
+  materializeAgentHandoff: async () => {
+    throw new Error('should not materialize')
+  },
+}
+
 describe('executeAutoHandoff', () => {
   it('falls back to the journal path and prompt when prepare fails', async () => {
     const result = await executeAutoHandoff(
@@ -34,23 +43,65 @@ describe('executeAutoHandoff', () => {
         cwd: '/repo',
         extraArgs: [],
         paneName: 'Handoff to Codex',
+        runId: 'r1',
         journalPath: '/profile/runs/r1/journal.md',
         prompt: 'implement login',
         sourceSessionId: 'sess',
       },
-      {
-        prepareAgentHandoff: async () => {
-          throw new Error('no session')
-        },
-        materializeAgentHandoff: async () => {
-          throw new Error('should not materialize')
-        },
-      },
+      failingPrepare,
     )
     expect(result.usedFallback).toBe(true)
     expect(result.artifact).toBeNull()
     expect(result.terminalArgs.firstTab.initialInput).toContain('/profile/runs/r1/journal.md')
     expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
     expect(result.terminalArgs.firstTab.handoff).toBeUndefined()
+  })
+
+  it('omits a logical journal path and still includes the prompt', async () => {
+    const result = await executeAutoHandoff(
+      {
+        source: 'claude',
+        target: 'codex',
+        cwd: '/repo',
+        extraArgs: [],
+        paneName: 'Handoff to Codex',
+        runId: 'run_test',
+        journalPath: 'runs/run_test/journal.md',
+        prompt: 'implement login',
+      },
+      {
+        ...failingPrepare,
+        loadPromptRun: async () => null,
+      },
+    )
+    expect(result.usedFallback).toBe(true)
+    expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
+    expect(result.terminalArgs.firstTab.initialInput).not.toContain('runs/run_test/journal.md')
+  })
+
+  it('resolves a logical journal path through loadPromptRun', async () => {
+    const result = await executeAutoHandoff(
+      {
+        source: 'claude',
+        target: 'codex',
+        cwd: '/repo',
+        extraArgs: [],
+        paneName: 'Handoff to Codex',
+        runId: 'run_test',
+        journalPath: 'runs/run_test/journal.md',
+        prompt: 'implement login',
+      },
+      {
+        ...failingPrepare,
+        loadPromptRun: async (runId) => {
+          expect(runId).toBe('run_test')
+          return { journalPath: '/profile/runs/run_test/journal.md' }
+        },
+      },
+    )
+    expect(result.usedFallback).toBe(true)
+    expect(result.terminalArgs.firstTab.initialInput).toContain('/profile/runs/run_test/journal.md')
+    expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
+    expect(result.terminalArgs.firstTab.initialInput).not.toContain('"runs/run_test/journal.md"')
   })
 })

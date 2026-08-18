@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { getCachedClaudeUsage } from '../lib/claudeUsageCache'
 import { getCachedCodexUsage } from '../lib/codexUsageCache'
 import { useT, type MessageKey } from '../lib/i18n'
+import { autoHandoffDedupeKey, claimAutoHandoff } from '../lib/promptRun/autoHandoffGate'
 import { detectHandoffTrigger, handoffTarget } from '../lib/promptRun/detectHandoffTrigger'
 import { executeAutoHandoff } from '../lib/promptRun/executeHandoff'
 import { probeInstalledAgents } from '../lib/promptRun/probeInstalled'
@@ -18,6 +19,7 @@ import { usePromptRunStore } from '../stores/promptRunStore'
 import { useUiStore } from '../stores/uiStore'
 
 const USAGE_POLL_MS = 60_000
+const HANDOFF_TIMEOUT_MS = 30_000
 
 const REASON_KEYS: Record<Extract<PromptRunStepReason, 'quota' | 'error' | 'user'>, MessageKey> = {
   quota: 'promptRun.reason.quota',
@@ -44,6 +46,22 @@ function runningRuns(): PromptRun[] {
   )
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(label)), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (cause) => {
+        window.clearTimeout(timer)
+        reject(cause)
+      },
+    )
+  })
+}
+
 export function usePromptRunWatcher() {
   const t = useT()
   const seenRef = useRef(new Set<string>())
@@ -54,42 +72,45 @@ export function usePromptRunWatcher() {
   }>({ claudeFiveHourUtilization: null, codexRateLimited: false })
 
   const fireHandoff = async (run: PromptRun, kind: 'quota' | 'error' | 'user') => {
-    const dedupeKey = `${run.id}:${kind}`
-    if (seenRef.current.has(dedupeKey) || inflightRef.current.has(run.id)) return
-    seenRef.current.add(dedupeKey)
+    const dedupeKey = autoHandoffDedupeKey(run.id, run.activeAgent, kind)
+    if (!claimAutoHandoff(seenRef.current, inflightRef.current, run.id, dedupeKey)) return
 
-    const enabled = useProjectsStore.getState().preferences.enabledAgents
-    const candidates = (['claude', 'codex'] as const).filter((agent) => enabled[agent])
-    const installed = await probeInstalledAgents([...candidates])
-    const target = handoffTarget(run.activeAgent, installed)
-    if (!target) {
-      const peer = run.activeAgent === 'claude' ? 'codex' : 'claude'
-      useUiStore.getState().pushToast({
-        title: t('promptRun.handoffBlockedTitle'),
-        body: t('promptRun.handoffBlockedBody', {
-          detail: `${AGENT_TYPE_LABELS[peer]} is not available`,
-        }),
-        agent: run.activeAgent,
-      })
-      return
-    }
-
-    inflightRef.current.add(run.id)
-    usePromptRunStore.getState().setStatus(run.projectId, 'handing-off')
+    let completed = false
     try {
+      const enabled = useProjectsStore.getState().preferences.enabledAgents
+      const candidates = (['claude', 'codex'] as const).filter((agent) => enabled[agent])
+      const installed = await probeInstalledAgents([...candidates])
+      const target = handoffTarget(run.activeAgent, installed)
+      if (!target) {
+        const peer = run.activeAgent === 'claude' ? 'codex' : 'claude'
+        useUiStore.getState().pushToast({
+          title: t('promptRun.handoffBlockedTitle'),
+          body: t('promptRun.handoffBlockedBody', {
+            detail: `${AGENT_TYPE_LABELS[peer]} is not available`,
+          }),
+          agent: run.activeAgent,
+        })
+        return
+      }
+
+      usePromptRunStore.getState().setStatus(run.projectId, 'handing-off')
       const pane = resolveActivePane(run)
       const flag = run.unrestricted ? UNRESTRICTED_FLAG[target] : null
-      const result = await executeAutoHandoff({
-        source: run.activeAgent === 'codex' ? 'codex' : 'claude',
-        target,
-        sourceSessionId: pane?.tab.sessionId,
-        cwd: run.cwd,
-        extraArgs: flag ? [flag] : [],
-        paneName: t('handoff.paneName', { agent: AGENT_TYPE_LABELS[target] }),
-        runId: run.id,
-        journalPath: run.journalPath,
-        prompt: run.prompt,
-      })
+      const result = await withTimeout(
+        executeAutoHandoff({
+          source: run.activeAgent === 'codex' ? 'codex' : 'claude',
+          target,
+          sourceSessionId: pane?.tab.sessionId,
+          cwd: run.cwd,
+          extraArgs: flag ? [flag] : [],
+          paneName: t('handoff.paneName', { agent: AGENT_TYPE_LABELS[target] }),
+          runId: run.id,
+          journalPath: run.journalPath,
+          prompt: run.prompt,
+        }),
+        HANDOFF_TIMEOUT_MS,
+        'auto-handoff timed out',
+      )
       const created = useProjectsStore.getState().createTerminal(run.projectId, result.terminalArgs)
       const now = Date.now()
       const latest = usePromptRunStore.getState().byProjectId[run.projectId]
@@ -110,6 +131,7 @@ export function usePromptRunWatcher() {
         activeTerminalId: created.id,
         steps,
       })
+      completed = true
       try {
         await appendPromptRunJournal(
           run.id,
@@ -131,7 +153,6 @@ export function usePromptRunWatcher() {
       })
     } catch (cause) {
       console.warn('[prompt-run] auto-handoff failed:', cause)
-      usePromptRunStore.getState().setStatus(run.projectId, 'running')
       useUiStore.getState().pushToast({
         title: t('promptRun.handoffBlockedTitle'),
         body: t('promptRun.handoffBlockedBody', { detail: String(cause) }),
@@ -139,6 +160,12 @@ export function usePromptRunWatcher() {
       })
     } finally {
       inflightRef.current.delete(run.id)
+      if (!completed) {
+        const current = usePromptRunStore.getState().byProjectId[run.projectId]
+        if (current?.id === run.id && current.status === 'handing-off') {
+          usePromptRunStore.getState().setStatus(run.projectId, 'running')
+        }
+      }
     }
   }
 

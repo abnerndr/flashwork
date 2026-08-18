@@ -215,6 +215,8 @@ export function HomeView() {
   const quickPromptRef = useRef<HTMLInputElement>(null)
   const [quickCwd, setQuickCwd] = useState('')
   const [installAgent, setInstallAgent] = useState<AgentType | null>(null)
+  const autoSubmittingRef = useRef(false)
+  const [autoSubmitting, setAutoSubmitting] = useState(false)
 
   const isAutoPick = quickPick === AUTO_LAUNCH_VALUE
   const quickAgent: AgentType =
@@ -243,84 +245,97 @@ export function HomeView() {
     const prompt = quickPromptRef.current?.value.trim() ?? ''
     if (quickPick === AUTO_LAUNCH_VALUE) {
       if (!prompt) return
-      const cwd =
-        quickCwd.trim() || (quickTarget ? getProjectDefaultCwd(quickTarget, projects) : '')
-      const installed = await probeInstalledAgents(
-        ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent] && agent !== 'shell'),
-      )
-      const claudeUsage = await getCachedClaudeUsage().catch(() => null)
-      const codexUsage = await getCachedCodexUsage().catch(() => null)
-      const result = await startPromptRun({
-        project: quickTarget
-          ? {
-              id: quickTarget.id,
-              name: quickTarget.name,
-              reviewAgentProvider: quickTarget.reviewAgentProvider,
-              conflictAgentProvider: quickTarget.conflictAgentProvider,
-              lastUsedAgent: quickTarget.terminals[quickTarget.terminals.length - 1]?.tabs[0]?.type,
-            }
-          : null,
-        cwd,
-        prompt,
-        unrestricted: quickUnrestricted,
-        enabledAgents: ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent]),
-        installedAgents: installed,
-        claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
-        codexRateLimited: Boolean(codexUsage?.rate_limited),
-        activeRunStatus: quickTarget
-          ? usePromptRunStore.getState().byProjectId[quickTarget.id]?.status
-          : undefined,
-        createAgentTerminal: (projectId, args) =>
-          useProjectsStore.getState().createAgentTerminal(projectId, args),
-      })
-      if (!result.ok) {
-        if (result.code === 'no-project') {
-          openModal('newProject')
-          pushToast({ title: t('promptRun.noProjectTitle'), body: t('promptRun.noProjectBody') })
-          return
-        }
-        if (result.code === 'no-cwd') {
-          pushToast({ title: t('promptRun.noCwdTitle'), body: t('promptRun.noCwdBody') })
-          return
-        }
-        if (result.code === 'run-active') {
+      if (autoSubmittingRef.current) return
+      autoSubmittingRef.current = true
+      setAutoSubmitting(true)
+      try {
+        const cwd =
+          quickCwd.trim() || (quickTarget ? getProjectDefaultCwd(quickTarget, projects) : '')
+        const installed = await probeInstalledAgents(
+          ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent] && agent !== 'shell'),
+        )
+        const claudeUsage = await getCachedClaudeUsage().catch(() => null)
+        const codexUsage = await getCachedCodexUsage().catch(() => null)
+        const result = await startPromptRun({
+          project: quickTarget
+            ? {
+                id: quickTarget.id,
+                name: quickTarget.name,
+                reviewAgentProvider: quickTarget.reviewAgentProvider,
+                conflictAgentProvider: quickTarget.conflictAgentProvider,
+                lastUsedAgent:
+                  quickTarget.terminals[quickTarget.terminals.length - 1]?.tabs[0]?.type,
+              }
+            : null,
+          cwd,
+          prompt,
+          unrestricted: quickUnrestricted,
+          enabledAgents: ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent]),
+          installedAgents: installed,
+          claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
+          codexRateLimited: Boolean(codexUsage?.rate_limited),
+          activeRunStatus: quickTarget
+            ? usePromptRunStore.getState().byProjectId[quickTarget.id]?.status
+            : undefined,
+          createAgentTerminal: (projectId, args) =>
+            useProjectsStore.getState().createAgentTerminal(projectId, args),
+        })
+        if (!result.ok) {
+          if (result.code === 'no-project') {
+            openModal('newProject')
+            pushToast({ title: t('promptRun.noProjectTitle'), body: t('promptRun.noProjectBody') })
+            return
+          }
+          if (result.code === 'no-cwd') {
+            pushToast({ title: t('promptRun.noCwdTitle'), body: t('promptRun.noCwdBody') })
+            return
+          }
+          if (result.code === 'run-active') {
+            pushToast({
+              title: t('promptRun.runActiveTitle'),
+              body: t('promptRun.runActiveBody'),
+            })
+            return
+          }
+          const candidate = preferences.enabledAgents.claude
+            ? 'claude'
+            : (ALL_AGENT_TYPES.find(
+                (agent) => agent !== 'shell' && preferences.enabledAgents[agent],
+              ) ?? 'claude')
+          setInstallAgent(candidate)
           pushToast({
-            title: t('promptRun.runActiveTitle'),
-            body: t('promptRun.runActiveBody'),
+            title: t('promptRun.needsInstallTitle'),
+            body: t('promptRun.needsInstallBody'),
           })
           return
         }
-        const candidate = preferences.enabledAgents.claude
-          ? 'claude'
-          : (ALL_AGENT_TYPES.find(
-              (agent) => agent !== 'shell' && preferences.enabledAgents[agent],
-            ) ?? 'claude')
-        setInstallAgent(candidate)
-        return
+        usePromptRunStore.getState().setRun(result.run)
+        try {
+          const journalPath = await appendPromptRunJournal(result.run.id, 'Run started', prompt)
+          usePromptRunStore.getState().patchRun(result.run.projectId, { journalPath })
+        } catch (cause) {
+          console.warn('[prompt-run] journal append failed:', cause)
+        }
+        setActiveProjectOnly(result.run.projectId)
+        useProjectsStore
+          .getState()
+          .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
+        setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
+        requestPaneFocus(result.run.activeTerminalId)
+        if (quickPromptRef.current) quickPromptRef.current.value = ''
+        setActiveView('workspace')
+        const reason = result.run.steps[0]?.reason ?? 'heuristic'
+        pushToast({
+          title: t('promptRun.startedTitle'),
+          body: t('promptRun.startedBody', {
+            agent: AGENT_TYPE_LABELS[result.run.activeAgent],
+            reason: t(PROMPT_RUN_REASON_KEYS[reason]),
+          }),
+        })
+      } finally {
+        autoSubmittingRef.current = false
+        setAutoSubmitting(false)
       }
-      usePromptRunStore.getState().setRun(result.run)
-      try {
-        const journalPath = await appendPromptRunJournal(result.run.id, 'Run started', prompt)
-        usePromptRunStore.getState().patchRun(result.run.projectId, { journalPath })
-      } catch (cause) {
-        console.warn('[prompt-run] journal append failed:', cause)
-      }
-      setActiveProjectOnly(result.run.projectId)
-      useProjectsStore
-        .getState()
-        .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
-      setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
-      requestPaneFocus(result.run.activeTerminalId)
-      if (quickPromptRef.current) quickPromptRef.current.value = ''
-      setActiveView('workspace')
-      const reason = result.run.steps[0]?.reason ?? 'heuristic'
-      pushToast({
-        title: t('promptRun.startedTitle'),
-        body: t('promptRun.startedBody', {
-          agent: AGENT_TYPE_LABELS[result.run.activeAgent],
-          reason: t(PROMPT_RUN_REASON_KEYS[reason]),
-        }),
-      })
       return
     }
     if (!quickTarget || !prompt) return
@@ -456,6 +471,7 @@ export function HomeView() {
                   className={`${styles.quickAgentAuto}${isAutoPick ? ` ${styles.quickAgentActive}` : ''}`}
                   title={t('home.quickAgentAutoHint')}
                   aria-label={t('home.quickAgentAuto')}
+                  aria-pressed={isAutoPick}
                   onClick={() => {
                     setQuickPick(AUTO_LAUNCH_VALUE)
                     quickAgentMenuRef.current?.removeAttribute('open')
@@ -544,7 +560,7 @@ export function HomeView() {
             <button
               type="submit"
               className={styles.quickSend}
-              disabled={!quickTarget || (!isAutoPick && quickAgents.length === 0)}
+              disabled={!quickTarget || autoSubmitting || (!isAutoPick && quickAgents.length === 0)}
               title={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
               aria-label={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
             >

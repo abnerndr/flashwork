@@ -16,6 +16,7 @@ import type { Group, Project, Terminal, WorkspaceContainer } from '../../lib/typ
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
+import { PromptRunBar } from '../PromptRunBar'
 import { PaneArea } from './PaneArea'
 import styles from './ProjectContainer.module.css'
 
@@ -198,6 +199,7 @@ export const ProjectContainer = memo(function ProjectContainer({
           </div>
         </div>
       ) : null}
+      <PromptRunBar projectId={project.id} />
       <div className={styles.body}>
         {terminals.length === 0 ? (
           <div className={styles.emptyShell}>

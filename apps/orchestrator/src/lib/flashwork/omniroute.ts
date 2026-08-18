@@ -48,10 +48,35 @@ export async function checkOmniRouteHealth(
 
 /** Env hints for agent CLIs pointed at the local gateway. */
 export function omniRouteAgentEnv(baseUrl: string = OMNIROUTE_DEFAULT_BASE): Record<string, string> {
-  const root = baseUrl.replace(/\/$/, '')
+  const root = (baseUrl || OMNIROUTE_DEFAULT_BASE)
+    .replace(/localhost/gi, '127.0.0.1')
+    .replace(/\/$/, '')
   return {
     ANTHROPIC_BASE_URL: `${root}/v1`,
     OPENAI_BASE_URL: `${root}/v1`,
     FLASHWORK_OMNIROUTE_URL: root,
   }
+}
+
+export type OmniRouteSpawnOptions = {
+  enabled: boolean
+  healthy: boolean
+  apiKey: string | null
+  baseUrl?: string
+}
+
+export function withOmniRouteEnv(
+  base: Record<string, string> | undefined,
+  options: OmniRouteSpawnOptions,
+): Record<string, string> | undefined {
+  const merged = { ...(base ?? {}) }
+  if (!options.enabled || !options.healthy || !options.apiKey) {
+    return base === undefined ? undefined : merged
+  }
+  Object.assign(merged, omniRouteAgentEnv(options.baseUrl), {
+    ANTHROPIC_API_KEY: options.apiKey,
+    ANTHROPIC_AUTH_TOKEN: options.apiKey,
+    OPENAI_API_KEY: options.apiKey,
+  })
+  return merged
 }

@@ -483,6 +483,11 @@ export type Preferences = {
   /** Quantos PTYs podem ser spawnados em paralelo (fila global). Default 3. */
   spawnConcurrency: number
 
+  /** Opt-in local 9router/OmniRoute gateway. Default off. */
+  omniRouteEnabled: boolean
+  omniRouteBaseUrl: string
+  omniRouteCaveman: boolean
+
   resourcePolicy: ResourcePolicyPreferences
 
   workspaceGridLayout?: GridLayout
@@ -607,6 +612,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   notifyOnLimitReset: true,
   dictationEnabled: false,
   spawnConcurrency: 3,
+  omniRouteEnabled: false,
+  omniRouteBaseUrl: 'http://127.0.0.1:20128',
+  omniRouteCaveman: false,
   resourcePolicy: {
     mode: 'manual',
     automaticParkingOptIn: false,

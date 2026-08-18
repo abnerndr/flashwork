@@ -72,6 +72,12 @@ fn confined_existing_run_dir(runs: &Path, run_id: &str) -> Result<Option<PathBuf
     Ok(Some(canonical_target))
 }
 
+fn journal_path_for_persist(path: &Path) -> String {
+    crate::cli_launch::strip_verbatim_prefix(path.to_path_buf())
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn confined_run_dir(runs: &Path, run_id: &str) -> Result<PathBuf, String> {
     validate_run_id(run_id)?;
     fs::create_dir_all(runs).map_err(|error| error.to_string())?;
@@ -103,7 +109,7 @@ fn save_prompt_run_inner(runs: PathBuf, mut run: PromptRunRecord) -> Result<(), 
     if !journal_path.exists() {
         fs::write(&journal_path, "").map_err(|error| error.to_string())?;
     }
-    run.journal_path = journal_path.to_string_lossy().to_string();
+    run.journal_path = journal_path_for_persist(&journal_path);
     let json = serde_json::to_string_pretty(&run).map_err(|error| error.to_string())?;
     write_json_atomically(&run_dir.join("run.json"), &json)
 }
@@ -196,7 +202,7 @@ fn append_prompt_run_journal_inner(
     let appended = append_journal_entry(&existing, &heading, &body);
     let truncated = truncate_journal(&appended, JOURNAL_CHAR_LIMIT);
     write_journal_atomically(&journal_path, &truncated)?;
-    Ok(journal_path.to_string_lossy().to_string())
+    Ok(journal_path_for_persist(&journal_path))
 }
 
 #[tauri::command]
@@ -261,5 +267,12 @@ mod tests {
         let kept = truncate_journal(&"a".repeat(100), 40);
         assert!(kept.chars().count() <= 40);
         assert!(kept.starts_with('…') || kept.len() <= 40);
+    }
+
+    #[test]
+    fn journal_path_for_persist_strips_windows_verbatim_prefix() {
+        let persisted = journal_path_for_persist(Path::new(r"\\?\C:\Users\me\runs\abc\journal.md"));
+        assert!(!persisted.starts_with(r"\\?\"));
+        assert_eq!(persisted, r"C:\Users\me\runs\abc\journal.md");
     }
 }

@@ -35,6 +35,22 @@ function firstAvailable(order: AgentType[], available: AgentType[]): AgentType |
   return order.find((agent) => available.includes(agent)) ?? available[0]
 }
 
+function dropIfOthersRemain(pool: AgentType[], agent: AgentType): AgentType[] {
+  const next = pool.filter((candidate) => candidate !== agent)
+  return next.length > 0 ? next : pool
+}
+
+function applyQuotaFilters(available: AgentType[], input: SelectAgentInput): AgentType[] {
+  let pool = available
+  const claudeBlocked =
+    pool.includes('claude') &&
+    input.claudeFiveHourUtilization != null &&
+    input.claudeFiveHourUtilization >= QUOTA_HANDOFF_THRESHOLD
+  if (claudeBlocked) pool = dropIfOthersRemain(pool, 'claude')
+  if (input.codexRateLimited) pool = dropIfOthersRemain(pool, 'codex')
+  return pool
+}
+
 export function selectAgent(input: SelectAgentInput): AgentChoice | null {
   const available = usable(input)
   if (available.length === 0) return null
@@ -48,23 +64,8 @@ export function selectAgent(input: SelectAgentInput): AgentChoice | null {
     return { agent: input.reviewAgentProvider, reason: 'project-preference', taskKind }
   }
 
-  const claudeBlocked =
-    available.includes('claude') &&
-    input.claudeFiveHourUtilization != null &&
-    input.claudeFiveHourUtilization >= QUOTA_HANDOFF_THRESHOLD
-  const withoutClaude = claudeBlocked ? available.filter((agent) => agent !== 'claude') : available
-  const pool = withoutClaude.length > 0 ? withoutClaude : available
-
-  if (claudeBlocked && pool[0]) {
-    const preferred = firstAvailable(IMPLEMENT_PREF.filter((a) => a !== 'claude'), pool)
-    if (preferred) return { agent: preferred, reason: 'quota', taskKind }
-  }
-
-  if (input.codexRateLimited) {
-    const withoutCodex = pool.filter((agent) => agent !== 'codex')
-    const next = firstAvailable(IMPLEMENT_PREF, withoutCodex.length ? withoutCodex : pool)
-    if (next && next !== 'codex') return { agent: next, reason: 'quota', taskKind }
-  }
+  const pool = applyQuotaFilters(available, input)
+  const quotaReduced = pool.length < available.length
 
   const order =
     taskKind === 'mechanical'
@@ -77,7 +78,7 @@ export function selectAgent(input: SelectAgentInput): AgentChoice | null {
 
   if (order) {
     const agent = firstAvailable(order, pool)
-    if (agent) return { agent, reason: 'heuristic', taskKind }
+    if (agent) return { agent, reason: quotaReduced ? 'quota' : 'heuristic', taskKind }
   }
 
   if (input.lastUsedAgent && pool.includes(input.lastUsedAgent)) {
@@ -88,5 +89,5 @@ export function selectAgent(input: SelectAgentInput): AgentChoice | null {
     return { agent: input.conflictAgentProvider, reason: 'project-preference', taskKind }
   }
 
-  return { agent: pool[0], reason: 'heuristic', taskKind }
+  return { agent: pool[0], reason: quotaReduced ? 'quota' : 'heuristic', taskKind }
 }

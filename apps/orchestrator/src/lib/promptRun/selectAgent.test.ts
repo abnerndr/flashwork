@@ -80,4 +80,26 @@ describe('selectAgent', () => {
     })
     expect(choice?.agent).toBe('codex')
   })
+
+  it('skips Claude and Codex when both are quota-blocked', () => {
+    const choice = selectAgent({
+      ...BASE,
+      prompt: 'implement a cache',
+      claudeFiveHourUtilization: 82,
+      codexRateLimited: true,
+    })
+    expect(choice.agent).toBe('opencode')
+    expect(choice.reason).toBe('quota')
+  })
+
+  it('applies last-used after Claude is filtered by quota', () => {
+    const choice = selectAgent({
+      ...BASE,
+      prompt: 'hello there',
+      claudeFiveHourUtilization: 82,
+      lastUsedAgent: 'opencode',
+    })
+    expect(choice.agent).toBe('opencode')
+    expect(choice.reason).toBe('last-used')
+  })
 })

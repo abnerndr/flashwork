@@ -30,3 +30,6 @@ apps/orchestrator/dist/
 # Misc
 *.local
 fw-status.txt
+
+# Git worktrees
+.worktrees/

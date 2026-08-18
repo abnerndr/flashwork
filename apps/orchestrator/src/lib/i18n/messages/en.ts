@@ -175,7 +175,8 @@ export const en = {
   'remote.title': 'Remote control',
   'remote.enabled': 'Remote control is available',
   'remote.disabled': 'Remote control is turned off',
-  'remote.description': 'Scan this QR code from a phone on the same network to open Flashwork Remote.',
+  'remote.description':
+    'Scan this QR code from a phone on the same network to open Flashwork Remote.',
   'remote.disabledDescription': 'No phone can connect while this feature is turned off.',
   'remote.statusOn': 'On',
   'remote.statusOff': 'Off',
@@ -242,7 +243,7 @@ export const en = {
   'onboarding.agentsStatInstallable': 'installable',
   'onboarding.agentsNoMatch': 'No agent matches this filter.',
   'onboarding.agentsMissing':
-    "Flashwork uses your own provider accounts and subscriptions. Missing a CLI or selected the wrong executable? Scan again or change it later in Preferences > Terminal > CLI paths.",
+    'Flashwork uses your own provider accounts and subscriptions. Missing a CLI or selected the wrong executable? Scan again or change it later in Preferences > Terminal > CLI paths.',
   'onboarding.agentsRescan': 'Scan again',
   'agentInstall.needsNode':
     'This agent installs through npm, and Node.js was not found on this machine.',
@@ -695,18 +696,30 @@ export const en = {
   'whatsNew.close': 'Got it',
   'whatsNew.update': 'View update',
   'whatsNew.releaseHeading': 'v{version} — {date}',
-  'whatsNew.v150.note1': 'Full-profile backup export now archives the entire profile (todos, history, preferences, tokens, scrollback) instead of a fixed short list.',
-  'whatsNew.v150.note2': 'New “Erase all data (fresh install)” menu action wipes every profile, account, project, scrollback, setting and log.',
-  'whatsNew.v150.note3': 'Reworked startup loading screen to share Home’s background and ASCII-art treatment.',
-  'whatsNew.v150.note4': 'Fixed account switching hanging on “PTY reader flush barrier timed out” by closing parked terminals’ pseudoconsoles before the final flush wait.',
-  'whatsNew.v150.note5': 'Fixed creating a new account getting stuck on a broken loading state, and time-boxed CLI detection so onboarding can’t freeze on “Detecting installed CLIs…”.',
-  'whatsNew.v150.note6': 'LAN remote control: authenticated mobile web view to browse chats, watch terminal output live and send one message at a time.',
-  'whatsNew.v141.note1': 'Fixed the release notes shown here and on GitHub — they were pulling from a stray, outdated copy of the changelog.',
-  'whatsNew.v140.note1': 'Graphify is now optional: turn the code graph panel on or off from Preferences without touching the agents’ MCP config.',
-  'whatsNew.v140.note2': 'The `flashwork` terminal command opens the current folder as a project — or focuses the app if it is already open.',
-  'whatsNew.v140.note3': 'File Explorer: double-click any file to open it as a pane in the workspace.',
-  'whatsNew.v140.note4': 'Git Control: double-click a file under Changes or Staged to open its diff as a pane.',
-  'whatsNew.v140.note5': 'New "About & Updates" screen in Preferences, with visible progress and errors while updating.',
+  'whatsNew.v150.note1':
+    'Full-profile backup export now archives the entire profile (todos, history, preferences, tokens, scrollback) instead of a fixed short list.',
+  'whatsNew.v150.note2':
+    'New “Erase all data (fresh install)” menu action wipes every profile, account, project, scrollback, setting and log.',
+  'whatsNew.v150.note3':
+    'Reworked startup loading screen to share Home’s background and ASCII-art treatment.',
+  'whatsNew.v150.note4':
+    'Fixed account switching hanging on “PTY reader flush barrier timed out” by closing parked terminals’ pseudoconsoles before the final flush wait.',
+  'whatsNew.v150.note5':
+    'Fixed creating a new account getting stuck on a broken loading state, and time-boxed CLI detection so onboarding can’t freeze on “Detecting installed CLIs…”.',
+  'whatsNew.v150.note6':
+    'LAN remote control: authenticated mobile web view to browse chats, watch terminal output live and send one message at a time.',
+  'whatsNew.v141.note1':
+    'Fixed the release notes shown here and on GitHub — they were pulling from a stray, outdated copy of the changelog.',
+  'whatsNew.v140.note1':
+    'Graphify is now optional: turn the code graph panel on or off from Preferences without touching the agents’ MCP config.',
+  'whatsNew.v140.note2':
+    'The `flashwork` terminal command opens the current folder as a project — or focuses the app if it is already open.',
+  'whatsNew.v140.note3':
+    'File Explorer: double-click any file to open it as a pane in the workspace.',
+  'whatsNew.v140.note4':
+    'Git Control: double-click a file under Changes or Staged to open its diff as a pane.',
+  'whatsNew.v140.note5':
+    'New "About & Updates" screen in Preferences, with visible progress and errors while updating.',
   'whatsNew.v140.note6': 'The installed version is now always visible in the sidebar footer.',
   'whatsNew.v140.note7':
     'Security: the AgentCanvas internal HTTP listener now requires a secret token, and its request body is capped at 1 MB.',
@@ -734,7 +747,8 @@ export const en = {
   'whatsNew.v130.note6':
     'Projects sidebar reorganized: pinned active project card, colored monograms, and a live activity indicator.',
   'whatsNew.v130.note7': 'YOLO mode became a one-click control in the Add AI modal.',
-  'whatsNew.v130.note8': 'Experimental window opacity control, to see the desktop through Flashwork.',
+  'whatsNew.v130.note8':
+    'Experimental window opacity control, to see the desktop through Flashwork.',
   'rightSidebar.backToTodo': 'Back to Todo',
   'rightSidebar.markdownError': 'Could not load Markdown',
   'rightSidebar.navigation': 'Right sidebar navigation',
@@ -768,6 +782,8 @@ export const en = {
   'home.startSomething': 'start something',
   'home.quickAgent': 'Coding agent',
   'home.quickAgentShort': 'Agent',
+  'home.quickAgentAuto': 'Auto',
+  'home.quickAgentAutoHint': 'Flashwork picks an installed CLI and can hand off on quota',
   'home.quickTerminalTitle': 'flashwork@workspace:~',
   'home.quickPath': 'Path',
   'home.viewAll': 'View all',
@@ -782,6 +798,7 @@ export const en = {
   'home.quickFolder': 'Working folder',
   'home.quickFolderPlaceholder': 'Choose a folder',
   'home.quickSend': 'Start agent',
+  'home.quickSendAuto': 'Start Auto run',
   'home.newTerminal': 'new terminal',
   'home.newProject': 'new project',
   'home.newGroup': 'new group',
@@ -793,6 +810,36 @@ export const en = {
   'home.repository': 'Repository',
   'home.issues': 'Issues',
   'home.releases': 'Releases',
+  'promptRun.noProjectTitle': 'Pick a project first',
+  'promptRun.noProjectBody': 'Auto runs inside an existing project. Create one, then try again.',
+  'promptRun.noCwdTitle': 'Choose a folder',
+  'promptRun.noCwdBody': 'Auto needs a working folder on that project.',
+  'promptRun.runActiveTitle': 'A run is already active',
+  'promptRun.runActiveBody': 'Cancel it from the project bar, or wait until it finishes.',
+  'promptRun.needsInstallTitle': 'No coding agent installed',
+  'promptRun.needsInstallBody': 'Install Claude Code, Codex, or OpenCode to use Auto.',
+  'promptRun.startedTitle': 'Auto run started',
+  'promptRun.startedBody': '{agent} · {reason}',
+  'promptRun.status.running': 'Running',
+  'promptRun.status.handing-off': 'Handing off',
+  'promptRun.status.waiting': 'Waiting',
+  'promptRun.status.done': 'Done',
+  'promptRun.status.failed': 'Failed',
+  'promptRun.status.cancelled': 'Cancelled',
+  'promptRun.reason.heuristic': 'Matched the prompt',
+  'promptRun.reason.quota': 'Quota',
+  'promptRun.reason.error': 'Error',
+  'promptRun.reason.user': 'You asked',
+  'promptRun.reason.only-installed': 'Only installed CLI',
+  'promptRun.reason.project-preference': 'Project preference',
+  'promptRun.reason.last-used': 'Last used in this project',
+  'promptRun.barTitle': 'Auto run',
+  'promptRun.reviewCapsule': 'Review capsule',
+  'promptRun.cancel': 'Stop Auto',
+  'promptRun.handoffToastTitle': 'Handed off to {agent}',
+  'promptRun.handoffToastBody': '{reason}. The previous pane is still open.',
+  'promptRun.handoffBlockedTitle': 'Could not hand off',
+  'promptRun.handoffBlockedBody': '{detail}',
 
   /* ---- activity graph ---- */
   'activity.title': 'activity',
@@ -1458,7 +1505,8 @@ export const en = {
   'ws.confirmOverwriteForeignAgent':
     'An agent "{name}" that was NOT created by Flashwork already exists in this project. Overwrite?',
   'ws.confirmRemoveAgent': 'Remove the agent "{name}" from the project?',
-  'ws.confirmRemoveForeignAgent': 'The agent "{name}" was NOT created by Flashwork. Remove it anyway?',
+  'ws.confirmRemoveForeignAgent':
+    'The agent "{name}" was NOT created by Flashwork. Remove it anyway?',
   'ws.moreToolCalls': '+{count} tool calls — click to see all',
   'ws.back': 'back',
   'ws.agentCanvasPoc': 'agent canvas — poc',
@@ -1733,7 +1781,8 @@ export const en = {
 
   /* ---- resource supervisor ---- */
   'resource.warning.title': 'Memory use is rising',
-  'resource.warning.body': 'Flashwork is using about {total} MB. Hidden idle runtimes may be parked.',
+  'resource.warning.body':
+    'Flashwork is using about {total} MB. Hidden idle runtimes may be parked.',
   'resource.critical.title': 'Memory budget reached',
   'resource.critical.body':
     'Flashwork is using about {total} MB. New runtimes are paused until memory recovers.',
@@ -1915,7 +1964,8 @@ export const en = {
   'mcp.errGeneric': 'The operation failed.',
   'mcp.healthCheck': 'Check',
   'mcp.healthChecking': 'Checking…',
-  'mcp.healthCheckHint': 'Ask the agent whether it can actually reach its servers. Claude connects to each one, so it takes a few seconds.',
+  'mcp.healthCheckHint':
+    'Ask the agent whether it can actually reach its servers. Claude connects to each one, so it takes a few seconds.',
   'mcp.health.connected': 'connected',
   'mcp.health.failed': 'failed',
   'mcp.health.needsAuth': 'needs auth',
@@ -1955,7 +2005,8 @@ export const en = {
   'mcp.registryCount': '{count} result(s)',
   'mcp.registryLoading': 'Searching the registry…',
   'mcp.registryNoResults': 'No server matched.',
-  'mcp.registryOffline': 'The registry could not be reached and nothing was cached for this search.',
+  'mcp.registryOffline':
+    'The registry could not be reached and nothing was cached for this search.',
   'mcp.registryStale': 'Registry unreachable — showing the copy saved on {date}.',
   'mcp.addWritten': '{count} server(s) added to {agents}',
   'mcp.fieldName': 'Name',
@@ -1995,7 +2046,8 @@ export const en = {
   'mcp.tabSkills': 'Skills',
   'skills.loading': 'Reading the skill folders…',
   'skills.emptyTitle': 'No skill installed',
-  'skills.emptyDescription': 'Flashwork looks in the skills folder of each agent and in the shared store.',
+  'skills.emptyDescription':
+    'Flashwork looks in the skills folder of each agent and in the shared store.',
   'skills.selectOne': 'Pick a skill to inspect it',
   'skills.sharedStore': 'Shared store',
   'skills.lockSource': 'source',
@@ -2015,7 +2067,6 @@ export const en = {
   'skills.removedLinkOnly': 'The shared copy was kept at {path}',
   'skills.removeFailed': 'Could not remove the skill',
   'skills.errBundled': 'This skill ships with the agent and cannot be removed from Flashwork.',
-
 } as const
 
 export type MessageKey = keyof typeof en

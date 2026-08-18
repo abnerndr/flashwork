@@ -7,6 +7,7 @@ import {
   FolderOpen,
   FolderPlus,
   Layers,
+  Route,
   Send,
   TerminalSquare,
 } from 'lucide-react'
@@ -14,14 +15,29 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { getCachedActivity } from '../../lib/activityCache'
+import { getCachedClaudeUsage } from '../../lib/claudeUsageCache'
+import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { pickDirectory } from '../../lib/dialog'
 import { formatHomeDate, formatRelativeTimestamp, getGreeting } from '../../lib/greeting'
-import { useT, type TFunction } from '../../lib/i18n'
+import { useT, type MessageKey, type TFunction } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
+import { AUTO_LAUNCH_VALUE } from '../../lib/promptRun/constants'
+import { probeInstalledAgents } from '../../lib/promptRun/probeInstalled'
+import { startPromptRun } from '../../lib/promptRun/startPromptRun'
+import { appendPromptRunJournal } from '../../lib/tauri'
+import {
+  AGENT_TYPE_LABELS,
+  ALL_AGENT_TYPES,
+  UNRESTRICTED_FLAG,
+  type AgentType,
+  type Project,
+  type PromptRunStepReason,
+} from '../../lib/types'
 import { getProjectDefaultCwd, useProjectsStore } from '../../stores/projectsStore'
+import { usePromptRunStore } from '../../stores/promptRunStore'
 import { useUiStore } from '../../stores/uiStore'
-import { UNRESTRICTED_FLAG, type AgentType, type Project } from '../../lib/types'
+import { AgentInstallModal } from '../AgentInstall/AgentInstallModal'
 import { AgentIcon } from '../icons/AgentIcons'
 import { AsciiEffect } from '../ui/ascii-effect'
 import { Avatar } from '../ui/Avatar'
@@ -46,6 +62,18 @@ const QUICK_AGENTS: Array<{ type: AgentType; label: string }> = [
   { type: 'gemini', label: 'Gemini' },
   { type: 'opencode', label: 'OpenCode' },
 ]
+
+type QuickPick = AgentType | typeof AUTO_LAUNCH_VALUE
+
+const PROMPT_RUN_REASON_KEYS: Record<PromptRunStepReason, MessageKey> = {
+  heuristic: 'promptRun.reason.heuristic',
+  quota: 'promptRun.reason.quota',
+  error: 'promptRun.reason.error',
+  user: 'promptRun.reason.user',
+  'only-installed': 'promptRun.reason.only-installed',
+  'project-preference': 'promptRun.reason.project-preference',
+  'last-used': 'promptRun.reason.last-used',
+}
 
 function compactWorkspacePath(path: string): string {
   const homeCollapsed = path.replace(/^[A-Za-z]:[\\/]Users[\\/][^\\/]+/i, '~')
@@ -88,7 +116,7 @@ export function HomeView() {
       openContainerWithAllPanes: s.openContainerWithAllPanes,
       setActiveProjectOnly: s.setActiveProjectOnly,
       createAgentTerminal: s.createAgentTerminal,
-    }))
+    })),
   )
 
   const {
@@ -98,6 +126,7 @@ export function HomeView() {
     requestPaneFocus,
     notifications,
     clearNotifications,
+    pushToast,
   } = useUiStore(
     useShallow((s) => ({
       openModal: s.openModal_,
@@ -106,10 +135,10 @@ export function HomeView() {
       requestPaneFocus: s.requestPaneFocus,
       notifications: s.notifications,
       clearNotifications: s.clearNotifications,
-    }))
+      pushToast: s.pushToast,
+    })),
   )
 
-                                                                                   
   const lastUsedByProject = useMemo(() => {
     const map = new Map<string, number>()
     for (const c of containers) {
@@ -179,19 +208,22 @@ export function HomeView() {
   const [quickProjectId, setQuickProjectId] = useState(() => fallbackQuickTarget?.id ?? '')
   const quickTarget =
     projects.find((project) => project.id === quickProjectId) ?? fallbackQuickTarget
-  const [quickAgentRaw, setQuickAgent] = useState<AgentType>('claude')
+  const [quickPick, setQuickPick] = useState<QuickPick>('claude')
   const quickAgentMenuRef = useRef<HTMLDetailsElement>(null)
   const quickModeMenuRef = useRef<HTMLDetailsElement>(null)
   const [quickUnrestricted, setQuickUnrestricted] = useState(false)
   const quickPromptRef = useRef<HTMLInputElement>(null)
   const [quickCwd, setQuickCwd] = useState('')
-                                                                                
-                                                                           
-  const quickAgent = quickAgents.some((agent) => agent.type === quickAgentRaw)
-    ? quickAgentRaw
-    : (quickAgents[0]?.type ?? 'claude')
-  const quickAgentLabel =
-    QUICK_AGENTS.find((agent) => agent.type === quickAgent)?.label ?? quickAgent
+  const [installAgent, setInstallAgent] = useState<AgentType | null>(null)
+
+  const isAutoPick = quickPick === AUTO_LAUNCH_VALUE
+  const quickAgent: AgentType =
+    !isAutoPick && quickAgents.some((agent) => agent.type === quickPick)
+      ? quickPick
+      : (quickAgents[0]?.type ?? 'claude')
+  const quickAgentLabel = isAutoPick
+    ? t('home.quickAgentAuto')
+    : (QUICK_AGENTS.find((agent) => agent.type === quickAgent)?.label ?? quickAgent)
 
   useEffect(() => {
     if (quickTarget && quickTarget.id !== quickProjectId) setQuickProjectId(quickTarget.id)
@@ -209,6 +241,88 @@ export function HomeView() {
   const submitQuickPrompt = async (event: React.FormEvent) => {
     event.preventDefault()
     const prompt = quickPromptRef.current?.value.trim() ?? ''
+    if (quickPick === AUTO_LAUNCH_VALUE) {
+      if (!prompt) return
+      const cwd =
+        quickCwd.trim() || (quickTarget ? getProjectDefaultCwd(quickTarget, projects) : '')
+      const installed = await probeInstalledAgents(
+        ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent] && agent !== 'shell'),
+      )
+      const claudeUsage = await getCachedClaudeUsage().catch(() => null)
+      const codexUsage = await getCachedCodexUsage().catch(() => null)
+      const result = await startPromptRun({
+        project: quickTarget
+          ? {
+              id: quickTarget.id,
+              name: quickTarget.name,
+              reviewAgentProvider: quickTarget.reviewAgentProvider,
+              conflictAgentProvider: quickTarget.conflictAgentProvider,
+              lastUsedAgent: quickTarget.terminals[quickTarget.terminals.length - 1]?.tabs[0]?.type,
+            }
+          : null,
+        cwd,
+        prompt,
+        unrestricted: quickUnrestricted,
+        enabledAgents: ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent]),
+        installedAgents: installed,
+        claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
+        codexRateLimited: Boolean(codexUsage?.rate_limited),
+        activeRunStatus: quickTarget
+          ? usePromptRunStore.getState().byProjectId[quickTarget.id]?.status
+          : undefined,
+        createAgentTerminal: (projectId, args) =>
+          useProjectsStore.getState().createAgentTerminal(projectId, args),
+      })
+      if (!result.ok) {
+        if (result.code === 'no-project') {
+          openModal('newProject')
+          pushToast({ title: t('promptRun.noProjectTitle'), body: t('promptRun.noProjectBody') })
+          return
+        }
+        if (result.code === 'no-cwd') {
+          pushToast({ title: t('promptRun.noCwdTitle'), body: t('promptRun.noCwdBody') })
+          return
+        }
+        if (result.code === 'run-active') {
+          pushToast({
+            title: t('promptRun.runActiveTitle'),
+            body: t('promptRun.runActiveBody'),
+          })
+          return
+        }
+        const candidate = preferences.enabledAgents.claude
+          ? 'claude'
+          : (ALL_AGENT_TYPES.find(
+              (agent) => agent !== 'shell' && preferences.enabledAgents[agent],
+            ) ?? 'claude')
+        setInstallAgent(candidate)
+        return
+      }
+      usePromptRunStore.getState().setRun(result.run)
+      try {
+        const journalPath = await appendPromptRunJournal(result.run.id, 'Run started', prompt)
+        usePromptRunStore.getState().patchRun(result.run.projectId, { journalPath })
+      } catch (cause) {
+        console.warn('[prompt-run] journal append failed:', cause)
+      }
+      setActiveProjectOnly(result.run.projectId)
+      useProjectsStore
+        .getState()
+        .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
+      setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
+      requestPaneFocus(result.run.activeTerminalId)
+      if (quickPromptRef.current) quickPromptRef.current.value = ''
+      setActiveView('workspace')
+      const reason = result.run.steps[0]?.reason ?? 'heuristic'
+      pushToast({
+        title: t('promptRun.startedTitle'),
+        body: t('promptRun.startedBody', {
+          agent: AGENT_TYPE_LABELS[result.run.activeAgent],
+          reason: t(PROMPT_RUN_REASON_KEYS[reason]),
+        }),
+      })
+      return
+    }
     if (!quickTarget || !prompt) return
     const cwd = quickCwd.trim() || getProjectDefaultCwd(quickTarget, projects)
     const flag = quickUnrestricted ? UNRESTRICTED_FLAG[quickAgent] : null
@@ -323,28 +437,51 @@ export function HomeView() {
                   event.currentTarget.open = false
               }}
             >
-              <summary title={t('home.quickAgent')} aria-label={t('home.quickAgent')}>
-                <AgentIcon type={quickAgent} size={15} theme={preferences.uiTheme} />
+              <summary
+                title={isAutoPick ? t('home.quickAgentAutoHint') : t('home.quickAgent')}
+                aria-label={isAutoPick ? t('home.quickAgentAuto') : t('home.quickAgent')}
+              >
+                {isAutoPick ? (
+                  <Route size={15} />
+                ) : (
+                  <AgentIcon type={quickAgent} size={15} theme={preferences.uiTheme} />
+                )}
                 <span className={styles.quickControlLabel}>{t('home.quickAgentShort')}:</span>
                 <span>{quickAgentLabel}</span>
                 <ChevronDown size={10} />
               </summary>
               <div className={styles.quickAgentOptions}>
+                <button
+                  type="button"
+                  className={`${styles.quickAgentAuto}${isAutoPick ? ` ${styles.quickAgentActive}` : ''}`}
+                  title={t('home.quickAgentAutoHint')}
+                  aria-label={t('home.quickAgentAuto')}
+                  onClick={() => {
+                    setQuickPick(AUTO_LAUNCH_VALUE)
+                    quickAgentMenuRef.current?.removeAttribute('open')
+                  }}
+                >
+                  <Route size={19} />
+                  <span>{t('home.quickAgentAuto')}</span>
+                  {isAutoPick ? <CheckCircle2 size={13} /> : null}
+                </button>
                 {quickAgents.map((agent) => (
                   <button
                     key={agent.type}
                     type="button"
-                    className={quickAgent === agent.type ? styles.quickAgentActive : ''}
+                    className={
+                      !isAutoPick && quickAgent === agent.type ? styles.quickAgentActive : ''
+                    }
                     title={agent.label}
                     aria-label={agent.label}
                     onClick={() => {
-                      setQuickAgent(agent.type)
+                      setQuickPick(agent.type)
                       quickAgentMenuRef.current?.removeAttribute('open')
                     }}
                   >
                     <AgentIcon type={agent.type} size={19} theme={preferences.uiTheme} />
                     <span>{agent.label}</span>
-                    {quickAgent === agent.type ? <CheckCircle2 size={13} /> : null}
+                    {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={13} /> : null}
                   </button>
                 ))}
               </div>
@@ -407,9 +544,9 @@ export function HomeView() {
             <button
               type="submit"
               className={styles.quickSend}
-              disabled={!quickTarget || quickAgents.length === 0}
-              title={t('home.quickSend')}
-              aria-label={t('home.quickSend')}
+              disabled={!quickTarget || (!isAutoPick && quickAgents.length === 0)}
+              title={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
+              aria-label={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
             >
               <Send size={14} />
             </button>
@@ -589,6 +726,14 @@ export function HomeView() {
           <FooterShortcut keys="?" label={t('home.helpShortcut')} />
         </div>
       </footer>
+      {installAgent ? (
+        <AgentInstallModal
+          agent={installAgent}
+          label={AGENT_TYPE_LABELS[installAgent]}
+          open
+          onClose={() => setInstallAgent(null)}
+        />
+      ) : null}
     </section>
   )
 }

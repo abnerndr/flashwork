@@ -883,8 +883,6 @@
   transition: color 0.15s;
 }
 
-                                                                
-
 .bottomGrid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -1262,8 +1260,6 @@
   color: var(--status-offline);
 }
 
-                                                     
-
 /* corpo distribui barras (topo) e grade de stats (base) preenchendo a altura */
 .cardBody {
   flex: 1;
@@ -1314,8 +1310,6 @@
   color: var(--status-offline);
 }
 
-                                                    
-
 .cardFoot {
   display: flex;
   align-items: center;
@@ -1347,8 +1341,6 @@
   color: var(--text-quaternary);
   flex-shrink: 0;
 }
-
-                            
 
 .usageEmpty {
   flex: 1;
@@ -2240,6 +2232,24 @@
 .quickAgentOptions button:hover,
 .quickAgentOptions .quickAgentActive {
   background: var(--panel-hover);
+}
+
+.quickAgentAuto {
+  color: var(--fg-muted);
+}
+
+.quickAgentAuto > svg:first-child {
+  color: var(--fg-muted);
+}
+
+.quickAgentOptions .quickAgentAuto.quickAgentActive,
+.quickAgentOptions .quickAgentAuto:hover {
+  color: var(--accent);
+}
+
+.quickAgentOptions .quickAgentAuto.quickAgentActive > svg:first-child,
+.quickAgentOptions .quickAgentAuto:hover > svg:first-child {
+  color: var(--accent);
 }
 
 .quickProject {

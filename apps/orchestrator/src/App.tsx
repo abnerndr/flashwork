@@ -50,6 +50,7 @@ import { useCloseConfirmation } from './hooks/useCloseConfirmation'
 import { useDiscordPresence } from './hooks/useDiscordPresence'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
+import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
 import { useRemoteControlService } from './hooks/useRemoteControlService'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
 import { startActivityTracker } from './lib/activityTracker'
@@ -229,6 +230,7 @@ export default function App() {
   useCloseConfirmation()
   useResourceSupervisor(hydrated)
   useCliOpenRequests(hydrated)
+  usePromptRunWatcher()
 
   useEffect(() => {
     void hydrate()

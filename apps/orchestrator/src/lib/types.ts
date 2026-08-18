@@ -153,6 +153,7 @@ export type PromptRunStep = {
   startedAt: number
   endedAt?: number
   handoffId?: string
+  contextPath?: string
   terminalId?: string
 }
 

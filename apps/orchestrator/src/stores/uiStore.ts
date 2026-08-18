@@ -66,13 +66,17 @@ export type InAppToast = {
   agent?: AgentType
 }
 
+export type ModalContext = Record<string, unknown> & {
+  reviewPath?: string
+}
+
 const MAX_MEMORY_HISTORY = 720
 const MAX_TOASTS = 4
 const MAX_NOTIFICATIONS = 12
 
 type UiState = {
   openModal: ModalKind
-  modalContext: Record<string, unknown> | null
+  modalContext: ModalContext | null
   showMainMenu: boolean
   ramMb: number | null
   memoryStats: MemoryStats | null
@@ -116,7 +120,7 @@ type UiState = {
   /** URL aberta no visualizador in-app (overlay com iframe). null = fechado. */
   linkViewerUrl: string | null
 
-  openModal_: (kind: Exclude<ModalKind, null>, context?: Record<string, unknown>) => void
+  openModal_: (kind: Exclude<ModalKind, null>, context?: ModalContext) => void
   closeModal: () => void
   closeMainMenu: () => void
   toggleMainMenu: () => void

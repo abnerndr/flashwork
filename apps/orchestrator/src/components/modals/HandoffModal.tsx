@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useT } from '../../lib/i18n'
+import { buildHandoffTerminalArgs } from '../../lib/promptRun/executeHandoff'
 import {
   completeAgentHandoff,
   type HandoffDraft,
   type HandoffProvider,
   materializeAgentHandoff,
   prepareAgentHandoff,
+  readTextFile,
 } from '../../lib/tauri'
 import { AGENT_TYPE_LABELS, UNRESTRICTED_FLAG } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -38,6 +40,7 @@ export function HandoffModal() {
   const [unrestricted, setUnrestricted] = useState(unrestrictedDefault)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reviewReady, setReviewReady] = useState(false)
 
   const source = context?.agent === 'codex' ? 'codex' : 'claude'
   const target = targetFor(source)
@@ -45,6 +48,8 @@ export function HandoffModal() {
   const terminalId = typeof context?.terminalId === 'string' ? context.terminalId : ''
   const requestedSessionId =
     typeof context?.sourceSessionId === 'string' ? context.sourceSessionId : undefined
+  const reviewPath = typeof context?.reviewPath === 'string' ? context.reviewPath : ''
+  const isReview = reviewPath.length > 0
   const project = projects.find((entry) => entry.id === projectId) ?? null
   const terminal = project?.terminals.find((entry) => entry.id === terminalId) ?? null
   const activeTab = terminal?.tabs.find((entry) => entry.id === terminal.activeTabId) ?? terminal?.tabs[0]
@@ -65,12 +70,29 @@ export function HandoffModal() {
     : []
 
   useEffect(() => {
-    if (!open || !cwd) return
+    if (!open) return
     let cancelled = false
     setDraft(null)
     setContent('')
     setError(null)
     setUnrestricted(unrestrictedDefault)
+    setReviewReady(false)
+    if (isReview) {
+      void readTextFile(reviewPath)
+        .then((text) => {
+          if (!cancelled) setContent(text)
+        })
+        .catch((cause) => {
+          if (!cancelled) setError(String(cause))
+        })
+        .finally(() => {
+          if (!cancelled) setReviewReady(true)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+    if (!cwd) return
     void prepareAgentHandoff({
       sourceProvider: source,
       targetProvider: target,
@@ -88,7 +110,7 @@ export function HandoffModal() {
     return () => {
       cancelled = true
     }
-  }, [open, cwd, source, target, sourceSessionId, unrestrictedDefault])
+  }, [open, cwd, source, target, sourceSessionId, unrestrictedDefault, isReview, reviewPath])
 
   const continueInTarget = async () => {
     if (!draft || !project || !content.trim() || byteCount > MAX_HANDOFF_BYTES) return
@@ -98,15 +120,13 @@ export function HandoffModal() {
     try {
       artifact = await materializeAgentHandoff(content)
       const permissionFlag = unrestricted ? UNRESTRICTED_FLAG[target] : null
-      const initialInput = t('handoff.bootstrapPrompt', { path: artifact.contextPath })
-      const created = createTerminal(project.id, {
-        name: t('handoff.paneName', { agent: AGENT_TYPE_LABELS[target] }),
-        cwd: draft.cwd,
-        firstTab: {
-          type: target,
+      const created = createTerminal(
+        project.id,
+        buildHandoffTerminalArgs({
+          target,
           cwd: draft.cwd,
+          bootstrap: t('handoff.bootstrapPrompt', { path: artifact.contextPath }),
           extraArgs: permissionFlag ? [permissionFlag] : [],
-          initialInput,
           handoff: {
             id: artifact.handoffId,
             contextDir: artifact.contextDir,
@@ -114,8 +134,9 @@ export function HandoffModal() {
             sourceProvider: source,
             sourceSessionId: draft.sourceSessionId,
           },
-        },
-      })
+          paneName: t('handoff.paneName', { agent: AGENT_TYPE_LABELS[target] }),
+        }),
+      )
       setActiveTerminal(project.id, created.id)
       requestPaneFocus(created.id)
       closeModal()
@@ -126,6 +147,8 @@ export function HandoffModal() {
       setBusy(false)
     }
   }
+
+  const showEditor = isReview ? reviewReady : Boolean(draft)
 
   return (
     <Modal
@@ -141,25 +164,34 @@ export function HandoffModal() {
           <button
             type="button"
             className={styles.primary}
-            onClick={() => void continueInTarget()}
-            disabled={!draft || busy || !content.trim() || byteCount > MAX_HANDOFF_BYTES}
+            onClick={isReview ? closeModal : () => void continueInTarget()}
+            disabled={
+              isReview ? false : !draft || busy || !content.trim() || byteCount > MAX_HANDOFF_BYTES
+            }
           >
-            {busy ? t('handoff.starting') : t('handoff.continue', { agent: AGENT_TYPE_LABELS[target] })}
+            {isReview
+              ? t('common.close')
+              : busy
+                ? t('handoff.starting')
+                : t('handoff.continue', { agent: AGENT_TYPE_LABELS[target] })}
           </button>
         </>
       }
     >
-      {!cwd ? <div className={styles.error}>{t('handoff.noCwd')}</div> : null}
+      {!isReview && !cwd ? <div className={styles.error}>{t('handoff.noCwd')}</div> : null}
       {error ? <div className={styles.error}>{error}</div> : null}
-      {!draft && !error ? <div className={styles.loading}>{t('handoff.preparing')}</div> : null}
-      {draft ? (
+      {!isReview && !draft && !error ? <div className={styles.loading}>{t('handoff.preparing')}</div> : null}
+      {isReview && !reviewReady && !error ? <div className={styles.loading}>{t('handoff.preparing')}</div> : null}
+      {showEditor ? (
         <div className={styles.content}>
-          <div className={styles.summary}>
-            <span>{t('handoff.session', { id: draft.sourceSessionId.slice(0, 8) })}</span>
-            <span>{t('handoff.included', { count: draft.includedEventCount })}</span>
-            <span>{t('handoff.omitted', { count: draft.omittedEventCount })}</span>
-            <span>{t('handoff.redacted', { count: draft.redactionCount })}</span>
-          </div>
+          {draft ? (
+            <div className={styles.summary}>
+              <span>{t('handoff.session', { id: draft.sourceSessionId.slice(0, 8) })}</span>
+              <span>{t('handoff.included', { count: draft.includedEventCount })}</span>
+              <span>{t('handoff.omitted', { count: draft.omittedEventCount })}</span>
+              <span>{t('handoff.redacted', { count: draft.redactionCount })}</span>
+            </div>
+          ) : null}
           {warnings.length ? (
             <ul className={styles.warnings}>
               {warnings.map((warning) => <li key={warning}>{warning}</li>)}
@@ -172,21 +204,26 @@ export function HandoffModal() {
             id="handoff-content"
             className={styles.editor}
             value={content}
-            onChange={(event) => setContent(event.target.value)}
+            onChange={isReview ? undefined : (event) => setContent(event.target.value)}
+            readOnly={isReview}
             spellCheck={false}
           />
-          <div className={`${styles.counter} ${byteCount > MAX_HANDOFF_BYTES ? styles.counterError : ''}`}>
-            {t('handoff.size', { current: byteCount, max: MAX_HANDOFF_BYTES })}
-          </div>
-          <label className={styles.unrestricted}>
-            <input
-              type="checkbox"
-              checked={unrestricted}
-              onChange={(event) => setUnrestricted(event.target.checked)}
-            />
-            {t('handoff.unrestricted', { agent: AGENT_TYPE_LABELS[target] })}
-          </label>
-          <p className={styles.privacy}>{t('handoff.privacy')}</p>
+          {!isReview ? (
+            <>
+              <div className={`${styles.counter} ${byteCount > MAX_HANDOFF_BYTES ? styles.counterError : ''}`}>
+                {t('handoff.size', { current: byteCount, max: MAX_HANDOFF_BYTES })}
+              </div>
+              <label className={styles.unrestricted}>
+                <input
+                  type="checkbox"
+                  checked={unrestricted}
+                  onChange={(event) => setUnrestricted(event.target.checked)}
+                />
+                {t('handoff.unrestricted', { agent: AGENT_TYPE_LABELS[target] })}
+              </label>
+              <p className={styles.privacy}>{t('handoff.privacy')}</p>
+            </>
+          ) : null}
         </div>
       ) : null}
     </Modal>

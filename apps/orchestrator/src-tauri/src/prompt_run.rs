@@ -13,6 +13,8 @@ pub struct PromptRunStepRecord {
     pub started_at: u64,
     pub ended_at: Option<u64>,
     pub handoff_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_path: Option<String>,
     pub terminal_id: Option<String>,
 }
 

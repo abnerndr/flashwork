@@ -46,6 +46,7 @@ mod process_tree;
 mod profiles;
 mod project_detector;
 mod projects;
+mod prompt_run;
 mod provider_common;
 mod pty;
 mod remote;
@@ -361,6 +362,10 @@ pub fn run() {
             handoff::prepare_agent_handoff,
             handoff::materialize_agent_handoff,
             handoff::complete_agent_handoff,
+            prompt_run::save_prompt_run,
+            prompt_run::load_prompt_run,
+            prompt_run::list_prompt_runs,
+            prompt_run::append_prompt_run_journal,
             antigravity_sessions::snapshot_antigravity_sessions,
             claude_usage::get_claude_usage,
             codex_usage::get_codex_usage,

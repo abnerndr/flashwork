@@ -25,6 +25,10 @@ pub fn scrollback_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(profile_data_dir(app)?.join("scrollback"))
 }
 
+pub fn runs_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(profile_data_dir(app)?.join("runs"))
+}
+
 pub fn scrollback_path(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
     Ok(scrollback_dir(app)?.join(format!("{id}.bin")))
 }

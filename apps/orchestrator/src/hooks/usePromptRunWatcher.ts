@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { getCachedClaudeUsage } from '../lib/claudeUsageCache'
 import { getCachedCodexUsage } from '../lib/codexUsageCache'
 import { useT, type MessageKey } from '../lib/i18n'
-import { autoHandoffDedupeKey, claimAutoHandoff } from '../lib/promptRun/autoHandoffGate'
+import { autoHandoffDedupeKey, claimAutoHandoff, isHandoffAborted } from '../lib/promptRun/autoHandoffGate'
 import { detectHandoffTrigger, handoffTarget } from '../lib/promptRun/detectHandoffTrigger'
 import { executeAutoHandoff } from '../lib/promptRun/executeHandoff'
 import { probeInstalledAgents } from '../lib/promptRun/probeInstalled'
@@ -76,6 +76,8 @@ export function usePromptRunWatcher() {
     if (!claimAutoHandoff(seenRef.current, inflightRef.current, run.id, dedupeKey)) return
 
     let completed = false
+    const abortIfStopped = () =>
+      isHandoffAborted(usePromptRunStore.getState().byProjectId[run.projectId], run.id)
     try {
       const enabled = useProjectsStore.getState().preferences.enabledAgents
       const candidates = (['claude', 'codex'] as const).filter((agent) => enabled[agent])
@@ -93,6 +95,7 @@ export function usePromptRunWatcher() {
         return
       }
 
+      if (abortIfStopped()) return
       usePromptRunStore.getState().setStatus(run.projectId, 'handing-off')
       const pane = resolveActivePane(run)
       const flag = run.unrestricted ? UNRESTRICTED_FLAG[target] : null
@@ -111,7 +114,9 @@ export function usePromptRunWatcher() {
         HANDOFF_TIMEOUT_MS,
         'auto-handoff timed out',
       )
+      if (abortIfStopped()) return
       const created = useProjectsStore.getState().createTerminal(run.projectId, result.terminalArgs)
+      if (abortIfStopped()) return
       const now = Date.now()
       const latest = usePromptRunStore.getState().byProjectId[run.projectId]
       const steps = (latest ?? run).steps.map((step, index, list) =>

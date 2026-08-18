@@ -80,11 +80,17 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
     if (hydrateSeqByProject.get(projectId) !== sequence) return
     const active = runs.find((run) => run.status === 'running' || run.status === 'handing-off')
     if (!active) return
+    let appliedId: string | undefined
     set((state) => {
       const memory = state.byProjectId[projectId]
       if (!shouldApplyHydrate(active, memory)) return state
+      appliedId = active.id
       return { byProjectId: { ...state.byProjectId, [projectId]: active } }
     })
+    const current = get().byProjectId[projectId]
+    if (appliedId && current?.id === appliedId && current.status === 'handing-off') {
+      get().setStatus(projectId, 'running')
+    }
   },
   setRun: (run) => {
     set((state) => ({ byProjectId: { ...state.byProjectId, [run.projectId]: run } }))

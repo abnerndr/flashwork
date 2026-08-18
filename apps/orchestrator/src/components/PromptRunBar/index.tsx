@@ -40,9 +40,7 @@ const REASON_KEYS: Record<PromptRunStepReason, MessageKey> = {
 function reviewCapsule(steps: PromptRunStep[]): {
   contextPath?: string
   sourceAgent?: PromptRunStep['agent']
-  enabled: boolean
 } {
-  const lastStep = steps[steps.length - 1]
   let contextPath: string | undefined
   let sourceAgent: PromptRunStep['agent'] | undefined
   for (let index = steps.length - 1; index >= 0; index -= 1) {
@@ -52,11 +50,7 @@ function reviewCapsule(steps: PromptRunStep[]): {
     sourceAgent = index > 0 ? steps[index - 1]?.agent : undefined
     break
   }
-  return {
-    contextPath,
-    sourceAgent,
-    enabled: Boolean(lastStep?.handoffId || contextPath),
-  }
+  return { contextPath, sourceAgent }
 }
 
 export type PromptRunBarProps = {
@@ -70,18 +64,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
   const openModal = useUiStore((state) => state.openModal_)
 
   useEffect(() => {
-    let cancelled = false
-    const hadMemory = Boolean(usePromptRunStore.getState().byProjectId[projectId])
-    void usePromptRunStore.getState().hydrate(projectId).then(() => {
-      if (cancelled) return
-      const hydrated = usePromptRunStore.getState().byProjectId[projectId]
-      if (!hadMemory && hydrated?.status === 'handing-off') {
-        usePromptRunStore.getState().setStatus(projectId, 'running')
-      }
-    })
-    return () => {
-      cancelled = true
-    }
+    void usePromptRunStore.getState().hydrate(projectId)
   }, [projectId])
 
   if (!run || !VISIBLE_STATUSES.has(run.status)) return null
@@ -114,9 +97,9 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
         <button
           type="button"
           className={styles.review}
-          disabled={!capsule.enabled}
+          disabled={!capsule.contextPath}
           onClick={() => {
-            if (!capsule.enabled) return
+            if (!capsule.contextPath) return
             openModal('handoff', {
               reviewPath: capsule.contextPath,
               projectId,

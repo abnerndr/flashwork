@@ -20,3 +20,10 @@ export function claimAutoHandoff(
   inflight.add(runId)
   return true
 }
+
+export function isHandoffAborted(
+  current: { id: string; status: string } | undefined,
+  runId: string,
+): boolean {
+  return !current || current.id !== runId || current.status === 'cancelled'
+}

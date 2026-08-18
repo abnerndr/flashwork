@@ -83,6 +83,8 @@ describe('startPromptRun', () => {
     expect(args.firstTab.type).toBe('claude')
     expect(args.firstTab.initialInput).toContain('implement login')
     expect(args.firstTab.initialInput).toContain('run_test')
+    expect(args.firstTab.initialInput).not.toContain('runs/run_test/journal.md')
+    expect(args.firstTab.initialInput).not.toMatch(/runs\/[^/\s]+\/journal\.md/)
     expect(args.firstTab.extraArgs).toEqual([UNRESTRICTED_FLAG.claude])
     if (!result.ok) return
     expect(result.run).toMatchObject({

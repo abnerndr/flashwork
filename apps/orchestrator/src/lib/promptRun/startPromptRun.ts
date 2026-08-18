@@ -90,7 +90,6 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
         runId,
         prompt: input.prompt,
         agent: choice.agent,
-        journalPath,
       }),
     },
   })

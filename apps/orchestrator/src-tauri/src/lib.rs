@@ -372,6 +372,7 @@ pub fn run() {
             prompt_run::append_prompt_run_journal,
             omniroute::omniroute_start,
             omniroute::omniroute_stop,
+            omniroute::omniroute_health,
             omniroute::omniroute_set_gateway_key,
             omniroute::omniroute_get_gateway_key,
             antigravity_sessions::snapshot_antigravity_sessions,

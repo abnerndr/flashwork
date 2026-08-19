@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildGhosttyCommand } from './ghosttyCommand'
+import { buildGhosttyCommand, prefixGhosttyCommandEnv } from './ghosttyCommand'
 
 describe('buildGhosttyCommand', () => {
   it('shell não tem comando (abre o shell de login)', () => {
@@ -33,5 +33,20 @@ describe('buildGhosttyCommand', () => {
 
   it('escapa aspas simples internas', () => {
     expect(buildGhosttyCommand('claude', ["it's"])).toBe("claude 'it'\\''s'")
+  })
+})
+
+describe('prefixGhosttyCommandEnv', () => {
+  it('returns the command unchanged without env', () => {
+    expect(prefixGhosttyCommandEnv('claude --verbose')).toBe('claude --verbose')
+  })
+
+  it('prefixes POSIX env assignments for the Ghostty EXEC command', () => {
+    expect(
+      prefixGhosttyCommandEnv('claude', {
+        ANTHROPIC_BASE_URL: 'http://127.0.0.1:20128/v1',
+        ANTHROPIC_API_KEY: 'gw-key',
+      }),
+    ).toBe('env ANTHROPIC_BASE_URL=http://127.0.0.1:20128/v1 ANTHROPIC_API_KEY=gw-key claude')
   })
 })

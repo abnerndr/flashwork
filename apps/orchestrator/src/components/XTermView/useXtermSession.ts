@@ -970,7 +970,9 @@ export function useXtermSession(params: {
         const spawnEnv = await resolveOmniRouteSpawnEnv(
           env,
           useProjectsStore.getState().preferences,
+          command,
         )
+        if (disposed) return
         const preparedRuntime = command
           ? preparePtyRuntimeLaunch(command, runtimeProfile, extraArgs ?? [], spawnEnv)
           : { args: extraArgs ?? [], env: spawnEnv }

@@ -20,3 +20,16 @@ export function omnirouteSetGatewayKey(key: string): Promise<void> {
 export function omnirouteGetGatewayKey(): Promise<string | null> {
   return invoke('omniroute_get_gateway_key')
 }
+
+export type OmniRouteHealthResult = {
+  ok: boolean
+  baseUrl: string
+  statusCode?: number
+  detail: string
+  checkedAt: number
+}
+
+/** Reqwest probe on the Rust side — not renderer fetch, so CORS cannot hide a live sidecar. */
+export function omnirouteHealth(baseUrl: string): Promise<OmniRouteHealthResult> {
+  return invoke('omniroute_health', { baseUrl })
+}

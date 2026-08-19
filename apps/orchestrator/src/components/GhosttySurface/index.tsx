@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 
+import { resolveOmniRouteSpawnEnv, type OmniRouteSpawnPrefs } from '../../lib/flashwork/omniRouteSpawn'
+import { prefixGhosttyCommandEnv } from '../../lib/ghosttyCommand'
 import {
   ghosttySetFocus,
   ghosttySetHidden,
@@ -8,6 +10,7 @@ import {
   ghosttySyncFrame,
   type WebRect,
 } from '../../lib/tauri'
+import type { AgentType } from '../../lib/types'
 import { webRectsEqual } from '../../lib/webRect'
 
                                                                              
@@ -22,6 +25,8 @@ export type GhosttySurfaceProps = {
   cwd?: string
                                                                           
   command?: string
+  agentType?: AgentType
+  omniRoutePrefs?: OmniRouteSpawnPrefs
      
                                                                         
                                                                                
@@ -54,6 +59,8 @@ export function GhosttySurface({
   surfaceId,
   cwd,
   command,
+  agentType,
+  omniRoutePrefs,
   active = true,
   onSpawned,
   onExit,
@@ -64,7 +71,7 @@ export function GhosttySurface({
   const spawnedRef = useRef(false)
 
                                                                                  
-  const spawnArgsRef = useRef({ cwd, command })
+  const spawnArgsRef = useRef({ cwd, command, agentType, omniRoutePrefs })
 
                                                                                
                                                                                 
@@ -132,8 +139,14 @@ export function GhosttySurface({
 
     const start = async () => {
       try {
-        const { cwd, command } = spawnArgsRef.current
-        const res = await ghosttySpawn({ id: surfaceId, cwd, command })
+        const { cwd, command, agentType, omniRoutePrefs } = spawnArgsRef.current
+        let launchCommand = command
+        if (launchCommand) {
+          const env = await resolveOmniRouteSpawnEnv(undefined, omniRoutePrefs, agentType)
+          launchCommand = prefixGhosttyCommandEnv(launchCommand, env)
+        }
+        if (disposed) return
+        const res = await ghosttySpawn({ id: surfaceId, cwd, command: launchCommand })
         if (disposed) return
         spawnedRef.current = true
         onSpawnedRef.current?.(res.id)

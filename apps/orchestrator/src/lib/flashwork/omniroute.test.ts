@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { omnirouteHealth } from '../tauri/omnirouteSidecar'
 import {
+  checkOmniRouteHealth,
   OMNIROUTE_DEFAULT_BASE,
   omniRouteAgentEnv,
   withOmniRouteEnv,
 } from './omniroute'
+
+vi.mock('../tauri/omnirouteSidecar', () => ({
+  omnirouteHealth: vi.fn(),
+}))
+
+const probe = vi.mocked(omnirouteHealth)
 
 describe('omniRouteAgentEnv', () => {
   it('always uses IPv4 loopback', () => {
@@ -39,5 +47,31 @@ describe('withOmniRouteEnv', () => {
     expect(env.ANTHROPIC_API_KEY).toBe('gw-key')
     expect(env.ANTHROPIC_AUTH_TOKEN).toBe('gw-key')
     expect(env.OPENAI_API_KEY).toBe('gw-key')
+  })
+})
+
+describe('checkOmniRouteHealth', () => {
+  beforeEach(() => {
+    probe.mockReset()
+  })
+
+  it('uses the Tauri/reqwest probe instead of renderer fetch', async () => {
+    probe.mockResolvedValue({
+      ok: true,
+      baseUrl: OMNIROUTE_DEFAULT_BASE,
+      statusCode: 200,
+      detail: 'Gateway reachable',
+      checkedAt: 1,
+    })
+    await expect(checkOmniRouteHealth()).resolves.toMatchObject({ ok: true })
+    expect(probe).toHaveBeenCalledWith(OMNIROUTE_DEFAULT_BASE)
+  })
+
+  it('maps probe failure to unhealthy without throwing', async () => {
+    probe.mockRejectedValue(new Error('Failed to fetch'))
+    await expect(checkOmniRouteHealth()).resolves.toMatchObject({
+      ok: false,
+      baseUrl: OMNIROUTE_DEFAULT_BASE,
+    })
   })
 })

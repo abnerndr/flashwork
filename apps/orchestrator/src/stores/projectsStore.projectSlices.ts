@@ -581,7 +581,7 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
                                                           
             for (const tab of terminal.tabs) {
               if (!tab.ptyId) continue
-              const env = await resolveOmniRouteSpawnEnv(undefined, get().preferences)
+              const env = await resolveOmniRouteSpawnEnv(undefined, get().preferences, tab.type)
               const runtime = preparePtyRuntimeLaunch(
                 tab.type,
                 tab.runtimeProfile,

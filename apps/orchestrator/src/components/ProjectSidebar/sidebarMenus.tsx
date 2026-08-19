@@ -385,6 +385,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     const env = await resolveOmniRouteSpawnEnv(
       undefined,
       useProjectsStore.getState().preferences,
+      activeTab.type,
     )
     const runtime = preparePtyRuntimeLaunch(
       activeTab.type,

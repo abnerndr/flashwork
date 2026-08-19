@@ -127,6 +127,7 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
     const env = await resolveOmniRouteSpawnEnv(
       undefined,
       useProjectsStore.getState().preferences,
+      activeTab.type,
     )
     const preparedRuntime = preparePtyRuntimeLaunch(
       activeTab.type,

@@ -66,15 +66,87 @@ pub(crate) fn sidecar_args(port: u16) -> Vec<String> {
 }
 
 async fn health_get_ok(port: u16) -> bool {
+    health_probe(port).await.0
+}
+
+async fn health_probe(port: u16) -> (bool, Option<u16>, String) {
     let Ok(client) = reqwest::Client::builder()
         .timeout(HEALTH_TIMEOUT)
         .no_proxy()
         .build()
     else {
-        return false;
+        return (
+            false,
+            None,
+            format!("Offline — start OmniRoute sidecar on 127.0.0.1:{port}"),
+        );
     };
     let url = format!("http://127.0.0.1:{port}/");
-    client.get(url).send().await.is_ok()
+    match client.get(url).send().await {
+        Ok(response) => {
+            let status = response.status().as_u16();
+            let ok = status < 500;
+            let detail = if ok {
+                "Gateway reachable".into()
+            } else {
+                format!("HTTP {status}")
+            };
+            (ok, Some(status), detail)
+        }
+        Err(_) => (
+            false,
+            None,
+            format!("Offline — start OmniRoute sidecar on 127.0.0.1:{port}"),
+        ),
+    }
+}
+
+fn unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmniRouteHealth {
+    pub ok: bool,
+    pub base_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status_code: Option<u16>,
+    pub detail: String,
+    pub checked_at: u64,
+}
+
+pub(crate) fn health_from_base_url(base_url: String, checked_at: u64) -> Result<u16, OmniRouteHealth> {
+    match parse_loopback_port(&base_url) {
+        Ok(port) => Ok(port),
+        Err(detail) => Err(OmniRouteHealth {
+            ok: false,
+            base_url,
+            status_code: None,
+            detail,
+            checked_at,
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn omniroute_health(base_url: String) -> OmniRouteHealth {
+    let checked_at = unix_ms();
+    let port = match health_from_base_url(base_url.clone(), checked_at) {
+        Ok(port) => port,
+        Err(health) => return health,
+    };
+    let (ok, status_code, detail) = health_probe(port).await;
+    OmniRouteHealth {
+        ok,
+        base_url,
+        status_code,
+        detail,
+        checked_at,
+    }
 }
 
 fn spawn_sidecar(port: u16, password: &str) -> Result<Child, String> {
@@ -273,5 +345,15 @@ mod tests {
         assert!(require_initial_password("").is_err());
         assert!(require_initial_password("   ").is_err());
         assert!(require_initial_password("secret").is_ok());
+    }
+
+    #[test]
+    fn health_marks_non_loopback_as_unhealthy_without_panic() {
+        let health = match health_from_base_url("http://localhost:20128".into(), 1) {
+            Ok(_) => panic!("localhost must not be treated as a valid probe target"),
+            Err(health) => health,
+        };
+        assert!(!health.ok);
+        assert_eq!(health.base_url, "http://localhost:20128");
     }
 }

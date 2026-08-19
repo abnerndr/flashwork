@@ -134,6 +134,8 @@ export const TerminalPane = memo(function TerminalPane({
   )
   // Native Ghostty rendering is opt-in and macOS-only; other platforms use xterm.js.
   const nativeTerminalMacos = useProjectsStore((s) => s.preferences.nativeTerminalMacos ?? false)
+  const omniRouteEnabled = useProjectsStore((s) => s.preferences.omniRouteEnabled)
+  const omniRouteBaseUrl = useProjectsStore((s) => s.preferences.omniRouteBaseUrl)
   const useNativeBackend = shouldUseNativeBackend(nativeTerminalMacos)
 
   // repo para injetar o MCP (o XTermView resolve o config/bootstrap).
@@ -213,6 +215,7 @@ export const TerminalPane = memo(function TerminalPane({
     const env = await resolveOmniRouteSpawnEnv(
       undefined,
       useProjectsStore.getState().preferences,
+      activeTab.type,
     )
     const preparedRuntime = preparePtyRuntimeLaunch(
       activeTab.type,
@@ -520,6 +523,8 @@ export const TerminalPane = memo(function TerminalPane({
                   surfaceId={activeTab.id}
                   cwd={activeTab.cwd?.trim() || terminal.cwd?.trim() || undefined}
                   command={buildGhosttyCommand(activeTab.type, activeTab.extraArgs)}
+                  agentType={activeTab.type}
+                  omniRoutePrefs={{ omniRouteEnabled, omniRouteBaseUrl }}
                   onSpawned={(id) => {
                     setResumePending(false)
                     if (activeTab.ptyId !== id) {

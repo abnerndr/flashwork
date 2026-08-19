@@ -174,6 +174,7 @@ export function RecentChatsModal() {
       const env = await resolveOmniRouteSpawnEnv(
         undefined,
         useProjectsStore.getState().preferences,
+        agent,
       )
       const preparedRuntime = preparePtyRuntimeLaunch(
         agent,

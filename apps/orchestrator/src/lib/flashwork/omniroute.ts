@@ -1,3 +1,5 @@
+import { omnirouteHealth } from '../tauri/omnirouteSidecar'
+
 /** OmniRoute local gateway helpers (Flashwork PRD — optional sidecar). */
 
 export const OMNIROUTE_DEFAULT_BASE = 'http://127.0.0.1:20128'
@@ -14,33 +16,14 @@ export async function checkOmniRouteHealth(
   baseUrl: string = OMNIROUTE_DEFAULT_BASE,
 ): Promise<OmniRouteHealth> {
   const checkedAt = Date.now()
-  const url = `${baseUrl.replace(/\/$/, '')}/`
   try {
-    const controller = new AbortController()
-    const timer = window.setTimeout(() => controller.abort(), 2500)
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      mode: 'cors',
-    })
-    window.clearTimeout(timer)
-    return {
-      ok: response.ok || response.status < 500,
-      baseUrl,
-      statusCode: response.status,
-      detail: response.ok ? 'Gateway reachable' : `HTTP ${response.status}`,
-      checkedAt,
-    }
+    return await omnirouteHealth(baseUrl)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const offline =
-      message.includes('Failed to fetch') ||
-      message.includes('NetworkError') ||
-      message.includes('aborted')
     return {
       ok: false,
       baseUrl,
-      detail: offline ? 'Offline — start OmniRoute sidecar on 127.0.0.1:20128' : message,
+      detail: message,
       checkedAt,
     }
   }

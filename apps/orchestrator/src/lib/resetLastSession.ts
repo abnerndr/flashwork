@@ -215,6 +215,7 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
       const env = await resolveOmniRouteSpawnEnv(
         undefined,
         useProjectsStore.getState().preferences,
+        target.agent,
       )
       const preparedRuntime = preparePtyRuntimeLaunch(
         target.agent,

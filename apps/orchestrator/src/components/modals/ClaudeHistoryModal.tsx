@@ -94,6 +94,7 @@ export function ClaudeHistoryModal({
       const env = await resolveOmniRouteSpawnEnv(
         undefined,
         useProjectsStore.getState().preferences,
+        agentType,
       )
       const preparedRuntime = preparePtyRuntimeLaunch(agentType, 'full', newExtraArgs, env)
 

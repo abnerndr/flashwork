@@ -14,6 +14,7 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { buildGhosttyCommand } from '../../lib/ghosttyCommand'
 import { useT } from '../../lib/i18n'
 import { shouldUseNativeBackend } from '../../lib/platform'
@@ -209,10 +210,15 @@ export const TerminalPane = memo(function TerminalPane({
     if (activeTab.type === 'claude') {
       resumeSessionId = await resolveClaudeResumeId(restartCwd, resumeSessionId)
     }
+    const env = await resolveOmniRouteSpawnEnv(
+      undefined,
+      useProjectsStore.getState().preferences,
+    )
     const preparedRuntime = preparePtyRuntimeLaunch(
       activeTab.type,
       activeTab.runtimeProfile,
       activeTab.extraArgs ?? [],
+      env,
     )
     const launch = buildAgentLaunch(activeTab.type, preparedRuntime.args, resumeSessionId)
     if (launch.sessionId && launch.sessionId !== activeTab.sessionId) {

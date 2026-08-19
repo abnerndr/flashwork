@@ -10,6 +10,7 @@ import { recordAgentActivityInput } from '../../lib/activityTracker'
 import { cliPathMatchesAgent } from '../../lib/agentCliPath'
 import { AgentCompletionMonitor } from '../../lib/agentCompletionMonitor'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { getLocale, translate } from '../../lib/i18n'
 import { isWindows } from '../../lib/platform'
 import { usePtyPanelVisible } from '../../lib/ptyVisibility'
@@ -966,9 +967,13 @@ export function useXtermSession(params: {
           } catch {}
           if (disposed) return
         }
+        const spawnEnv = await resolveOmniRouteSpawnEnv(
+          env,
+          useProjectsStore.getState().preferences,
+        )
         const preparedRuntime = command
-          ? preparePtyRuntimeLaunch(command, runtimeProfile, extraArgs ?? [], env)
-          : { args: extraArgs ?? [], env }
+          ? preparePtyRuntimeLaunch(command, runtimeProfile, extraArgs ?? [], spawnEnv)
+          : { args: extraArgs ?? [], env: spawnEnv }
 
         // o spawn.
         const mcpConfigPaths: string[] = []

@@ -16,6 +16,7 @@ import {
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { resolveClaudeResumeId } from '../../lib/sessionResume'
 import { useT } from '../../lib/i18n'
@@ -123,10 +124,15 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
 
   const onRestart = async () => {
     if (!activeTab?.ptyId || terminal.disabled) return
+    const env = await resolveOmniRouteSpawnEnv(
+      undefined,
+      useProjectsStore.getState().preferences,
+    )
     const preparedRuntime = preparePtyRuntimeLaunch(
       activeTab.type,
       activeTab.runtimeProfile,
       activeTab.extraArgs ?? [],
+      env,
     )
     const resumeId =
       activeTab.type === 'claude'

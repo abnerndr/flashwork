@@ -48,6 +48,23 @@ pub(crate) fn parse_loopback_port(base_url: &str) -> Result<u16, String> {
     Ok(port)
 }
 
+pub(crate) fn require_initial_password(password: &str) -> Result<(), String> {
+    if password.trim().is_empty() {
+        return Err("password must not be empty".into());
+    }
+    Ok(())
+}
+
+pub(crate) fn sidecar_args(port: u16) -> Vec<String> {
+    vec![
+        "--no-browser".into(),
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string(),
+    ]
+}
+
 async fn health_get_ok(port: u16) -> bool {
     let Ok(client) = reqwest::Client::builder()
         .timeout(HEALTH_TIMEOUT)
@@ -63,14 +80,19 @@ async fn health_get_ok(port: u16) -> bool {
 fn spawn_sidecar(port: u16, password: &str) -> Result<Child, String> {
     let mut command = Command::new("9router");
     command
-        .arg("--no-browser")
-        .arg("--port")
-        .arg(port.to_string())
+        .args(sidecar_args(port))
         .env("INITIAL_PASSWORD", password)
         .env("PORT", port.to_string())
+        .env("HOSTNAME", "127.0.0.1")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // Own process group so SIGTERM/SIGKILL can reach the Next child, not only the CLI.
+        command.process_group(0);
+    }
     crate::git_control::hide_console(&mut command);
     command.spawn().map_err(|error| {
         if error.kind() == ErrorKind::NotFound {
@@ -79,6 +101,56 @@ fn spawn_sidecar(port: u16, password: &str) -> Result<Child, String> {
             format!("failed to start 9router: {error}")
         }
     })
+}
+
+#[cfg(unix)]
+const STOP_GRACE: Duration = Duration::from_secs(2);
+
+#[cfg(unix)]
+fn send_unix_signal(pid: u32, signal: &str) {
+    let mut command = Command::new("kill");
+    command
+        .args([signal, "--", &format!("-{pid}")])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    let _ = command.status();
+}
+
+#[cfg(unix)]
+fn wait_for_exit(child: &mut Child, timeout: Duration) -> bool {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(_) => return true,
+        }
+    }
+}
+
+fn stop_owned_child(child: &mut Child) {
+    #[cfg(windows)]
+    {
+        crate::pty::kill_process_tree(child.id());
+        let _ = child.wait();
+    }
+    #[cfg(unix)]
+    {
+        let pid = child.id();
+        // SIGTERM first so 9router can reap server.pid (Next). SIGKILL skips that cleanup.
+        send_unix_signal(pid, "-TERM");
+        if wait_for_exit(child, STOP_GRACE) {
+            return;
+        }
+        send_unix_signal(pid, "-KILL");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
 }
 
 /// Kill the sidecar only when this process spawned it. Foreign listeners are left alone.
@@ -91,8 +163,7 @@ pub fn stop_owned_sidecar(state: &OmniRouteState) -> Result<(), String> {
         return Ok(());
     };
     if handle.started_by_app {
-        let _ = handle.child.kill();
-        let _ = handle.child.wait();
+        stop_owned_child(&mut handle.child);
     }
     Ok(())
 }
@@ -103,6 +174,7 @@ pub async fn omniroute_start(
     password: String,
     base_url: String,
 ) -> Result<OmniRouteStartResult, String> {
+    require_initial_password(&password)?;
     let port = parse_loopback_port(&base_url)?;
     if health_get_ok(port).await {
         return Ok(OmniRouteStartResult {
@@ -179,5 +251,27 @@ mod tests {
         assert!(parse_loopback_port("http://127.0.0.1:20128").ok() == Some(20128));
         assert!(parse_loopback_port("http://localhost:20128").is_err());
         assert!(parse_loopback_port("http://0.0.0.0:20128").is_err());
+    }
+
+    #[test]
+    fn spawn_args_bind_loopback_host_and_port() {
+        let args = sidecar_args(20128);
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--host" && pair[1] == "127.0.0.1"),
+            "spawn args must include --host 127.0.0.1, got {args:?}"
+        );
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--port" && pair[1] == "20128"),
+            "spawn args must include --port, got {args:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_empty_password() {
+        assert!(require_initial_password("").is_err());
+        assert!(require_initial_password("   ").is_err());
+        assert!(require_initial_password("secret").is_ok());
     }
 }

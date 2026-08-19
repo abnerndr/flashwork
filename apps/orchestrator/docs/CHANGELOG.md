@@ -21,6 +21,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Home quick launch gained **Auto**: Flashwork picks an installed coding CLI for the prompt, starts it in the selected existing project, and can hand off between Claude Code and Codex when quota or a rate-limit error hits. A project bar shows the active agent and a timeline; you can review the handoff capsule without blocking the switch. Auto never creates a project.
+- **OmniRoute** can optionally run [9router](https://www.npmjs.com/package/9router) as a local sidecar on `127.0.0.1:20128` (same OS as the app). A Home wizard installs it, generates a dashboard password, stores the gateway key in the OS keyring, and points new Claude Code / Codex panes at the gateway. RTK stays 9router’s default; Caveman stays off unless you enable it in both Flashwork and the 9router dashboard. If the sidecar is down, panes spawn with native APIs.
 - Claude Code and Codex conversations can now be continued in the other agent from the terminal
   toolbar or Recent chats. Flashwork builds an editable, locally redacted context packet, opens the
   target agent in a new pane, keeps the source conversation available, and removes the temporary

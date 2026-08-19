@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { intlLocale, type Locale, type TFunction,useT } from '../../lib/i18n'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
@@ -169,7 +171,17 @@ export function RecentChatsModal() {
     if (!tab?.ptyId) return
     setBusyId(entry.id)
     try {
-      const launch = buildAgentLaunch(agent, extraArgsFor(agent), entry.id)
+      const env = await resolveOmniRouteSpawnEnv(
+        undefined,
+        useProjectsStore.getState().preferences,
+      )
+      const preparedRuntime = preparePtyRuntimeLaunch(
+        agent,
+        tab.runtimeProfile,
+        extraArgsFor(agent),
+        env,
+      )
+      const launch = buildAgentLaunch(agent, preparedRuntime.args, entry.id)
       await restartPty({
         id: tab.ptyId,
         cols: 80,
@@ -177,6 +189,7 @@ export function RecentChatsModal() {
         command: agentCliCommand(agent),
         cwd: tab.cwd || cwd || undefined,
         extraArgs: launch.args,
+        env: preparedRuntime.env,
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: tab.ptyId } }),

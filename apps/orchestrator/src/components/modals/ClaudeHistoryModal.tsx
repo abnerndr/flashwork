@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { intlLocale, useT, type Locale, type TFunction } from '../../lib/i18n'
 import { listClaudeSessions, restartPty, type ClaudeSessionMeta } from '../../lib/tauri'
 import { agentCliCommand, type AgentType } from '../../lib/types'
@@ -89,6 +91,11 @@ export function ClaudeHistoryModal({
         filtered.push(old[i])
       }
       const newExtraArgs = [...filtered, '--resume', sessionId]
+      const env = await resolveOmniRouteSpawnEnv(
+        undefined,
+        useProjectsStore.getState().preferences,
+      )
+      const preparedRuntime = preparePtyRuntimeLaunch(agentType, 'full', newExtraArgs, env)
 
       await restartPty({
         id: ptyId,
@@ -96,7 +103,8 @@ export function ClaudeHistoryModal({
         rows: 24,
         command: agentCliCommand(agentType),
         cwd,
-        extraArgs: newExtraArgs,
+        extraArgs: preparedRuntime.args,
+        env: preparedRuntime.env,
       })
       window.dispatchEvent(new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId } }))
 

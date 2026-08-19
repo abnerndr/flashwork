@@ -9,6 +9,8 @@
                                                               
    
 
+import { preparePtyRuntimeLaunch } from './agentRuntimeAdapter'
+import { resolveOmniRouteSpawnEnv } from './flashwork/omniRouteSpawn'
 import { getActiveSessions, saveSession } from './sessionResume'
 import { acquireSpawnSlot, releaseSpawnSlot } from './spawnQueue'
 import {
@@ -19,7 +21,7 @@ import {
   snapshotCodexSessions,
   snapshotOpenCodeSessions,
 } from './tauri'
-import type { AgentType } from './types'
+import type { AgentRuntimeProfile, AgentType } from './types'
 import { useProjectsStore } from '../stores/projectsStore'
 import { useTerminalsStore } from '../stores/terminalsStore'
 
@@ -134,6 +136,7 @@ type ResumeTarget = {
   agent: AgentType
   cwd: string
   extraArgs: string[]
+  runtimeProfile?: AgentRuntimeProfile
 }
 
                                                                        
@@ -155,6 +158,7 @@ function collectLivePanes(): ResumeTarget[] {
           agent: tab.type,
           cwd: (tab.cwd || terminal.cwd || '').trim(),
           extraArgs: tab.extraArgs ?? [],
+          runtimeProfile: tab.runtimeProfile,
         })
       }
     }
@@ -208,6 +212,16 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
       const savedOpenCodeId = target.agent === 'opencode' ? active?.opencodeSessionId : undefined
       const sessionId = await latestSessionId(target.agent, cwd, exclude, savedOpenCodeId)
       const extraArgs = buildResumeArgs(target.agent, target.extraArgs, sessionId)
+      const env = await resolveOmniRouteSpawnEnv(
+        undefined,
+        useProjectsStore.getState().preferences,
+      )
+      const preparedRuntime = preparePtyRuntimeLaunch(
+        target.agent,
+        target.runtimeProfile,
+        extraArgs,
+        env,
+      )
 
                                                                         
       useTerminalsStore.getState().beginRestart(target.ptyId)
@@ -217,7 +231,8 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
         rows: 24,
         command: target.agent,
         cwd: cwd || undefined,
-        extraArgs,
+        extraArgs: preparedRuntime.args,
+        env: preparedRuntime.env,
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: target.ptyId } }),

@@ -121,6 +121,13 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Auto no longer clones the same implementation onto every installed CLI. A simple prompt stays on
+  one worker; mixed prompts open one pane per slice, each told which sibling owns the rest. Login
+  and API-key screens never receive the Auto prompt. A pane that fails auth is dropped instead of
+  handing the whole request to a sibling that is already working. After the CLIs finish booting,
+  Auto still injects the slice prompt even when the ready banner text has changed — it only withholds
+  it on a real device-login or API-key error.
+
 - GitHub Copilot is drawn with its official mark instead of the generic robot placeholder, so every
   agent in the app now carries its own logo.
 - Setting MCP up is no longer a step of first-run onboarding. It is offered once as its own card

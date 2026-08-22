@@ -12,6 +12,7 @@ import {
 } from '@dnd-kit/core'
 import {
   Folder,
+  FolderKanban,
   FolderPlus,
   GitBranch,
   Grid3x3,
@@ -484,6 +485,20 @@ export function NormalProjectSidebar() {
           <Home size={14} />
           <span>{t('ui.sidebar.home')}</span>
         </button>
+        {preferences.enabledFeatures.taskBoard ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'tasks'}
+            className={`${styles.sidebarTab} ${activeView === 'tasks' ? styles.sidebarTabActive : ''}`}
+            onClick={() => setActiveView('tasks')}
+            title={t('ui.sidebar.tasksTitle')}
+            aria-label={t('ui.sidebar.tasks')}
+          >
+            <FolderKanban size={14} />
+            <span>{t('ui.sidebar.tasks')}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           role="tab"

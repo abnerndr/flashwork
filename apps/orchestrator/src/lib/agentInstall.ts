@@ -1,3 +1,4 @@
+import { isWindows } from './platform'
 import type { AgentType } from './types'
 
 export type InstallToolchain = {
@@ -23,6 +24,8 @@ export type InstallMethod = {
   verifyCommand?: string
   /** Inverts the check: the run succeeded when the CLI is gone, not when it is found. */
   verifyAbsent?: boolean
+  /** Hide this method when Node is missing or older than this major version. */
+  minNodeMajor?: number
 }
 
 export const NODE_DOWNLOAD_URL = 'https://nodejs.org/en/download'
@@ -33,6 +36,24 @@ export type AgentInstallCatalogEntry = {
 }
 
 const METHOD_ORDER: InstallMethodId[] = ['native', 'npm', 'winget', 'scoop', 'choco']
+
+export function nodeMajor(version: string | null | undefined): number | null {
+  if (!version) return null
+  const match = /^v?(\d+)/.exec(version.trim())
+  if (!match) return null
+  const major = Number.parseInt(match[1], 10)
+  return Number.isFinite(major) ? major : null
+}
+
+function methodIsViable(method: InstallMethod, toolchain: InstallToolchain | null): boolean {
+  if (method.minNodeMajor) {
+    const major = nodeMajor(toolchain?.node)
+    if (major === null || major < method.minNodeMajor) return false
+  }
+  if (!method.requires) return true
+  if (!toolchain) return false
+  return Boolean(toolchain[method.requires])
+}
 
 // Commands are fixed literals, never user input: they are handed straight to a
 // shell PTY. Verified against each vendor's official install documentation.
@@ -65,7 +86,14 @@ export const AGENT_INSTALL_CATALOG: Partial<Record<AgentType, AgentInstallCatalo
   },
   gemini: {
     docsUrl: 'https://github.com/google-gemini/gemini-cli',
-    methods: [{ id: 'npm', command: 'npm install -g @google/gemini-cli', requires: 'npm' }],
+    methods: [
+      {
+        id: 'npm',
+        command: 'npm install -g @google/gemini-cli',
+        requires: 'npm',
+        minNodeMajor: 20,
+      },
+    ],
   },
   mimo: {
     docsUrl: 'https://github.com/XiaomiMiMo/MiMo-Code',
@@ -103,11 +131,7 @@ export function installMethodsFor(
   const entry = AGENT_INSTALL_CATALOG[agent]
   if (!entry) return []
   return entry.methods
-    .filter((method) => {
-      if (!method.requires) return true
-      if (!toolchain) return false
-      return Boolean(toolchain[method.requires])
-    })
+    .filter((method) => methodIsViable(method, toolchain))
     .sort((a, b) => METHOD_ORDER.indexOf(a.id) - METHOD_ORDER.indexOf(b.id))
 }
 
@@ -132,7 +156,7 @@ export function needsNodeToolchain(agent: AgentType, toolchain: InstallToolchain
   const entry = AGENT_INSTALL_CATALOG[agent]
   if (!entry || entry.methods.length === 0) return false
   if (installMethodsFor(agent, toolchain).length > 0) return false
-  return entry.methods.some((method) => method.requires === 'npm')
+  return entry.methods.some((method) => method.requires === 'npm' || Boolean(method.minNodeMajor))
 }
 
 /** Node installers that work on this machine, best first. Empty means "send them to the website". */
@@ -171,6 +195,16 @@ export function uninstallMethodsFor(
 }
 
 /** Line handed to the shell PTY: run the installer, then close the shell. */
-export function installShellLine(command: string): string {
-  return `${command}; exit\r`
+export function installShellLine(command: string, windows: boolean = isWindows()): string {
+  if (windows) {
+    const usesCmd = /^(npm|npx|pnpm|yarn|winget|scoop|choco)\b/i.test(command.trim())
+    const body = usesCmd ? `cmd /c "${command.replace(/"/g, '\\"')}"` : command
+    return `$env:npm_config_prefix=$null; $env:npm_config_global_prefix=$null; ${body}; exit $LASTEXITCODE\r`
+  }
+  return `unset npm_config_prefix npm_config_global_prefix; ${command} && exit 0 || exit 1\r`
+}
+
+/** True when the installer PTY printed an error that will never reach a clean `exit`. */
+export function installOutputIsFatal(log: string): boolean {
+  return /nvm is not compatible with the ["']npm_config_prefix["']/i.test(log)
 }

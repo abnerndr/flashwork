@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import { type InstallMethod, installShellLine } from '../lib/agentInstall'
+import { type InstallMethod, installOutputIsFatal, installShellLine } from '../lib/agentInstall'
 import {
   agentCliVersion,
   findCliLauncher,
@@ -22,7 +22,8 @@ export type AgentInstallStatus = 'idle' | 'running' | 'success' | 'failed'
 export type AgentInstallShadowConflict = { path: string }
 
 const MAX_LOG_CHARS = 12_000
-const PROMPT_SETTLE_MS = 400
+const PROMPT_SETTLE_MS = 900
+const CLEAR_LINE = '\x15'
 
 function trimLog(value: string): string {
   return value.length > MAX_LOG_CHARS ? value.slice(value.length - MAX_LOG_CHARS) : value
@@ -63,6 +64,8 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
   const ptyIdRef = useRef<string | null>(null)
   const cleanupRef = useRef<Array<() => void>>([])
   const disposedRef = useRef(false)
+  const logRef = useRef('')
+  const settledRef = useRef(false)
 
   const teardown = useCallback(() => {
     cleanupRef.current.forEach((stop) => stop())
@@ -86,6 +89,8 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
     async (method: InstallMethod) => {
       if (status === 'running' || busyAgent !== null) return
       teardown()
+      logRef.current = ''
+      settledRef.current = false
       setLog('')
       setShadowConflict(null)
       setStatus('running')
@@ -110,13 +115,21 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
 
         cleanupRef.current.push(
           await listenPtyData(spawned.id, (chunk) => {
-            setLog((current) => trimLog(current + chunk))
+            const next = trimLog(logRef.current + chunk)
+            logRef.current = next
+            setLog(next)
+            if (!installOutputIsFatal(next) || settledRef.current) return
+            settledRef.current = true
+            setStatus('failed')
+            teardown()
           }),
         )
         cleanupRef.current.push(
           await listenPtyExit(spawned.id, (payload) => {
             ptyIdRef.current = null
             if (busyAgent === lockKey) setBusyAgent(null)
+            if (settledRef.current) return
+            settledRef.current = true
             // `installShellLine` ends the shell with a bare `exit`, which carries the
             // installer command's own exit status. A non-zero code means the installer
             // itself reported failure (network error, permission denied, ...) — trust it
@@ -162,8 +175,8 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
         )
 
         await new Promise((resolve) => setTimeout(resolve, PROMPT_SETTLE_MS))
-        if (disposedRef.current) return
-        await writePty(spawned.id, installShellLine(method.command))
+        if (disposedRef.current || settledRef.current) return
+        await writePty(spawned.id, `${CLEAR_LINE}${installShellLine(method.command)}`)
       } catch (error) {
         setLog((current) => trimLog(`${current}\n${String(error)}`))
         setStatus('failed')
@@ -175,6 +188,8 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
 
   const reset = useCallback(() => {
     teardown()
+    logRef.current = ''
+    settledRef.current = false
     setLog('')
     setShadowConflict(null)
     setStatus('idle')

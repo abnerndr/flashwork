@@ -88,7 +88,7 @@ export type AppIconTheme =
 
 export type VisualStyle = 'normal' | 'clean'
 
-export type FeatureId = 'todos' | 'git' | 'browser' | 'graphify' | 'aiMemory' | 'mcp'
+export type FeatureId = 'todos' | 'git' | 'browser' | 'graphify' | 'aiMemory' | 'mcp' | 'taskBoard'
 
 export type TodoItem = {
   id: string
@@ -97,6 +97,39 @@ export type TodoItem = {
   tags: string[]
 
   projectId?: string
+}
+
+export type TaskBoardColumn = 'backlog' | 'todo' | 'doing' | 'verify' | 'done' | 'blocked'
+
+export type TaskSliceStatus = 'pending' | 'running' | 'done' | 'failed'
+
+export type TaskSlicePlan = {
+  id: string
+  kind: 'implement' | 'review' | 'mechanical' | 'explore' | 'ui' | 'unknown'
+  agent: AgentType
+  prompt: string
+  dependsOn: string[]
+  allowedFiles: string[]
+  terminalId?: string
+  status: TaskSliceStatus
+}
+
+export type TaskCard = {
+  id: string
+  projectId: string
+  cwd: string
+  title: string
+  prompt: string
+  allowedFiles: string[]
+  priority: number
+  column: TaskBoardColumn
+  verifyCommands?: string[]
+  runId?: string
+  boardPath?: string
+  slicePlan?: TaskSlicePlan[]
+  error?: string
+  createdAt: number
+  updatedAt: number
 }
 
 export type SubTab = {
@@ -146,6 +179,8 @@ export type PromptRunStepReason =
   | 'only-installed'
   | 'project-preference'
   | 'last-used'
+  | 'skill'
+  | 'orchestrator'
 
 export type PromptRunStep = {
   agent: AgentType
@@ -601,6 +636,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     graphify: true,
     aiMemory: false,
     mcp: true,
+    taskBoard: true,
   },
   todoStoragePath: '',
   mcpDefaultScope: 'global',

@@ -1,0 +1,248 @@
+.board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px 16px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.header h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: 600 18px/1.2 var(--font-sans);
+}
+
+.kicker,
+.lede {
+  margin: 0;
+  color: var(--fg-muted);
+  font: 12px/1.4 var(--font-mono);
+}
+
+.lede {
+  margin-top: 6px;
+  max-width: 62ch;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr 88px;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.composer label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 11px var(--font-mono);
+  color: var(--fg-muted);
+}
+
+.composer input,
+.composer select,
+.composer textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-sunken);
+  color: var(--fg);
+  padding: 7px 9px;
+  font: 13px var(--font-sans);
+}
+
+.grow {
+  min-width: 0;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.files {
+  grid-column: 1 / -1;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 10px;
+}
+
+.filesHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 11px var(--font-mono);
+  color: var(--fg-muted);
+}
+
+.filesHead button,
+.submit,
+.open,
+.cardTop button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-sunken);
+  color: var(--fg);
+  cursor: pointer;
+  font: 11px var(--font-mono);
+  padding: 5px 8px;
+}
+
+.submit {
+  grid-column: 1 / -1;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--bg);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--fg-muted);
+  font: 12px var(--font-sans);
+}
+
+.files ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.files li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  font: 11px var(--font-mono);
+}
+
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  gap: 10px;
+  overflow: auto;
+}
+
+.column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+}
+
+.column header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.column h2 {
+  margin: 0;
+  font: 600 12px var(--font-sans);
+}
+
+.column header span {
+  color: var(--fg-muted);
+  font: 11px var(--font-mono);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.columnOver {
+  border-color: var(--accent);
+}
+
+.card {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-elevated);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cardDragging {
+  opacity: 0.55;
+  cursor: grabbing;
+  z-index: 2;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card p {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+  font: 12px/1.4 var(--font-sans);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--fg-muted);
+  font: 10px var(--font-mono);
+}
+
+.slices {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font: 10px var(--font-mono);
+  color: var(--fg-muted);
+}
+
+.error {
+  color: var(--danger, #f87171);
+}
+
+.open {
+  margin-top: 0;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}

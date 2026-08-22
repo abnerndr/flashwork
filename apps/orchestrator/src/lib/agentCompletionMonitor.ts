@@ -1,7 +1,13 @@
 import { getLocale, translate } from './i18n'
-import type { AgentType } from './types'
 import { notifyAgentDone } from './notifications'
 import { pathSegments } from './paths'
+import type { AgentType } from './types'
+
+export function isCompletionMonitoredAgent(
+  agent: AgentType | null | undefined,
+): agent is Exclude<AgentType, 'shell'> {
+  return Boolean(agent) && agent !== 'shell'
+}
 
 const RESPONSE_IDLE_MS = 4500
 const MIN_RESPONSE_MS = 700

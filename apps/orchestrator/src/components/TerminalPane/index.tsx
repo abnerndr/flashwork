@@ -17,6 +17,7 @@ import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { buildGhosttyCommand } from '../../lib/ghosttyCommand'
 import { useT } from '../../lib/i18n'
+import { noteBoardTerminalComplete } from '../../lib/taskBoard/submitBoardTask'
 import { shouldUseNativeBackend } from '../../lib/platform'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { getActiveSessions, resolveClaudeResumeId, savedConversationIdFor, saveSession } from '../../lib/sessionResume'
@@ -571,6 +572,7 @@ export const TerminalPane = memo(function TerminalPane({
                   }}
                   onAgentComplete={() => {
                     setSubTabCompletionUnread(projectId, terminal.id, activeTab.id, true)
+                    void noteBoardTerminalComplete(terminal.id)
                     if (!activeTab.handoff) return
                     void completeAgentHandoff(activeTab.handoff.id)
                       .then(() =>

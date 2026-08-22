@@ -49,7 +49,7 @@ type ModalKind =
   | 'mcpIntro'
   | null
 
-export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox'
+export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks'
 export type RightSidebarMode = 'todo' | 'markdown' | 'git' | 'mcp'
 export type MarkdownSidebarTab = { path: string; title: string }
 
@@ -119,8 +119,11 @@ type UiState = {
   updateInfo: UpdateInfo | null
   /** URL aberta no visualizador in-app (overlay com iframe). null = fechado. */
   linkViewerUrl: string | null
+  /** Survives Home unmount when Auto/quick launch switches to the workspace. */
+  homeQuickPromptDraft: string
 
   openModal_: (kind: Exclude<ModalKind, null>, context?: ModalContext) => void
+  setHomeQuickPromptDraft: (value: string) => void
   closeModal: () => void
   closeMainMenu: () => void
   toggleMainMenu: () => void
@@ -190,7 +193,9 @@ export const useUiStore = create<UiState>((set) => ({
   notifications: [],
   updateInfo: null,
   linkViewerUrl: null,
+  homeQuickPromptDraft: '',
 
+  setHomeQuickPromptDraft: (value) => set({ homeQuickPromptDraft: value }),
   openModal_: (kind, context) =>
     set({ openModal: kind, modalContext: context ?? null, showMainMenu: false }),
   closeModal: () => set({ openModal: null, modalContext: null }),

@@ -7,12 +7,28 @@ vi.mock('../../lib/tauri', () => ({ writePty }))
 
 import {
   applyPromptHistoryInput,
+  flattenInitialPtyInput,
   MAX_TRACKED_PROMPT_LENGTH,
   PASTE_CHUNK_SIZE,
   PTY_WRITE_TIMEOUT_MS,
   writePtyChunked,
   writePtyWithTimeout,
 } from './terminalWrite'
+
+describe('flattenInitialPtyInput', () => {
+  it('collapses Auto bootstrap newlines so ConPTY does not submit the first line alone', () => {
+    const bootstrap = [
+      '[Flashwork Auto] You are the active agent (Claude Code) for run abc.',
+      'Do the user request below. Flashwork may later hand off to another CLI with a context capsule.',
+      '',
+      'implement login',
+    ].join('\n')
+
+    expect(flattenInitialPtyInput(bootstrap)).toBe(
+      '[Flashwork Auto] You are the active agent (Claude Code) for run abc. Do the user request below. Flashwork may later hand off to another CLI with a context capsule. implement login',
+    )
+  })
+})
 
 describe('applyPromptHistoryInput', () => {
   it('persists multiple submitted lines with one batched change signal', () => {

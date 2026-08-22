@@ -104,4 +104,27 @@ describe('executeAutoHandoff', () => {
     expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
     expect(result.terminalArgs.firstTab.initialInput).not.toContain('"runs/run_test/journal.md"')
   })
+
+  it('skips the Claude↔Codex capsule when Gemini fails and continues on Claude', async () => {
+    const prepareAgentHandoff = async () => {
+      throw new Error('should not prepare a Gemini capsule')
+    }
+    const result = await executeAutoHandoff(
+      {
+        source: 'gemini',
+        target: 'claude',
+        cwd: '/repo',
+        extraArgs: [],
+        paneName: 'Handoff to Claude Code',
+        journalPath: '/profile/runs/r1/journal.md',
+        prompt: 'implement login',
+        errorNote: 'Gemini failed: API key not valid.',
+      },
+      { prepareAgentHandoff, materializeAgentHandoff: async () => ({ handoffId: 'x', contextDir: '', contextPath: '' }) },
+    )
+    expect(result.usedFallback).toBe(true)
+    expect(result.terminalArgs.firstTab.type).toBe('claude')
+    expect(result.terminalArgs.firstTab.initialInput).toContain('API key not valid')
+    expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
+  })
 })

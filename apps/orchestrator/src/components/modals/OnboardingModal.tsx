@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { BrainCircuit, Check, GitBranch, Globe, ListTodo, Network, Plug } from 'lucide-react'
+import { BrainCircuit, Check, FolderKanban, GitBranch, Globe, ListTodo, Network, Plug } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getThemeIcon } from '../../lib/themeIcons'
@@ -60,6 +60,7 @@ const FEATURE_ICONS = {
   aiMemory: BrainCircuit,
   graphify: Network,
   mcp: Plug,
+  taskBoard: FolderKanban,
 } as const
 
 export function OnboardingModal() {

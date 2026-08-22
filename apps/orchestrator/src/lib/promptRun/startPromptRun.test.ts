@@ -7,7 +7,8 @@ const createAgentTerminal = vi.fn(async () => ({ id: 'term-1' }))
 
 describe('startPromptRun', () => {
   beforeEach(() => {
-    createAgentTerminal.mockClear()
+    createAgentTerminal.mockReset()
+    createAgentTerminal.mockImplementation(async () => ({ id: 'term-1' }))
   })
 
   it('refuses when there is no project', async () => {
@@ -38,11 +39,51 @@ describe('startPromptRun', () => {
       claudeFiveHourUtilization: 0,
       codexRateLimited: false,
       activeRunStatus: 'running',
+      activeTerminalId: 'term-live',
+      liveTerminalIds: ['term-live'],
       createAgentTerminal,
     })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('run-active')
     expect(createAgentTerminal).not.toHaveBeenCalled()
+  })
+
+  it('refuses when live terminals are unknown and a run is marked running', async () => {
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      activeRunStatus: 'running',
+      activeTerminalId: 'term-live',
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.code).toBe('run-active')
+    expect(createAgentTerminal).not.toHaveBeenCalled()
+  })
+
+  it('starts when a persisted run is running but its pane is gone', async () => {
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      activeRunStatus: 'running',
+      activeTerminalId: 'term-gone',
+      liveTerminalIds: ['term-other'],
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    expect(createAgentTerminal).toHaveBeenCalledOnce()
   })
 
   it('returns needs-install when no CLI is present', async () => {
@@ -68,8 +109,8 @@ describe('startPromptRun', () => {
       cwd: '/tmp/app',
       prompt: 'implement login',
       unrestricted: true,
-      enabledAgents: ['claude', 'codex'],
-      installedAgents: ['claude', 'codex'],
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
       claudeFiveHourUtilization: 0,
       codexRateLimited: false,
       createId: () => 'run_test',
@@ -94,6 +135,71 @@ describe('startPromptRun', () => {
       unrestricted: true,
       activeTerminalId: 'term-1',
     })
-    expect(result.run.steps[0]?.reason).toBe('heuristic')
+    expect(result.run.steps[0]?.reason).toBe('only-installed')
+  })
+
+  it('opens a pane for each work slice', async () => {
+    let count = 0
+    createAgentTerminal.mockImplementation(async () => ({ id: `term-${++count}` }))
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login and generate unit tests for the parser',
+      unrestricted: false,
+      enabledAgents: ['claude', 'codex', 'freebuff'],
+      installedAgents: ['claude', 'codex', 'freebuff'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    expect(createAgentTerminal.mock.calls.length).toBeGreaterThanOrEqual(2)
+    if (!result.ok) return
+    expect(result.run.steps.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(result.run.steps.map((step) => step.agent)).size).toBeGreaterThanOrEqual(2)
+  })
+
+  it('starts board workers without an orchestrator TUI', async () => {
+    let count = 0
+    createAgentTerminal.mockImplementation(async () => ({ id: `term-${++count}` }))
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login and generate unit tests for the parser',
+      unrestricted: false,
+      enabledAgents: ['claude', 'codex', 'freebuff'],
+      installedAgents: ['claude', 'codex', 'freebuff'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      includeOrchestrator: false,
+      allowedFiles: ['src/login.ts'],
+      boardPath: '/tmp/board.md',
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    const agents = createAgentTerminal.mock.calls.map((call) => call[1].firstTab.type)
+    expect(agents).not.toContain('freebuff')
+    expect(createAgentTerminal.mock.calls[0][1].firstTab.initialInput).toContain('src/login.ts')
+    expect(createAgentTerminal.mock.calls[0][1].firstTab.initialInput).toContain('/tmp/board.md')
+  })
+
+  it('does not open Gemini and Codex to clone the same implement job', async () => {
+    let count = 0
+    createAgentTerminal.mockImplementation(async () => ({ id: `term-${++count}` }))
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude', 'gemini', 'codex'],
+      installedAgents: ['claude', 'gemini', 'codex'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      includeOrchestrator: false,
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    expect(createAgentTerminal).toHaveBeenCalledOnce()
+    expect(createAgentTerminal.mock.calls[0][1].firstTab.type).toBe('claude')
   })
 })

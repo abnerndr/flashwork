@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { classifyTask } from './classifyTask'
+import { classifyTask, classifyTaskKinds } from './classifyTask'
 
 describe('classifyTask', () => {
   it('classifies implementation language as implement', () => {
@@ -25,5 +25,27 @@ describe('classifyTask', () => {
 
   it('returns unknown when nothing matches', () => {
     expect(classifyTask('hello')).toBe('unknown')
+  })
+
+  it('classifies UI and visual work', () => {
+    expect(classifyTask('restyle the settings screen and fix the CSS of the modal')).toBe('ui')
+    expect(classifyTask('arrume o layout da tela de configurações e o botão')).toBe('ui')
+  })
+
+  it('classifies Portuguese implementation language', () => {
+    expect(classifyTask('implementar login com OAuth')).toBe('implement')
+  })
+
+  it('lists every matching kind so Auto can split the work', () => {
+    expect(classifyTaskKinds('implement login and generate unit tests for the parser')).toEqual([
+      'implement',
+      'mechanical',
+    ])
+    expect(classifyTaskKinds('implementar o login e gerar testes unitários')).toEqual([
+      'implement',
+      'mechanical',
+    ])
+    expect(classifyTaskKinds('hello')).toEqual([])
+    expect(classifyTaskKinds('restyle the settings screen')).toEqual(['ui'])
   })
 })

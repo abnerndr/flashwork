@@ -27,6 +27,18 @@ export type PromptHistoryInputState = {
   history: string[]
 }
 
+/**
+ * ConPTY/xterm treat `\n` as Enter unless the CLI already enabled bracketed paste.
+ * Auto bootstrap is several lines; without this, only the first meta line is submitted.
+ */
+export function flattenInitialPtyInput(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim()
+    .replace(/\n+/g, ' ')
+}
+
 /** Prevents one blocked ConPTY write from holding every subsequent keystroke forever. */
 export async function writePtyWithTimeout(id: string, data: string): Promise<void> {
   let timeoutId: number | null = null

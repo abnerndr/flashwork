@@ -11,6 +11,7 @@ export type SelectAgentInput = {
   reviewAgentProvider?: AgentType
   conflictAgentProvider?: AgentType
   lastUsedAgent?: AgentType
+  forcedKind?: TaskKind
 }
 
 export type AgentChoice = {
@@ -19,9 +20,53 @@ export type AgentChoice = {
   taskKind: TaskKind
 }
 
-const IMPLEMENT_PREF: AgentType[] = ['claude', 'codex', 'opencode']
-const MECHANICAL_PREF: AgentType[] = ['codex', 'opencode', 'claude']
-const EXPLORE_PREF: AgentType[] = ['claude', 'codex', 'opencode']
+const IMPLEMENT_PREF: AgentType[] = [
+  'claude',
+  'gemini',
+  'codex',
+  'copilot',
+  'antigravity',
+  'opencode',
+  'mimo',
+  'freebuff',
+]
+const MECHANICAL_PREF: AgentType[] = [
+  'codex',
+  'opencode',
+  'gemini',
+  'copilot',
+  'claude',
+  'mimo',
+  'freebuff',
+]
+const EXPLORE_PREF: AgentType[] = [
+  'gemini',
+  'claude',
+  'copilot',
+  'opencode',
+  'antigravity',
+  'mimo',
+  'freebuff',
+]
+const REVIEW_PREF: AgentType[] = [
+  'gemini',
+  'copilot',
+  'claude',
+  'codex',
+  'opencode',
+  'antigravity',
+  'mimo',
+]
+const UI_PREF: AgentType[] = [
+  'antigravity',
+  'claude',
+  'gemini',
+  'copilot',
+  'codex',
+  'opencode',
+  'mimo',
+  'freebuff',
+]
 
 function usable(input: SelectAgentInput): AgentType[] {
   const enabled = new Set(input.enabledAgents)
@@ -54,7 +99,7 @@ function applyQuotaFilters(available: AgentType[], input: SelectAgentInput): Age
 export function selectAgent(input: SelectAgentInput): AgentChoice | null {
   const available = usable(input)
   if (available.length === 0) return null
-  const taskKind = classifyTask(input.prompt)
+  const taskKind = input.forcedKind && input.forcedKind !== 'unknown' ? input.forcedKind : classifyTask(input.prompt)
 
   if (available.length === 1) {
     return { agent: available[0], reason: 'only-installed', taskKind }
@@ -74,7 +119,11 @@ export function selectAgent(input: SelectAgentInput): AgentChoice | null {
         ? EXPLORE_PREF
         : taskKind === 'implement'
           ? IMPLEMENT_PREF
-          : null
+          : taskKind === 'review'
+            ? REVIEW_PREF
+            : taskKind === 'ui'
+              ? UI_PREF
+              : null
 
   if (order) {
     const agent = firstAvailable(order, pool)

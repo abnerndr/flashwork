@@ -33,6 +33,11 @@ export const FEATURES: readonly FeatureDefinition[] = [
     titleKey: 'features.mcp.title',
     descriptionKey: 'features.mcp.description',
   },
+  {
+    id: 'taskBoard',
+    titleKey: 'features.taskBoard.title',
+    descriptionKey: 'features.taskBoard.description',
+  },
 ]
 
 type StoredFeaturePreferences = {
@@ -51,6 +56,7 @@ export function normalizeEnabledFeatures(
       graphify: raw.enabledFeatures.graphify ?? false,
       mcp: raw.enabledFeatures.mcp ?? true,
       aiMemory: raw.enabledFeatures.aiMemory ?? false,
+      taskBoard: raw.enabledFeatures.taskBoard ?? true,
     }
   }
   return {
@@ -60,5 +66,6 @@ export function normalizeEnabledFeatures(
     graphify: false,
     aiMemory: false,
     mcp: true,
+    taskBoard: true,
   }
 }

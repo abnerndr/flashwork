@@ -52,6 +52,51 @@ describe('selectAgent', () => {
     expect(choice.reason).toBe('heuristic')
   })
 
+  it('picks Gemini for implement when Claude is not installed', () => {
+    const choice = selectAgent({
+      ...BASE,
+      enabledAgents: ['gemini', 'codex', 'claude'],
+      installedAgents: ['gemini', 'codex'],
+    })
+    expect(choice.agent).toBe('gemini')
+  })
+
+  it('picks Antigravity for UI work when it is installed', () => {
+    const choice = selectAgent({
+      ...BASE,
+      prompt: 'restyle the settings screen',
+      enabledAgents: ['claude', 'gemini', 'antigravity'],
+      installedAgents: ['claude', 'gemini', 'antigravity'],
+    })
+    expect(choice.agent).toBe('antigravity')
+    expect(choice.taskKind).toBe('ui')
+  })
+
+  it('uses the only installed agent even for UI work', () => {
+    const choice = selectAgent({
+      ...BASE,
+      prompt: 'restyle the settings screen',
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+    })
+    expect(choice).toEqual({
+      agent: 'claude',
+      reason: 'only-installed',
+      taskKind: 'ui',
+    })
+  })
+
+  it('picks Gemini for review when no project reviewer is set', () => {
+    const choice = selectAgent({
+      ...BASE,
+      prompt: 'review this PR',
+      enabledAgents: ['claude', 'gemini', 'codex'],
+      installedAgents: ['claude', 'gemini', 'codex'],
+    })
+    expect(choice.agent).toBe('gemini')
+    expect(choice.taskKind).toBe('review')
+  })
+
   it('picks Codex or OpenCode for mechanical work', () => {
     const choice = selectAgent({ ...BASE, prompt: 'generate unit tests for the parser' })
     expect(['codex', 'opencode']).toContain(choice.agent)

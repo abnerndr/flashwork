@@ -56,17 +56,26 @@ export function looksLikeFilesystemPath(path: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(normalized)
 }
 
-export function buildFallbackBootstrap(journalPath: string | undefined, prompt: string): string {
+export function buildFallbackBootstrap(
+  journalPath: string | undefined,
+  prompt: string,
+  note?: string,
+): string {
+  const prefix = note?.trim() ? `${note.trim()}\n\n` : ''
   if (journalPath && looksLikeFilesystemPath(journalPath)) {
     const absolute = stripVerbatimPrefix(journalPath)
-    return `Read the run journal at "${absolute}" and continue this user request.\n\n${prompt}`
+    return `${prefix}Read the run journal at "${absolute}" and continue this user request.\n\n${prompt}`
   }
-  return `Continue this user request.\n\n${prompt}`
+  return `${prefix}Continue this user request.\n\n${prompt}`
+}
+
+function isCapsuleProvider(agent: AgentType): agent is HandoffProvider {
+  return agent === 'claude' || agent === 'codex'
 }
 
 export type ExecuteAutoHandoffInput = {
-  source: HandoffProvider
-  target: HandoffProvider
+  source: AgentType
+  target: AgentType
   sourceSessionId?: string
   cwd: string
   extraArgs?: string[]
@@ -74,6 +83,7 @@ export type ExecuteAutoHandoffInput = {
   runId?: string
   journalPath?: string
   prompt: string
+  errorNote?: string
   bootstrapForCapsule?: (path: string) => string
 }
 
@@ -116,13 +126,10 @@ async function resolveJournalPath(
   return undefined
 }
 
-function syntheticDraft(
-  input: ExecuteAutoHandoffInput,
-  bootstrap: string,
-): HandoffDraft {
+function syntheticDraft(input: ExecuteAutoHandoffInput, bootstrap: string): HandoffDraft {
   return {
-    sourceProvider: input.source,
-    targetProvider: input.target,
+    sourceProvider: isCapsuleProvider(input.source) ? input.source : 'claude',
+    targetProvider: isCapsuleProvider(input.target) ? input.target : 'claude',
     sourceSessionId: input.sourceSessionId ?? '',
     cwd: input.cwd,
     title: 'Fallback handoff',
@@ -131,6 +138,27 @@ function syntheticDraft(
     omittedEventCount: 0,
     redactionCount: 0,
     usedFallback: true,
+  }
+}
+
+async function fallbackHandoff(
+  input: ExecuteAutoHandoffInput,
+  load: LoadPromptRunJournal,
+  prepared: HandoffDraft | null,
+): Promise<ExecuteAutoHandoffResult> {
+  const journalPath = await resolveJournalPath(input, load)
+  const bootstrap = buildFallbackBootstrap(journalPath, input.prompt, input.errorNote)
+  return {
+    draft: prepared ?? syntheticDraft(input, bootstrap),
+    artifact: null,
+    usedFallback: true,
+    terminalArgs: buildHandoffTerminalArgs({
+      target: input.target,
+      cwd: input.cwd,
+      bootstrap,
+      extraArgs: input.extraArgs,
+      paneName: input.paneName,
+    }),
   }
 }
 
@@ -143,6 +171,10 @@ export async function executeAutoHandoff(
   const load = deps.loadPromptRun ?? loadPromptRun
   const bootstrapForCapsule =
     deps.bootstrapForCapsule ?? input.bootstrapForCapsule ?? defaultCapsuleBootstrap
+
+  if (!isCapsuleProvider(input.source) || !isCapsuleProvider(input.target)) {
+    return fallbackHandoff(input, load, null)
+  }
 
   let prepared: HandoffDraft | null = null
   try {
@@ -173,19 +205,6 @@ export async function executeAutoHandoff(
       }),
     }
   } catch {
-    const journalPath = await resolveJournalPath(input, load)
-    const bootstrap = buildFallbackBootstrap(journalPath, input.prompt)
-    return {
-      draft: prepared ?? syntheticDraft(input, bootstrap),
-      artifact: null,
-      usedFallback: true,
-      terminalArgs: buildHandoffTerminalArgs({
-        target: input.target,
-        cwd: input.cwd,
-        bootstrap,
-        extraArgs: input.extraArgs,
-        paneName: input.paneName,
-      }),
-    }
+    return fallbackHandoff(input, load, prepared)
   }
 }

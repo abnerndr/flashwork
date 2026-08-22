@@ -51,6 +51,7 @@ import { useDiscordPresence } from './hooks/useDiscordPresence'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
 import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
+import { useTaskBoardScheduler } from './hooks/useTaskBoardScheduler'
 import { useRemoteControlService } from './hooks/useRemoteControlService'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
 import { startActivityTracker } from './lib/activityTracker'
@@ -68,6 +69,9 @@ import { type InAppToast, useUiStore } from './stores/uiStore'
 
 const HomeView = lazy(() =>
   import('./components/HomeView').then((module) => ({ default: module.HomeView })),
+)
+const TaskBoardView = lazy(() =>
+  import('./components/TaskBoardView').then((module) => ({ default: module.TaskBoardView })),
 )
 const LayoutDesignerModal = lazy(() =>
   import('./components/modals/LayoutDesignerModal').then((module) => ({
@@ -231,6 +235,7 @@ export default function App() {
   useResourceSupervisor(hydrated)
   useCliOpenRequests(hydrated)
   usePromptRunWatcher()
+  useTaskBoardScheduler()
 
   useEffect(() => {
     void hydrate()
@@ -486,6 +491,8 @@ export default function App() {
                 <Suspense fallback={<LoadingScreen />}>
                   {activeView === 'home' ? (
                     <HomeView />
+                  ) : activeView === 'tasks' ? (
+                    <TaskBoardView />
                   ) : activeView === 'agentSandbox' && AGENT_SANDBOX_ENABLED ? (
                     <AgentSandbox />
                   ) : (

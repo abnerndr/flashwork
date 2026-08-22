@@ -13,6 +13,7 @@ import {
 import {
   Files,
   Folder,
+  FolderKanban,
   FolderPlus,
   GitBranch,
   Home,
@@ -491,12 +492,23 @@ function CleanProjectSidebar() {
         >
           <Home size={14} />
         </button>
+        {preferences.enabledFeatures.taskBoard ? (
+          <button
+            type="button"
+            className={`${styles.toolbarButton} ${activeView === 'tasks' ? styles.toolbarButtonActive : ''}`}
+            onClick={() => setActiveView('tasks')}
+            title={t('ui.sidebar.tasksTitle')}
+            aria-label={t('ui.sidebar.tasks')}
+          >
+            <FolderKanban size={14} />
+          </button>
+        ) : null}
         <span className={styles.toolbarDivider} />
         <button
           type="button"
           aria-label={t('ui.sidebar.projects')}
           title={t('ui.sidebar.projects')}
-          className={`${styles.toolbarButton} ${activeView !== 'home' && sidebarTab === 'projects' ? styles.toolbarButtonActive : ''}`}
+          className={`${styles.toolbarButton} ${activeView === 'workspace' && sidebarTab === 'projects' ? styles.toolbarButtonActive : ''}`}
           onClick={() => {
             setSidebarTab('projects')
             setActiveView('workspace')
@@ -508,7 +520,7 @@ function CleanProjectSidebar() {
           type="button"
           aria-label={t('ui.sidebar.files')}
           title={t('ui.sidebar.files')}
-          className={`${styles.toolbarButton} ${activeView !== 'home' && sidebarTab === 'files' ? styles.toolbarButtonActive : ''}`}
+          className={`${styles.toolbarButton} ${activeView === 'workspace' && sidebarTab === 'files' ? styles.toolbarButtonActive : ''}`}
           onClick={() => {
             setSidebarTab('files')
             setActiveView('workspace')
@@ -521,7 +533,7 @@ function CleanProjectSidebar() {
             type="button"
             aria-label={t('ui.sidebar.git')}
             title={t('ui.sidebar.git')}
-            className={`${styles.toolbarButton} ${activeView !== 'home' && sidebarTab === 'git' ? styles.toolbarButtonActive : ''}`}
+            className={`${styles.toolbarButton} ${activeView === 'workspace' && sidebarTab === 'git' ? styles.toolbarButtonActive : ''}`}
             onClick={() => {
               setSidebarTab('git')
               setActiveView('workspace')

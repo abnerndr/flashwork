@@ -73,7 +73,7 @@ export function AgentUninstallButton({ agent, label, onUninstalled, nested }: Pr
       <Modal
         open={open}
         onClose={() => {
-          if (running) return
+          reset()
           setOpen(false)
         }}
         title={t('agentInstall.uninstallTitle', { agent: label })}
@@ -83,8 +83,10 @@ export function AgentUninstallButton({ agent, label, onUninstalled, nested }: Pr
             <button
               type="button"
               className={controls.btn}
-              disabled={running}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                reset()
+                setOpen(false)
+              }}
             >
               {t('agentInstall.cancel')}
             </button>

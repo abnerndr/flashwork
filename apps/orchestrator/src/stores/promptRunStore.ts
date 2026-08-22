@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { listPromptRuns, savePromptRun } from '../lib/tauri'
+import { isPromptRunBlocking } from '../lib/promptRun/isPromptRunBlocking'
 import type { PromptRun, PromptRunStatus, PromptRunStep } from '../lib/types'
 
 type PromptRunState = {
@@ -80,6 +81,33 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
     if (hydrateSeqByProject.get(projectId) !== sequence) return
     const active = runs.find((run) => run.status === 'running' || run.status === 'handing-off')
     if (!active) return
+    const { useProjectsStore } = await import('./projectsStore')
+    const project = useProjectsStore.getState().projects.find((item) => item.id === projectId)
+    if (
+      project &&
+      !isPromptRunBlocking(
+        active.status,
+        [active.activeTerminalId, ...active.steps.map((step) => step.terminalId)].filter(
+          (id): id is string => Boolean(id),
+        ),
+        project.terminals.map((terminal) => terminal.id),
+      )
+    ) {
+      const cancelled = { ...active, status: 'cancelled' as const }
+      set((state) => {
+        const memory = state.byProjectId[projectId]
+        if (memory && !shouldApplyHydrate(cancelled, memory) && memory.id !== cancelled.id) {
+          return state
+        }
+        return { byProjectId: { ...state.byProjectId, [projectId]: cancelled } }
+      })
+      try {
+        await savePromptRun(cancelled)
+      } catch (cause) {
+        console.warn('[prompt-run] persist failed:', cause)
+      }
+      return
+    }
     let appliedId: string | undefined
     set((state) => {
       const memory = state.byProjectId[projectId]

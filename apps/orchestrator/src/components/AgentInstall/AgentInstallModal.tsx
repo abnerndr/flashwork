@@ -84,8 +84,6 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
   const docsUrl = installDocsUrl(agent)
   const running = status === 'running'
   const nodeRunning = nodeInstall.status === 'running'
-  // Only one install may run app-wide, so each button is disabled while the lock belongs to anyone
-  // else — otherwise it stays enabled and silently does nothing when clicked.
   const blockedByOther = (key: string) => busyAgent !== null && busyAgent !== key
   const blocked = blockedByOther(agent)
   const missingNode = !probing && methods.length === 0 && needsNodeToolchain(agent, toolchain)
@@ -93,24 +91,22 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
   const cleanLog = log.replace(ANSI_PATTERN, '')
   const nodeLog = nodeInstall.log.replace(ANSI_PATTERN, '')
 
+  const close = () => {
+    reset()
+    nodeInstall.reset()
+    onClose()
+  }
+
   return (
     <Modal
       open={open}
-      onClose={() => {
-        if (running || nodeRunning) return
-        onClose()
-      }}
+      onClose={close}
       title={t('agentInstall.installTitle', { agent: label })}
       width={480}
       nested={nested}
       footer={
         <>
-          <button
-            type="button"
-            className={controls.btn}
-            disabled={running || nodeRunning}
-            onClick={onClose}
-          >
+          <button type="button" className={controls.btn} onClick={close}>
             {t('agentInstall.cancel')}
           </button>
           {chosen ? (

@@ -207,6 +207,40 @@ fn append_prompt_run_journal_inner(
     Ok(journal_path_for_persist(&journal_path))
 }
 
+fn write_named_markdown(run_dir: &Path, file_name: &str, contents: &str) -> Result<String, String> {
+    let path = run_dir.join(file_name);
+    let temporary = run_dir.join(format!("{file_name}.tmp"));
+    fs::write(&temporary, contents).map_err(|error| error.to_string())?;
+    fs::rename(&temporary, &path).map_err(|error| error.to_string())?;
+    Ok(journal_path_for_persist(&path))
+}
+
+fn write_prompt_run_board_inner(runs: PathBuf, run_id: String, contents: String) -> Result<String, String> {
+    let run_dir = confined_run_dir(&runs, &run_id)?;
+    let truncated = truncate_journal(&contents, JOURNAL_CHAR_LIMIT);
+    write_named_markdown(&run_dir, "board.md", &truncated)
+}
+
+fn append_prompt_run_board_inner(
+    runs: PathBuf,
+    run_id: String,
+    heading: String,
+    body: String,
+) -> Result<String, String> {
+    let Some(run_dir) = confined_existing_run_dir(&runs, &run_id)? else {
+        return Err("prompt run not found".to_string());
+    };
+    let board_path = run_dir.join("board.md");
+    let existing = if board_path.exists() {
+        fs::read_to_string(&board_path).map_err(|error| error.to_string())?
+    } else {
+        String::new()
+    };
+    let appended = append_journal_entry(&existing, &heading, &body);
+    let truncated = truncate_journal(&appended, JOURNAL_CHAR_LIMIT);
+    write_named_markdown(&run_dir, "board.md", &truncated)
+}
+
 #[tauri::command]
 pub async fn save_prompt_run(app: AppHandle, run: PromptRunRecord) -> Result<(), String> {
     let runs = crate::paths::runs_dir(&app)?;
@@ -250,6 +284,33 @@ pub async fn append_prompt_run_journal(
     })
     .await
     .map_err(|error| format!("append_prompt_run_journal task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn write_prompt_run_board(
+    app: AppHandle,
+    run_id: String,
+    contents: String,
+) -> Result<String, String> {
+    let runs = crate::paths::runs_dir(&app)?;
+    tokio::task::spawn_blocking(move || write_prompt_run_board_inner(runs, run_id, contents))
+        .await
+        .map_err(|error| format!("write_prompt_run_board task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn append_prompt_run_board(
+    app: AppHandle,
+    run_id: String,
+    heading: String,
+    body: String,
+) -> Result<String, String> {
+    let runs = crate::paths::runs_dir(&app)?;
+    tokio::task::spawn_blocking(move || {
+        append_prompt_run_board_inner(runs, run_id, heading, body)
+    })
+    .await
+    .map_err(|error| format!("append_prompt_run_board task failed: {error}"))?
 }
 
 #[cfg(test)]

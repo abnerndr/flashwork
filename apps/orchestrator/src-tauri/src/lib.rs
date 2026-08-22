@@ -48,6 +48,7 @@ mod profiles;
 mod project_detector;
 mod projects;
 mod prompt_run;
+mod task_board;
 mod provider_common;
 mod pty;
 mod remote;
@@ -370,6 +371,12 @@ pub fn run() {
             prompt_run::load_prompt_run,
             prompt_run::list_prompt_runs,
             prompt_run::append_prompt_run_journal,
+            prompt_run::write_prompt_run_board,
+            prompt_run::append_prompt_run_board,
+            task_board::save_task_card,
+            task_board::list_task_cards,
+            task_board::delete_task_card,
+            task_board::run_planner_cli,
             omniroute::omniroute_start,
             omniroute::omniroute_stop,
             omniroute::omniroute_health,

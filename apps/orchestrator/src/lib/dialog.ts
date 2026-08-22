@@ -26,6 +26,23 @@ export async function pickFile(opts?: {
   return null
 }
 
+export async function pickFiles(opts?: {
+  title?: string
+  filters?: DialogFilter[]
+  defaultPath?: string
+}): Promise<string[] | null> {
+  const result = await open({
+    directory: false,
+    multiple: true,
+    title: opts?.title,
+    filters: opts?.filters,
+    defaultPath: opts?.defaultPath,
+  })
+  if (Array.isArray(result)) return result
+  if (typeof result === 'string') return [result]
+  return null
+}
+
 export async function saveFile(opts: {
   title?: string
   defaultPath?: string

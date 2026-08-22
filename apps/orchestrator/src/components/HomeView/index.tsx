@@ -15,17 +15,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { getCachedActivity } from '../../lib/activityCache'
-import { getCachedClaudeUsage } from '../../lib/claudeUsageCache'
-import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { pickDirectory } from '../../lib/dialog'
 import { formatHomeDate, formatRelativeTimestamp, getGreeting } from '../../lib/greeting'
 import { useT, type MessageKey, type TFunction } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
+import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
 import { AUTO_LAUNCH_VALUE } from '../../lib/promptRun/constants'
-import { probeInstalledAgents } from '../../lib/promptRun/probeInstalled'
-import { startPromptRun } from '../../lib/promptRun/startPromptRun'
-import { appendPromptRunJournal } from '../../lib/tauri'
+import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
 import {
   AGENT_TYPE_LABELS,
   ALL_AGENT_TYPES,
@@ -73,6 +70,8 @@ const PROMPT_RUN_REASON_KEYS: Record<PromptRunStepReason, MessageKey> = {
   'only-installed': 'promptRun.reason.only-installed',
   'project-preference': 'promptRun.reason.project-preference',
   'last-used': 'promptRun.reason.last-used',
+  skill: 'promptRun.reason.skill',
+  orchestrator: 'promptRun.reason.orchestrator',
 }
 
 function compactWorkspacePath(path: string): string {
@@ -127,6 +126,7 @@ export function HomeView() {
     notifications,
     clearNotifications,
     pushToast,
+    setHomeQuickPromptDraft,
   } = useUiStore(
     useShallow((s) => ({
       openModal: s.openModal_,
@@ -136,6 +136,7 @@ export function HomeView() {
       notifications: s.notifications,
       clearNotifications: s.clearNotifications,
       pushToast: s.pushToast,
+      setHomeQuickPromptDraft: s.setHomeQuickPromptDraft,
     })),
   )
 
@@ -235,6 +236,17 @@ export function HomeView() {
     if (!quickCwd && quickTarget) setQuickCwd(getProjectDefaultCwd(quickTarget, projects))
   }, [projects, quickCwd, quickTarget])
 
+  useEffect(() => {
+    const input = quickPromptRef.current
+    if (input && !input.value.trim()) {
+      const next = resolveHomeQuickPrompt(useUiStore.getState().homeQuickPromptDraft)
+      if (next) input.value = next
+    }
+    const projectId = quickTarget?.id
+    if (!projectId) return
+    void usePromptRunStore.getState().hydrate(projectId)
+  }, [quickTarget?.id])
+
   const browseQuickFolder = async () => {
     const folder = await pickDirectory({ defaultPath: quickCwd || undefined })
     if (folder) setQuickCwd(folder)
@@ -243,6 +255,7 @@ export function HomeView() {
   const submitQuickPrompt = async (event: React.FormEvent) => {
     event.preventDefault()
     const prompt = quickPromptRef.current?.value.trim() ?? ''
+    if (prompt) setHomeQuickPromptDraft(prompt)
     if (quickPick === AUTO_LAUNCH_VALUE) {
       if (!prompt) return
       if (autoSubmittingRef.current) return
@@ -251,34 +264,11 @@ export function HomeView() {
       try {
         const cwd =
           quickCwd.trim() || (quickTarget ? getProjectDefaultCwd(quickTarget, projects) : '')
-        const installed = await probeInstalledAgents(
-          ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent] && agent !== 'shell'),
-        )
-        const claudeUsage = await getCachedClaudeUsage().catch(() => null)
-        const codexUsage = await getCachedCodexUsage().catch(() => null)
-        const result = await startPromptRun({
-          project: quickTarget
-            ? {
-                id: quickTarget.id,
-                name: quickTarget.name,
-                reviewAgentProvider: quickTarget.reviewAgentProvider,
-                conflictAgentProvider: quickTarget.conflictAgentProvider,
-                lastUsedAgent:
-                  quickTarget.terminals[quickTarget.terminals.length - 1]?.tabs[0]?.type,
-              }
-            : null,
+        const result = await submitAutoPromptRun({
+          project: toAutoPromptRunProject(quickTarget),
           cwd,
           prompt,
           unrestricted: quickUnrestricted,
-          enabledAgents: ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent]),
-          installedAgents: installed,
-          claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
-          codexRateLimited: Boolean(codexUsage?.rate_limited),
-          activeRunStatus: quickTarget
-            ? usePromptRunStore.getState().byProjectId[quickTarget.id]?.status
-            : undefined,
-          createAgentTerminal: (projectId, args) =>
-            useProjectsStore.getState().createAgentTerminal(projectId, args),
         })
         if (!result.ok) {
           if (result.code === 'no-project') {
@@ -291,6 +281,11 @@ export function HomeView() {
             return
           }
           if (result.code === 'run-active') {
+            if (quickTarget) {
+              setActiveProjectOnly(quickTarget.id)
+              openContainerWithAllPanes(quickTarget.id)
+              setActiveView('workspace')
+            }
             pushToast({
               title: t('promptRun.runActiveTitle'),
               body: t('promptRun.runActiveBody'),
@@ -309,19 +304,13 @@ export function HomeView() {
           })
           return
         }
-        usePromptRunStore.getState().setRun(result.run)
-        try {
-          const journalPath = await appendPromptRunJournal(result.run.id, 'Run started', prompt)
-          usePromptRunStore.getState().patchRun(result.run.projectId, { journalPath })
-        } catch (cause) {
-          console.warn('[prompt-run] journal append failed:', cause)
-        }
         setActiveProjectOnly(result.run.projectId)
         useProjectsStore
           .getState()
           .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
         setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
         requestPaneFocus(result.run.activeTerminalId)
+        setHomeQuickPromptDraft('')
         if (quickPromptRef.current) quickPromptRef.current.value = ''
         setActiveView('workspace')
         const reason = result.run.steps[0]?.reason ?? 'heuristic'
@@ -356,7 +345,6 @@ export function HomeView() {
     useProjectsStore.getState().focusWorkspaceTerminal(quickTarget.id, terminal.id)
     setActiveTerminal(quickTarget.id, terminal.id)
     requestPaneFocus(terminal.id)
-    if (quickPromptRef.current) quickPromptRef.current.value = ''
     setActiveView('workspace')
   }
 
@@ -440,6 +428,8 @@ export function HomeView() {
               className={styles.quickPrompt}
               placeholder={t('home.quickPromptPlaceholder')}
               aria-label={t('home.quickPrompt')}
+              defaultValue={useUiStore.getState().homeQuickPromptDraft}
+              onChange={(event) => setHomeQuickPromptDraft(event.currentTarget.value)}
               required
             />
           </label>

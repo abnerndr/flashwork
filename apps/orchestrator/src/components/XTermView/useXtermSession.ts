@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react'
 
 import { recordAgentActivityInput } from '../../lib/activityTracker'
 import { cliPathMatchesAgent } from '../../lib/agentCliPath'
-import { AgentCompletionMonitor } from '../../lib/agentCompletionMonitor'
+import { AgentCompletionMonitor, isCompletionMonitoredAgent } from '../../lib/agentCompletionMonitor'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { getLocale, translate } from '../../lib/i18n'
@@ -82,7 +82,13 @@ import {
   getLogicalTerminalLine,
   makeXtermLink,
 } from './terminalLinks'
-import { TERMINAL_WRITE_FRAME_BUDGET, writePtyChunked, writePtyWithTimeout } from './terminalWrite'
+import { shouldFlushInitialPtyInput, shouldSendInitialPtyInput } from './cliReadyForInput'
+import {
+  TERMINAL_WRITE_FRAME_BUDGET,
+  flattenInitialPtyInput,
+  writePtyChunked,
+  writePtyWithTimeout,
+} from './terminalWrite'
 import { getXtermTheme, type LinkActionState } from './xtermThemes'
 
 // Early exits trigger a single fresh-session retry.
@@ -745,7 +751,7 @@ export function useXtermSession(params: {
 
       void setPtyVisible(existingId, isPanelVisibleRef.current).catch(() => {})
 
-      if (command === 'claude' || command === 'codex' || command === 'opencode') {
+      if (isCompletionMonitoredAgent(command)) {
         completionMonitor = new AgentCompletionMonitor({
           ptyId: existingId,
           agent: command,
@@ -1107,7 +1113,7 @@ export function useXtermSession(params: {
           registerSessionClaim(command, cwd, launch.sessionId, response.id)
         }
 
-        if (command === 'claude' || command === 'codex' || command === 'opencode') {
+        if (isCompletionMonitoredAgent(command)) {
           completionMonitor = new AgentCompletionMonitor({
             ptyId: response.id,
             agent: command,
@@ -1220,8 +1226,9 @@ export function useXtermSession(params: {
         }
 
         // registrado logo abaixo, que roda nos dois canais de streaming.
+        let replay = ''
         if (isPanelVisibleRef.current) {
-          const replay = await attachPty(response.id)
+          replay = (await attachPty(response.id)) ?? ''
           if (disposed) return
           if (
             replay &&
@@ -1236,7 +1243,9 @@ export function useXtermSession(params: {
           if (disposed) return
         }
 
+        let bootProbe = replay.slice(-32_768)
         const inspectResumeConflict = (chunk: string) => {
+          bootProbe = `${bootProbe}${chunk}`.slice(-32_768)
           if (command !== 'codex' || !usedResumeRef.current || resumeConflictHandled) return
           // PTY events can split the bootstrap error between chunks, so keep
           // a bounded rolling buffer instead of matching each chunk alone.
@@ -1317,29 +1326,33 @@ export function useXtermSession(params: {
         const prompt = initialInput?.trim()
         if (prompt) {
           const sendInitialInput = async () => {
-            const earliestSendAt = Date.now() + 1_500
-            const timedSendAt = Date.now() + 4_000
-            const deadline = Date.now() + 10_000
-            while (!disposed && Date.now() < deadline) {
-              await new Promise((resolve) => window.setTimeout(resolve, 250))
+            const startedAt = Date.now()
+            let decision: ReturnType<typeof shouldSendInitialPtyInput> = 'wait'
+            while (!disposed && Date.now() - startedAt < 30_000) {
+              await new Promise((resolve) => window.setTimeout(resolve, 200))
               const runtime = useTerminalsStore.getState().byPtyId[response.id]
-              const quietFor = runtime ? Date.now() - runtime.lastIoAt : 0
-              if (
-                Date.now() >= earliestSendAt &&
-                runtime?.alive &&
-                (quietFor >= 700 || Date.now() >= timedSendAt)
-              )
-                break
+              if (runtime && !runtime.alive) return
+              decision = shouldSendInitialPtyInput({
+                agent: command,
+                now: Date.now(),
+                startedAt,
+                lastIoAt: runtime?.lastIoAt ?? startedAt,
+                alive: runtime ? runtime.alive : true,
+                bootText: bootProbe,
+              })
+              if (decision !== 'wait') break
             }
-            if (disposed) return
+            if (disposed || !shouldFlushInitialPtyInput(decision)) return
             try {
-              await writePtyChunked(response.id, prompt, true)
+              const payload = flattenInitialPtyInput(prompt)
+              if (!payload) return
+              await writePtyChunked(response.id, payload, terminal.modes.bracketedPasteMode)
               await new Promise((resolve) => window.setTimeout(resolve, 150))
               await writePty(response.id, '\r')
               window.setTimeout(() => void writePty(response.id, '\r').catch(() => {}), 1_200)
               onInitialInputSentRef.current?.()
             } catch (error) {
-              console.warn('[pty-launch] não foi possível enviar o prompt inicial:', error)
+              console.warn('[pty-launch] could not send the initial prompt:', error)
             }
           }
           void sendInitialInput()

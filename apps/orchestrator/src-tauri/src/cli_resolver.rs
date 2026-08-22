@@ -123,6 +123,12 @@ pub fn command_builder_for_terminal(
     builder.env_remove("CLAUDECODE");
     builder.env_remove("CLAUDE_CODE_ENTRYPOINT");
     builder.env_remove("CLAUDECODE_PARENT_PID");
+    // Flashwork is often launched via `npm run`, which injects npm_config_prefix
+    // pointing at the app package. nvm then refuses to start in the PTY.
+    builder.env_remove("npm_config_prefix");
+    builder.env_remove("npm_config_global_prefix");
+    builder.env_remove("NPM_CONFIG_PREFIX");
+    builder.env_remove("NPM_CONFIG_GLOBAL_PREFIX");
     builder
 }
 
@@ -506,6 +512,10 @@ fn scrub_editor_environment(builder: &mut CommandBuilder) {
         "VSCODE_GIT_IPC_HANDLE",
         "GIT_ASKPASS",
         "ELECTRON_RUN_AS_NODE",
+        "npm_config_prefix",
+        "npm_config_global_prefix",
+        "NPM_CONFIG_PREFIX",
+        "NPM_CONFIG_GLOBAL_PREFIX",
     ] {
         builder.env_remove(key);
     }

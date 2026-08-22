@@ -8,9 +8,10 @@ describe('normalizeEnabledFeatures', () => {
       todos: true,
       git: true,
       browser: true,
-      graphify: true,
+      graphify: false,
       aiMemory: false,
       mcp: true,
+      taskBoard: true,
     })
   })
 
@@ -19,9 +20,10 @@ describe('normalizeEnabledFeatures', () => {
       todos: false,
       git: false,
       browser: true,
-      graphify: true,
+      graphify: false,
       aiMemory: false,
       mcp: true,
+      taskBoard: true,
     })
   })
 
@@ -30,9 +32,10 @@ describe('normalizeEnabledFeatures', () => {
       todos: false,
       git: true,
       browser: true,
-      graphify: true,
+      graphify: false,
       aiMemory: false,
       mcp: true,
+      taskBoard: true,
     })
   })
 
@@ -43,9 +46,10 @@ describe('normalizeEnabledFeatures', () => {
       todos: true,
       git: true,
       browser: true,
-      graphify: true,
+      graphify: false,
       aiMemory: true,
       mcp: true,
+      taskBoard: true,
     })
   })
 

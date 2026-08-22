@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   installMethodsFor,
+  installOutputIsFatal,
   installShellLine,
   type InstallToolchain,
   needsNodeToolchain,
@@ -69,10 +70,15 @@ describe('installMethodsFor', () => {
   })
 
   it('installs Gemini CLI through the official npm package', () => {
-    expect(installMethodsFor('gemini', { ...BARE, npm: true })[0].command).toBe(
+    expect(installMethodsFor('gemini', { ...BARE, node: 'v22.3.0', npm: true })[0].command).toBe(
       'npm install -g @google/gemini-cli',
     )
     expect(needsNodeToolchain('gemini', BARE)).toBe(true)
+  })
+
+  it('hides Gemini npm until Node 20 is present', () => {
+    expect(installMethodsFor('gemini', { ...BARE, node: 'v18.20.0', npm: true })).toEqual([])
+    expect(needsNodeToolchain('gemini', { ...BARE, node: 'v18.20.0', npm: true })).toBe(true)
   })
 })
 
@@ -127,6 +133,25 @@ describe('uninstallMethodsFor', () => {
 
 describe('installShellLine', () => {
   it('closes the shell so the runner can detect completion', () => {
-    expect(installShellLine('npm install -g opencode-ai')).toBe('npm install -g opencode-ai; exit\r')
+    expect(installShellLine('npm install -g opencode-ai', false)).toBe(
+      'unset npm_config_prefix npm_config_global_prefix; npm install -g opencode-ai && exit 0 || exit 1\r',
+    )
+  })
+
+  it('propagates npm exit code on Windows PowerShell', () => {
+    expect(installShellLine('npm install -g @google/gemini-cli', true)).toBe(
+      '$env:npm_config_prefix=$null; $env:npm_config_global_prefix=$null; cmd /c "npm install -g @google/gemini-cli"; exit $LASTEXITCODE\r',
+    )
+  })
+})
+
+describe('installOutputIsFatal', () => {
+  it('treats nvm prefix conflicts as a failed install so the modal can close', () => {
+    expect(
+      installOutputIsFatal(
+        'nvm is not compatible with the "npm_config_prefix" environment variable: currently set to "/home/abner/www/ruperth/flashwork/apps/orchestrator"',
+      ),
+    ).toBe(true)
+    expect(installOutputIsFatal('added 1 package in 3s')).toBe(false)
   })
 })

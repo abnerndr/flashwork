@@ -58,6 +58,8 @@ export function makeDefaultTerminal(args: {
     cwd: string
     extraArgs?: string[]
     initialInput?: string
+    sessionId?: string
+    sessionCreate?: boolean
     handoff?: AgentHandoffBootstrap
     runtimeProfile?: AgentRuntimeProfile
   }
@@ -86,6 +88,8 @@ export function makeDefaultTerminal(args: {
         ptyId: null,
         extraArgs: args.firstTab.extraArgs,
         initialInput: args.firstTab.initialInput,
+        sessionId: args.firstTab.sessionId,
+        sessionCreate: args.firstTab.sessionCreate,
         handoff: args.firstTab.handoff,
         runtimeProfile: args.firstTab.runtimeProfile,
       },
@@ -213,6 +217,7 @@ export function resetTerminalRuntime(terminal: Terminal): Terminal {
       ...tab,
       ptyId: null,
       sessionId: undefined,
+      sessionCreate: undefined,
       completionUnread: false,
     })),
   }

@@ -12,6 +12,7 @@ import {
   runValidation,
   skillsScan,
   writePromptRunBoard,
+  ensurePromptRunContext,
 } from '../tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
@@ -186,6 +187,7 @@ export async function startBoardCard(cardId: string): Promise<void> {
       allowedFiles: card.allowedFiles,
       boardPath,
       createId: () => runId,
+      ensureContextDir: ensurePromptRunContext,
       createAgentTerminal: (projectId, launch) =>
         useProjectsStore.getState().createAgentTerminal(projectId, launch),
     })
@@ -246,6 +248,7 @@ export async function continueBoardCard(cardId: string): Promise<void> {
   if (pending.length === 0) return
   const project = useProjectsStore.getState().projects.find((item) => item.id === card.projectId)
   if (!project) return
+  const run = usePromptRunStore.getState().byProjectId[card.projectId]
   const steps = await launchPromptRunLanes({
     projectId: card.projectId,
     cwd: card.cwd,
@@ -254,6 +257,7 @@ export async function continueBoardCard(cardId: string): Promise<void> {
     lanes: pending.map(sliceToLane),
     allowedFiles: card.allowedFiles,
     boardPath: card.boardPath,
+    contextDir: run?.id === card.runId ? run.contextDir : undefined,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),
   })

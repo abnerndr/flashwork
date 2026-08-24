@@ -9,6 +9,11 @@ import {
   type PromptRunStep,
 } from '../types'
 import { buildRunBootstrapInput } from './bootstrapPrompt'
+import {
+  canonicalClaudeSessionId,
+  canonicalClaudeTerminalId,
+  rememberCanonicalClaude,
+} from './claudeWriterLock'
 import { isPromptRunBlocking } from './isPromptRunBlocking'
 import { planAutoLanes, type AutoLane, type SkillCatalogEntry } from './planAutoLanes'
 
@@ -34,9 +39,11 @@ export type CreateAgentTerminal = (
       cwd: string
       extraArgs?: string[]
       initialInput?: string
+      sessionId?: string
+      sessionCreate?: boolean
     }
   },
-) => Promise<{ id: string }>
+) => Promise<{ id: string; sessionId?: string }>
 
 export type StartPromptRunInput = {
   project: StartPromptRunProject | null
@@ -57,7 +64,9 @@ export type StartPromptRunInput = {
   allowedFiles?: string[]
   boardPath?: string
   createId?: () => string
+  createUuid?: () => string
   now?: () => number
+  ensureContextDir?: (runId: string) => Promise<string>
   createAgentTerminal: CreateAgentTerminal
 }
 
@@ -69,6 +78,8 @@ export type LaunchPromptRunLanesInput = {
   lanes: AutoLane[]
   allowedFiles?: string[]
   boardPath?: string
+  contextDir?: string
+  createUuid?: () => string
   now?: () => number
   createAgentTerminal: CreateAgentTerminal
 }
@@ -77,6 +88,7 @@ export async function launchPromptRunLanes(
   input: LaunchPromptRunLanesInput,
 ): Promise<PromptRunStep[]> {
   const createdAt = (input.now ?? Date.now)()
+  const createUuid = input.createUuid ?? (() => crypto.randomUUID())
   const steps: PromptRunStep[] = []
   for (const lane of input.lanes) {
     const flag = input.unrestricted ? UNRESTRICTED_FLAG[lane.agent] : null
@@ -85,6 +97,18 @@ export async function launchPromptRunLanes(
       lane.role === 'orchestrator'
         ? `Auto · ${AGENT_TYPE_LABELS[lane.agent]}`
         : AGENT_TYPE_LABELS[lane.agent]
+    let sessionId: string | undefined
+    let sessionCreate: boolean | undefined
+    if (lane.agent === 'claude') {
+      const existing = canonicalClaudeSessionId(input.runId)
+      if (existing) {
+        sessionId = existing
+      } else {
+        sessionId = createUuid()
+        sessionCreate = true
+        rememberCanonicalClaude(input.runId, sessionId)
+      }
+    }
     const terminal = await input.createAgentTerminal(input.projectId, {
       name: paneName,
       cwd: input.cwd,
@@ -92,6 +116,8 @@ export async function launchPromptRunLanes(
         type: lane.agent,
         cwd: input.cwd,
         extraArgs,
+        sessionId,
+        sessionCreate,
         initialInput: buildRunBootstrapInput({
           runId: input.runId,
           prompt: lane.slicePrompt,
@@ -100,9 +126,13 @@ export async function launchPromptRunLanes(
           skillNames: lane.skillNames,
           allowedFiles: input.allowedFiles,
           boardPath: input.boardPath,
+          contextDir: input.contextDir,
         }),
       },
     })
+    if (lane.agent === 'claude' && sessionId) {
+      rememberCanonicalClaude(input.runId, sessionId, terminal.id)
+    }
     steps.push({
       agent: lane.agent,
       reason: lane.reason,
@@ -147,6 +177,9 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
   const createdAt = now()
   const journalPath = `runs/${runId}/journal.md`
   const cwd = input.cwd.trim()
+  const ensureContextDir =
+    input.ensureContextDir ?? (async (id: string) => `runs/${id}/context`)
+  const contextDir = await ensureContextDir(runId)
   const steps = await launchPromptRunLanes({
     projectId: input.project.id,
     cwd,
@@ -155,6 +188,8 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     lanes,
     allowedFiles: input.allowedFiles,
     boardPath: input.boardPath,
+    contextDir,
+    createUuid: input.createUuid,
     now,
     createAgentTerminal: input.createAgentTerminal,
   })
@@ -169,6 +204,9 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     unrestricted: input.unrestricted,
     steps,
     journalPath,
+    contextDir,
+    canonicalClaudeSessionId: canonicalClaudeSessionId(runId),
+    canonicalClaudeTerminalId: canonicalClaudeTerminalId(runId),
     createdAt,
   }
 

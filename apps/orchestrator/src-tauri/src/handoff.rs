@@ -534,12 +534,11 @@ pub async fn materialize_agent_handoff(
     let root = crate::paths::profile_data_dir(&app)?.join("handoffs");
     tokio::task::spawn_blocking(move || {
         let handoff_id = nanoid::nanoid!(16);
-        let context_dir = root.join(&handoff_id);
-        fs::create_dir_all(&context_dir).map_err(|error| error.to_string())?;
-        let context_path = context_dir.join("context.md");
-        let temporary = context_dir.join("context.md.tmp");
-        fs::write(&temporary, content).map_err(|error| error.to_string())?;
-        fs::rename(&temporary, &context_path).map_err(|error| error.to_string())?;
+        let root = root.join(&handoff_id);
+        let context_dir = root.join("context");
+        let events = crate::context_hub::events_from_capsule(&content);
+        crate::context_hub::write_events_hub(&context_dir, &events, &handoff_id, "journal")?;
+        let context_path = context_dir.join("manifest.json");
         Ok(HandoffArtifact {
             handoff_id,
             context_dir: context_dir.to_string_lossy().to_string(),

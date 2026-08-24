@@ -198,6 +198,8 @@ export type ProjectsState = ProjectsFile & {
         cwd: string
         extraArgs?: string[]
         initialInput?: string
+        sessionId?: string
+        sessionCreate?: boolean
         handoff?: AgentHandoffBootstrap
         runtimeProfile?: AgentRuntimeProfile
       }
@@ -221,6 +223,8 @@ export type ProjectsState = ProjectsFile & {
         cwd: string
         extraArgs?: string[]
         initialInput?: string
+        sessionId?: string
+        sessionCreate?: boolean
         handoff?: AgentHandoffBootstrap
         runtimeProfile?: AgentRuntimeProfile
       }

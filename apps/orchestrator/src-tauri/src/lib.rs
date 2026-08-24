@@ -16,6 +16,7 @@ mod codex_sessions;
 mod codex_usage;
 mod contract_check;
 mod crash_watch;
+mod context_hub;
 mod diagnostics;
 mod discord_presence;
 mod economy_agents;
@@ -373,6 +374,9 @@ pub fn run() {
             prompt_run::append_prompt_run_journal,
             prompt_run::write_prompt_run_board,
             prompt_run::append_prompt_run_board,
+            prompt_run::ensure_prompt_run_context,
+            context_hub::ingest_run_context,
+            context_hub::search_run_context,
             task_board::save_task_card,
             task_board::list_task_cards,
             task_board::delete_task_card,

@@ -64,6 +64,7 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 ## Resume and History
 
 - Persist active Claude/Codex/OpenCode sessions for local resume.
+- Auto keeps one Claude Code conversation per run; sibling CLIs read on-disk context chunks instead of a pasted transcript.
 - Reattach scrollback after app restart.
 - List local Claude session metadata when available.
 - Open history modals from agent panes.
@@ -93,6 +94,7 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 - Quick actions for project, group, and terminal creation.
 - Quick launch prompt with an explicit agent or **Auto** (existing project required).
 - Auto-run bar on the project container: active CLI, handoff timeline, review capsule, stop Auto (panes remain).
+- Auto and handoff share a local chunk index (`runs/<id>/context`) instead of dumping the source transcript into the next CLI.
 - Claude usage/activity widgets when available.
 - Spotify Now Playing when configured.
 

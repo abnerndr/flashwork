@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { UNRESTRICTED_FLAG } from '../types'
+import { clearClaudeWriterLocks } from './claudeWriterLock'
 import { startPromptRun } from './startPromptRun'
 
 const createAgentTerminal = vi.fn(async () => ({ id: 'term-1' }))
@@ -9,6 +10,10 @@ describe('startPromptRun', () => {
   beforeEach(() => {
     createAgentTerminal.mockReset()
     createAgentTerminal.mockImplementation(async () => ({ id: 'term-1' }))
+  })
+
+  afterEach(() => {
+    clearClaudeWriterLocks()
   })
 
   it('refuses when there is no project', async () => {
@@ -201,5 +206,75 @@ describe('startPromptRun', () => {
     expect(result.ok).toBe(true)
     expect(createAgentTerminal).toHaveBeenCalledOnce()
     expect(createAgentTerminal.mock.calls[0][1].firstTab.type).toBe('claude')
+  })
+
+  it('records a context hub path on the run', async () => {
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createId: () => 'run_hub',
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.run.contextDir).toMatch(/runs\/run_hub\/context$/)
+  })
+
+  it('creates one Claude session and points Codex at the context hub', async () => {
+    let count = 0
+    createAgentTerminal.mockImplementation(async (_projectId, args) => ({
+      id: `term-${++count}`,
+      sessionId: args.firstTab.sessionId,
+    }))
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login and generate unit tests',
+      unrestricted: false,
+      enabledAgents: ['claude', 'codex'],
+      installedAgents: ['claude', 'codex'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      includeOrchestrator: false,
+      createId: () => 'run_duo',
+      createUuid: () => 'sess-canonical',
+      lanes: [
+        {
+          agent: 'claude',
+          role: 'worker',
+          taskKind: 'implement',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'implement login',
+        },
+        {
+          agent: 'codex',
+          role: 'worker',
+          taskKind: 'mechanical',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'write tests',
+        },
+      ],
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const claudeCall = createAgentTerminal.mock.calls[0][1]
+    const codexCall = createAgentTerminal.mock.calls[1][1]
+    expect(claudeCall.firstTab.type).toBe('claude')
+    expect(claudeCall.firstTab.sessionId).toBe('sess-canonical')
+    expect(claudeCall.firstTab.sessionCreate).toBe(true)
+    expect(codexCall.firstTab.type).toBe('codex')
+    expect(codexCall.firstTab.initialInput).toContain('runs/run_duo/context')
+    expect(codexCall.firstTab.initialInput.length).toBeLessThan(2000)
+    expect(result.run.canonicalClaudeSessionId).toBe('sess-canonical')
+    expect(result.run.canonicalClaudeTerminalId).toBe('term-1')
   })
 })

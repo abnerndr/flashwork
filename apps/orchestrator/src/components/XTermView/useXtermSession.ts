@@ -22,6 +22,12 @@ import {
 } from '../../lib/sessionDiscovery'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
+  findRunIdByCanonicalSession,
+  releaseClaudeWriter,
+  tryAcquireClaudeWriter,
+} from '../../lib/promptRun/claudeWriterLock'
+import { usePromptRunStore } from '../../stores/promptRunStore'
+import {
   peekSession,
   pickUsableSessionId,
   removeSession,
@@ -96,6 +102,25 @@ const EARLY_EXIT_MS = 4000
 
 const PANEL_RESYNC_DEBOUNCE_MS = 80
 
+function canonicalRunIdForSession(sessionId: string | undefined): string | undefined {
+  if (!sessionId) return undefined
+  const fromLock = findRunIdByCanonicalSession(sessionId)
+  if (fromLock) return fromLock
+  return Object.values(usePromptRunStore.getState().byProjectId).find(
+    (run) => run.canonicalClaudeSessionId === sessionId,
+  )?.id
+}
+
+function releaseCanonicalWriter(
+  command: AgentType | null | undefined,
+  sessionId: string | undefined,
+  ownerId: string | undefined,
+): void {
+  if (command !== 'claude' || !sessionId || !ownerId) return
+  const runId = canonicalRunIdForSession(sessionId)
+  if (runId) releaseClaudeWriter(runId, ownerId)
+}
+
 function isBrowserInputPending(): boolean {
   const scheduling = (
     navigator as Navigator & {
@@ -116,6 +141,8 @@ export function useXtermSession(params: {
   extraArgs?: string[]
   initialInput?: string
   sessionId?: string
+  sessionCreate?: boolean
+  lockOwnerId?: string
   env?: Record<string, string>
   graphifyRepo?: string | null
 
@@ -160,6 +187,8 @@ export function useXtermSession(params: {
     extraArgs,
     initialInput,
     sessionId,
+    sessionCreate,
+    lockOwnerId,
     env,
     graphifyRepo,
     gsdWatcherEnabled,
@@ -791,6 +820,7 @@ export function useXtermSession(params: {
         completionMonitor?.dispose()
         completionMonitor = null
         removeSession(sessionPersistenceKey)
+        releaseCanonicalWriter(command, sessionId, lockOwnerId)
         onExitRef.current?.(payload.code)
       })
       if (disposed) {
@@ -892,9 +922,12 @@ export function useXtermSession(params: {
           command && RESUMABLE_AGENTS.includes(command) ? peekSession(sessionPersistenceKey) : null
         const savedConversationId = savedConversationIdFor(savedSession, command, cwd)
         let resumeId = sessionId ?? savedConversationId
+        let claudeCreateKnownId = Boolean(sessionCreate)
+        const canonicalRunId =
+          command === 'claude' ? canonicalRunIdForSession(resumeId) : undefined
         // Fallback: se a tentativa anterior morreu no nascimento usando resume,
 
-        if (forceFreshRef.current) {
+        if (forceFreshRef.current && !canonicalRunId) {
           console.warn(`[pty-launch] ${command} reabrindo SEM resume (fallback de early-exit)`)
           resumeId = undefined
         }
@@ -904,12 +937,25 @@ export function useXtermSession(params: {
           command &&
           isSessionClaimed(command, cwd, resumeId, sessionPersistenceKey)
         ) {
-          console.warn(
-            `[pty-launch] ${command} session ${resumeId} is already claimed; starting a fresh writer`,
-          )
-          resumeId = undefined
-          removeSession(sessionPersistenceKey)
-          onSessionIdRef.current?.(undefined)
+          if (canonicalRunId && lockOwnerId) {
+            console.info(
+              `[pty-launch] ${command} session ${resumeId} is the run canonical writer; waiting for the lock`,
+            )
+            const deadline = Date.now() + 120_000
+            let status = tryAcquireClaudeWriter(canonicalRunId, lockOwnerId)
+            while (status === 'wait' && Date.now() < deadline) {
+              if (disposed) return
+              await new Promise((resolve) => window.setTimeout(resolve, 400))
+              status = tryAcquireClaudeWriter(canonicalRunId, lockOwnerId)
+            }
+          } else {
+            console.warn(
+              `[pty-launch] ${command} session ${resumeId} is already claimed; starting a fresh writer`,
+            )
+            resumeId = undefined
+            removeSession(sessionPersistenceKey)
+            onSessionIdRef.current?.(undefined)
+          }
         }
         // Reserve the resume ID before creating the PTY. Without this early
         // claim, two panes can pass the check above at the same time and both
@@ -947,10 +993,17 @@ export function useXtermSession(params: {
                   : undefined
 
             if (!usable && command !== 'opencode') {
-              console.warn(`[pty-launch] ${command} ignorando sessão órfã ${resumeId}`)
-              resumeId = undefined
-              removeSession(sessionPersistenceKey)
-              onSessionIdRef.current?.(undefined)
+              if (canonicalRunId) {
+                claudeCreateKnownId = true
+              } else {
+                console.warn(`[pty-launch] ${command} ignorando sessão órfã ${resumeId}`)
+                resumeId = undefined
+                removeSession(sessionPersistenceKey)
+                onSessionIdRef.current?.(undefined)
+                claudeCreateKnownId = false
+              }
+            } else if (usable) {
+              claudeCreateKnownId = false
             }
           } catch {}
           if (disposed) return
@@ -1038,7 +1091,14 @@ export function useXtermSession(params: {
         }
 
         const launch = command
-          ? buildAgentLaunch(command, preparedRuntime.args, resumeId, undefined, mcpConfigPaths)
+          ? buildAgentLaunch(
+              command,
+              preparedRuntime.args,
+              resumeId,
+              undefined,
+              mcpConfigPaths,
+              command === 'claude' && Boolean(resumeId) && claudeCreateKnownId,
+            )
           : { args: preparedRuntime.args, sessionId: undefined, createdSession: false }
         const spawnArgs = launch.args.length > 0 ? launch.args : undefined
         if (command && command !== 'shell') {
@@ -1051,6 +1111,9 @@ export function useXtermSession(params: {
         }
         if (command && cwd) {
           registerSessionClaim(command, cwd, launch.sessionId, sessionPersistenceKey)
+        }
+        if (command === 'claude' && canonicalRunId && lockOwnerId && launch.sessionId) {
+          tryAcquireClaudeWriter(canonicalRunId, lockOwnerId)
         }
 
         // Claude gets its id up front through --session-id, but /new and /resume
@@ -1285,15 +1348,22 @@ export function useXtermSession(params: {
             !earlyExitRetriedRef.current
           ) {
             earlyExitRetriedRef.current = true
-            forceFreshRef.current = true
-            console.warn(
-              `[pty-launch] ${command} saiu em ${elapsed}ms com resume — reabrindo sessão nova (fallback)`,
-            )
+            if (canonicalRunId && command === 'claude') {
+              forceFreshRef.current = false
+              console.warn(
+                `[pty-launch] ${command} saiu em ${elapsed}ms — retrying the canonical session, not minting a new one`,
+              )
+            } else {
+              forceFreshRef.current = true
+              removeSession(sessionPersistenceKey)
+              onSessionIdRef.current?.(undefined)
+              console.warn(
+                `[pty-launch] ${command} saiu em ${elapsed}ms com resume — reabrindo sessão nova (fallback)`,
+              )
+            }
             useTerminalsStore.getState().markExited(response.id)
             completionMonitor?.dispose()
             completionMonitor = null
-            removeSession(sessionPersistenceKey)
-            onSessionIdRef.current?.(undefined)
             terminal.write(
               '\r\n\x1b[33m[Flashwork] sessão anterior indisponível — reabrindo sessão nova…\x1b[0m\r\n',
             )
@@ -1315,6 +1385,7 @@ export function useXtermSession(params: {
           completionMonitor = null
 
           removeSession(sessionPersistenceKey)
+          releaseCanonicalWriter(command, launch.sessionId ?? sessionId, lockOwnerId)
           onExitRef.current?.(payload.code)
         })
         if (disposed) {

@@ -226,6 +226,14 @@ export function planAutoLanes(input: PlanAutoLanesInput): AutoLane[] {
     })
   }
 
+  const claudeWorkers = workers.filter((lane) => lane.agent === 'claude')
+  if (claudeWorkers.length > 1) {
+    const [primary] = claudeWorkers
+    const rest = workers.filter((lane) => lane.agent !== 'claude')
+    workers.length = 0
+    workers.push(primary, ...rest)
+  }
+
   assignWorkerPrompts(input.prompt, workers)
 
   if (workers.length === 1) return workers

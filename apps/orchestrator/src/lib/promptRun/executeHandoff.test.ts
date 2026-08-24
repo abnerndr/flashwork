@@ -127,4 +127,44 @@ describe('executeAutoHandoff', () => {
     expect(result.terminalArgs.firstTab.initialInput).toContain('API key not valid')
     expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
   })
+
+  it('points the target at the chunk hub instead of dumping the capsule', async () => {
+    const capsule = 'FULL CAPSULE BODY '.repeat(40)
+    const result = await executeAutoHandoff(
+      {
+        source: 'claude',
+        target: 'codex',
+        cwd: '/repo',
+        extraArgs: [],
+        paneName: 'Handoff to Codex',
+        prompt: 'implement login',
+        sourceSessionId: 'sess',
+      },
+      {
+        prepareAgentHandoff: async () => ({
+          sourceProvider: 'claude',
+          targetProvider: 'codex',
+          sourceSessionId: 'sess',
+          cwd: '/repo',
+          title: 'login',
+          content: capsule,
+          includedEventCount: 2,
+          omittedEventCount: 0,
+          redactionCount: 0,
+          usedFallback: false,
+        }),
+        materializeAgentHandoff: async () => ({
+          handoffId: 'h1',
+          contextDir: '/profile/handoffs/h1/context',
+          contextPath: '/profile/handoffs/h1/context/manifest.json',
+        }),
+      },
+    )
+    expect(result.usedFallback).toBe(false)
+    expect(result.terminalArgs.firstTab.initialInput).toContain('manifest.json')
+    expect(result.terminalArgs.firstTab.initialInput).toContain('/profile/handoffs/h1/context')
+    expect(result.terminalArgs.firstTab.initialInput).toContain('implement login')
+    expect(result.terminalArgs.firstTab.initialInput.length).toBeLessThan(1500)
+    expect(result.terminalArgs.firstTab.initialInput).not.toContain('FULL CAPSULE BODY')
+  })
 })

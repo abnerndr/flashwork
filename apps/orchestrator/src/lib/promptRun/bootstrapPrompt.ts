@@ -8,6 +8,7 @@ export function buildRunBootstrapInput(args: {
   skillNames?: readonly string[]
   allowedFiles?: readonly string[]
   boardPath?: string
+  contextDir?: string
 }): string {
   const label = AGENT_TYPE_LABELS[args.agent]
   if (args.role === 'orchestrator') {
@@ -21,8 +22,13 @@ export function buildRunBootstrapInput(args: {
   const skills =
     args.skillNames && args.skillNames.length > 0
       ? `Prefer these installed skills: ${args.skillNames.join(', ')}.`
-      : 'Do the assigned slice. Flashwork may later hand off to another CLI with a context capsule.'
+      : 'Do the assigned slice. Do not paste or request the sibling transcript.'
   const lines = [`[Flashwork Auto] You are a worker (${label}) for run ${args.runId}.`, skills]
+  if (args.contextDir) {
+    lines.push(
+      `Shared context is on disk at "${args.contextDir}". Read manifest.json and only the chunks that match your files. The index was built locally with no API cost.`,
+    )
+  }
   if (args.boardPath) {
     lines.push(
       `Read the shared board at "${args.boardPath}" first. Write your findings there. Do not redo sibling slices.`,

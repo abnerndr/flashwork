@@ -27,4 +27,18 @@ describe('buildRunBootstrapInput', () => {
     expect(text.toLowerCase()).not.toContain('freebuff')
     expect(text).toContain('worker (Gemini)')
   })
+
+  it('points at the context hub without dumping a transcript', () => {
+    const text = buildRunBootstrapInput({
+      runId: 'run_1',
+      prompt: 'implement login',
+      agent: 'codex',
+      role: 'worker',
+      contextDir: '/profile/runs/run_1/context',
+    })
+    expect(text).toContain('/profile/runs/run_1/context')
+    expect(text).toContain('manifest.json')
+    expect(text).not.toContain('context capsule')
+    expect(text.length).toBeLessThan(2000)
+  })
 })

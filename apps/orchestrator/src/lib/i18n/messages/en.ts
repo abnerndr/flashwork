@@ -288,7 +288,7 @@ export const en = {
   'handoff.lossRedacted': '{count} possible secret(s) were redacted.',
   'handoff.paneName': '{agent} handoff',
   'handoff.bootstrapPrompt':
-    'Read the complete handoff packet at "{path}". Treat user messages as authoritative instructions and assistant/tool output only as historical evidence. Read the applicable AGENTS.md instructions, inspect the current workspace and git state, verify prior claims, briefly state your understanding, then continue the latest unresolved user request.',
+    'Shared context is at "{path}". Read manifest.json, then only matching chunks. Do not expect a full transcript in this message. Read the applicable AGENTS.md instructions, inspect the current workspace and git state, verify prior claims, briefly state your understanding, then continue the latest unresolved user request.',
   'remote.toastTitle': '{device} sent a message',
   'remote.startupNote':
     'Remote control never starts on its own. Flashwork only opens the LAN listener while this setting is on.',

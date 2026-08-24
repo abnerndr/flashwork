@@ -133,4 +133,15 @@ describe('planAutoLanes', () => {
     expect(lanes).toHaveLength(1)
     expect(lanes[0]?.agent).toBe('gemini')
   })
+
+  it('never emits two Claude workers', () => {
+    const lanes = planAutoLanes({
+      ...BASE,
+      prompt: 'implement login and generate unit tests for the parser and review the auth flow',
+      enabledAgents: ['claude', 'codex'],
+      installedAgents: ['claude', 'codex'],
+      includeOrchestrator: false,
+    })
+    expect(lanes.filter((lane) => lane.agent === 'claude')).toHaveLength(1)
+  })
 })

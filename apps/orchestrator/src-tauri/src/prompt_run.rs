@@ -31,6 +31,12 @@ pub struct PromptRunRecord {
     pub unrestricted: bool,
     pub steps: Vec<PromptRunStepRecord>,
     pub journal_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_claude_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_claude_terminal_id: Option<String>,
     pub created_at: u64,
 }
 
@@ -57,7 +63,7 @@ fn truncate_journal(content: &str, limit: usize) -> String {
     trimmed
 }
 
-fn confined_existing_run_dir(runs: &Path, run_id: &str) -> Result<Option<PathBuf>, String> {
+pub(crate) fn confined_existing_run_dir(runs: &Path, run_id: &str) -> Result<Option<PathBuf>, String> {
     validate_run_id(run_id)?;
     if !runs.exists() {
         return Ok(None);
@@ -74,13 +80,13 @@ fn confined_existing_run_dir(runs: &Path, run_id: &str) -> Result<Option<PathBuf
     Ok(Some(canonical_target))
 }
 
-fn journal_path_for_persist(path: &Path) -> String {
+pub(crate) fn journal_path_for_persist(path: &Path) -> String {
     crate::cli_launch::strip_verbatim_prefix(path.to_path_buf())
         .to_string_lossy()
         .into_owned()
 }
 
-fn confined_run_dir(runs: &Path, run_id: &str) -> Result<PathBuf, String> {
+pub(crate) fn confined_run_dir(runs: &Path, run_id: &str) -> Result<PathBuf, String> {
     validate_run_id(run_id)?;
     fs::create_dir_all(runs).map_err(|error| error.to_string())?;
     let canonical_runs = fs::canonicalize(runs).map_err(|error| error.to_string())?;
@@ -112,6 +118,9 @@ fn save_prompt_run_inner(runs: PathBuf, mut run: PromptRunRecord) -> Result<(), 
         fs::write(&journal_path, "").map_err(|error| error.to_string())?;
     }
     run.journal_path = journal_path_for_persist(&journal_path);
+    let context_dir = run_dir.join("context");
+    fs::create_dir_all(context_dir.join("chunks")).map_err(|error| error.to_string())?;
+    run.context_dir = Some(journal_path_for_persist(&context_dir));
     let json = serde_json::to_string_pretty(&run).map_err(|error| error.to_string())?;
     write_json_atomically(&run_dir.join("run.json"), &json)
 }
@@ -311,6 +320,20 @@ pub async fn append_prompt_run_board(
     })
     .await
     .map_err(|error| format!("append_prompt_run_board task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn ensure_prompt_run_context(app: AppHandle, run_id: String) -> Result<String, String> {
+    let runs = crate::paths::runs_dir(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let run_dir = confined_run_dir(&runs, &run_id)?;
+        let context_dir = run_dir.join("context");
+        fs::create_dir_all(context_dir.join("chunks")).map_err(|error| error.to_string())?;
+        crate::context_hub::ensure_hub_skeleton(&context_dir)?;
+        Ok(journal_path_for_persist(&context_dir))
+    })
+    .await
+    .map_err(|error| format!("ensure_prompt_run_context task failed: {error}"))?
 }
 
 #[cfg(test)]

@@ -145,6 +145,8 @@ export type SubTab = {
   completionUnread?: boolean
 
   sessionId?: string
+  /** When set with sessionId, Claude launches `--session-id` instead of `--resume`. */
+  sessionCreate?: boolean
   /** Args extras passados pro launcher (ex: --dangerously-skip-permissions). */
   extraArgs?: string[]
 
@@ -203,6 +205,9 @@ export type PromptRun = {
   unrestricted: boolean
   steps: PromptRunStep[]
   journalPath: string
+  contextDir?: string
+  canonicalClaudeSessionId?: string
+  canonicalClaudeTerminalId?: string
   createdAt: number
 }
 

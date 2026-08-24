@@ -34,6 +34,19 @@ describe('buildAgentLaunch', () => {
     expect(launch.createdSession).toBe(false)
   })
 
+  it('creates a known Claude session id with --session-id instead of --resume', () => {
+    const launch = buildAgentLaunch(
+      'claude',
+      ['--dangerously-skip-permissions'],
+      'canonical-sess',
+      undefined,
+      undefined,
+      true,
+    )
+    expect(launch.args).toEqual(['--session-id', 'canonical-sess', '--dangerously-skip-permissions'])
+    expect(launch.createdSession).toBe(true)
+  })
+
   it('Codex without a known id starts a new chat instead of resuming last', () => {
     const launch = buildAgentLaunch('codex', ['resume', '--last', '--search'])
     expect(launch.args).toEqual(['--search'])

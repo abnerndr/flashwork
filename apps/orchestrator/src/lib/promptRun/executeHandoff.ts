@@ -1,4 +1,3 @@
-import { getLocale, translate } from '../i18n'
 import {
   type HandoffArtifact,
   type HandoffDraft,
@@ -69,6 +68,11 @@ export function buildFallbackBootstrap(
   return `${prefix}Continue this user request.\n\n${prompt}`
 }
 
+export function buildIndexBootstrap(contextDir: string, prompt: string, note?: string): string {
+  const prefix = note?.trim() ? `${note.trim()}\n\n` : ''
+  return `${prefix}Shared context is at "${contextDir}". Read manifest.json, then only matching chunks. Continue:\n\n${prompt}`
+}
+
 function isCapsuleProvider(agent: AgentType): agent is HandoffProvider {
   return agent === 'claude' || agent === 'codex'
 }
@@ -101,10 +105,6 @@ export type ExecuteAutoHandoffResult = {
   artifact: HandoffArtifact | null
   terminalArgs: HandoffTerminalArgs
   usedFallback: boolean
-}
-
-function defaultCapsuleBootstrap(path: string): string {
-  return translate(getLocale(), 'handoff.bootstrapPrompt', { path })
 }
 
 async function resolveJournalPath(
@@ -169,8 +169,6 @@ export async function executeAutoHandoff(
   const prepare = deps.prepareAgentHandoff ?? prepareAgentHandoff
   const materialize = deps.materializeAgentHandoff ?? materializeAgentHandoff
   const load = deps.loadPromptRun ?? loadPromptRun
-  const bootstrapForCapsule =
-    deps.bootstrapForCapsule ?? input.bootstrapForCapsule ?? defaultCapsuleBootstrap
 
   if (!isCapsuleProvider(input.source) || !isCapsuleProvider(input.target)) {
     return fallbackHandoff(input, load, null)
@@ -185,6 +183,10 @@ export async function executeAutoHandoff(
       cwd: input.cwd,
     })
     const artifact = await materialize(prepared.content)
+    const customBootstrap = deps.bootstrapForCapsule ?? input.bootstrapForCapsule
+    const bootstrap = customBootstrap
+      ? customBootstrap(artifact.contextPath)
+      : buildIndexBootstrap(artifact.contextDir, input.prompt, input.errorNote)
     return {
       draft: prepared,
       artifact,
@@ -192,7 +194,7 @@ export async function executeAutoHandoff(
       terminalArgs: buildHandoffTerminalArgs({
         target: input.target,
         cwd: input.cwd,
-        bootstrap: bootstrapForCapsule(artifact.contextPath),
+        bootstrap,
         extraArgs: input.extraArgs,
         paneName: input.paneName,
         handoff: {

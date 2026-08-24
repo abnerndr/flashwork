@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { listPromptRuns, savePromptRun } from '../lib/tauri'
+import { restoreCanonicalClaudeFromRun } from '../lib/promptRun/claudeWriterLock'
 import { isPromptRunBlocking } from '../lib/promptRun/isPromptRunBlocking'
 import type { PromptRun, PromptRunStatus, PromptRunStep } from '../lib/types'
 
@@ -113,6 +114,7 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
       const memory = state.byProjectId[projectId]
       if (!shouldApplyHydrate(active, memory)) return state
       appliedId = active.id
+      restoreCanonicalClaudeFromRun(active)
       return { byProjectId: { ...state.byProjectId, [projectId]: active } }
     })
     const current = get().byProjectId[projectId]
@@ -121,6 +123,7 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
     }
   },
   setRun: (run) => {
+    restoreCanonicalClaudeFromRun(run)
     set((state) => ({ byProjectId: { ...state.byProjectId, [run.projectId]: run } }))
     persist(get, run.projectId, run.id)
   },
@@ -128,6 +131,7 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
     const current = get().byProjectId[projectId]
     if (!current) return
     const next = { ...current, ...patch }
+    restoreCanonicalClaudeFromRun(next)
     set((state) => ({ byProjectId: { ...state.byProjectId, [projectId]: next } }))
     persist(get, projectId, next.id)
   },

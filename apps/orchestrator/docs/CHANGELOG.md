@@ -10,6 +10,11 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+
+- Auto keeps a single Claude Code conversation per run. Other CLIs read small on-disk context
+  chunks instead of receiving a pasted transcript. Handoff uses the same chunk index.
+
 ### Removed
 
 - The Merge Center is gone: its sidebar panel, the **Merge** tab of the project editor, the branch

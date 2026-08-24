@@ -61,6 +61,7 @@ export function buildAgentLaunch(
                                                                                   
                                                                                    
   mcpConfigPaths?: readonly string[],
+  claudeCreateKnownId?: boolean,
 ): AgentLaunch {
   if (agent === 'shell') {
     return { args: [...baseArgs], sessionId: undefined, createdSession: false }
@@ -69,6 +70,13 @@ export function buildAgentLaunch(
   if (agent === 'claude') {
     const clean = stripClaudeSessionArgs([...baseArgs])
     const mcp = (mcpConfigPaths ?? []).flatMap((path) => ['--mcp-config', path])
+    if (sessionId && claudeCreateKnownId) {
+      return {
+        args: ['--session-id', sessionId, ...mcp, ...clean],
+        sessionId,
+        createdSession: true,
+      }
+    }
     if (sessionId) {
       return {
         args: ['--resume', sessionId, ...mcp, ...clean],

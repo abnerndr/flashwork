@@ -125,7 +125,7 @@ export function HandoffModal() {
         buildHandoffTerminalArgs({
           target,
           cwd: draft.cwd,
-          bootstrap: t('handoff.bootstrapPrompt', { path: artifact.contextPath }),
+          bootstrap: t('handoff.bootstrapPrompt', { path: artifact.contextDir }),
           extraArgs: permissionFlag ? [permissionFlag] : [],
           handoff: {
             id: artifact.handoffId,

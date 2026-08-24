@@ -2,7 +2,7 @@ import { getCachedClaudeUsage } from '../claudeUsageCache'
 import { getCachedCodexUsage } from '../codexUsageCache'
 import { groupSkillsByName } from '../skills'
 import { ALL_AGENT_TYPES, type AgentType } from '../types'
-import { appendPromptRunJournal, skillsScan } from '../tauri'
+import { appendPromptRunJournal, ensurePromptRunContext, skillsScan } from '../tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import { excludeFailedAgents } from './failedAgents'
@@ -88,6 +88,7 @@ export async function submitAutoPromptRun(args: {
     liveTerminalIds: args.project?.terminals.map((terminal) => terminal.id) ?? [],
     skills,
     includeOrchestrator: false,
+    ensureContextDir: ensurePromptRunContext,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),
   })

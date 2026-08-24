@@ -9,7 +9,8 @@ import { executeAutoHandoff } from '../lib/promptRun/executeHandoff'
 import { excludeFailedAgents, markAgentAuthFailed } from '../lib/promptRun/failedAgents'
 import { decideLaneFailure } from '../lib/promptRun/laneFailure'
 import { probeInstalledAgents } from '../lib/promptRun/probeInstalled'
-import { appendPromptRunJournal, listenPtyData } from '../lib/tauri'
+import { appendPromptRunJournal, ingestRunContext, listenPtyData } from '../lib/tauri'
+import { shouldIngestContext } from '../lib/promptRun/ingestContext'
 import { AGENT_TYPE_LABELS, ALL_AGENT_TYPES, UNRESTRICTED_FLAG, type AgentType, type PromptRun, type PromptRunStepReason } from '../lib/types'
 import { boardLaneContext, failBoardLane, retargetBoardRun } from '../lib/taskBoard/submitBoardTask'
 import { useProjectsStore } from '../stores/projectsStore'
@@ -79,6 +80,7 @@ export function usePromptRunWatcher() {
   const t = useT()
   const seenRef = useRef(new Set<string>())
   const inflightRef = useRef(new Set<string>())
+  const ingestTimersRef = useRef(new Map<string, number>())
   const usageRef = useRef<{
     claudeFiveHourUtilization: number | null
     codexRateLimited: boolean
@@ -323,6 +325,25 @@ export function usePromptRunWatcher() {
           const current = usePromptRunStore.getState().byProjectId[run.projectId]
           if (!current || current.id !== run.id) return
           considerTrigger(current, chunk, sourceAgent, subscribedTerminalId)
+          if (!shouldIngestContext(current, subscribedTerminalId, chunk)) return
+          const previous = ingestTimersRef.current.get(current.id)
+          if (previous) window.clearTimeout(previous)
+          ingestTimersRef.current.set(
+            current.id,
+            window.setTimeout(() => {
+              ingestTimersRef.current.delete(current.id)
+              const latest = usePromptRunStore.getState().byProjectId[run.projectId]
+              if (!latest || latest.id !== run.id || !latest.canonicalClaudeSessionId) return
+              void ingestRunContext(
+                latest.id,
+                'claude',
+                latest.canonicalClaudeSessionId,
+                latest.cwd,
+              ).catch((cause) => {
+                console.warn('[prompt-run] context ingest failed:', cause)
+              })
+            }, 800),
+          )
         }).then((unlisten) => {
           if (cancelled) {
             unlisten()
@@ -335,6 +356,8 @@ export function usePromptRunWatcher() {
     return () => {
       cancelled = true
       for (const unlisten of unlistens) unlisten()
+      for (const timer of ingestTimersRef.current.values()) window.clearTimeout(timer)
+      ingestTimersRef.current.clear()
     }
   }, [runBindings, ptyBindings, t])
 }

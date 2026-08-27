@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Flashwork — contexto compartilhado entre agentes</title>
+  <style>
+    @page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "IBM Plex Sans", Helvetica, Arial, sans-serif;
+      color: #1c1c1c;
+      font-size: 10.5pt;
+      line-height: 1.42;
+    }
+    .kicker {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1f6f4a;
+      margin: 0 0 4px;
+    }
+    h1 { font-size: 22pt; margin: 0 0 4px; letter-spacing: -0.03em; }
+    .meta { color: #555; font-size: 9.5pt; margin: 0 0 14px; }
+    .lead {
+      background: #f3f6f4;
+      border-left: 3px solid #1f6f4a;
+      padding: 10px 12px;
+      margin: 0 0 16px;
+    }
+    h2 {
+      font-size: 12.5pt;
+      margin: 18px 0 8px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #d8d8d8;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11pt; margin: 12px 0 6px; page-break-after: avoid; }
+    p { margin: 0 0 8px; }
+    ul { margin: 0 0 8px; padding-left: 18px; }
+    li { margin: 0 0 3px; }
+    code {
+      font-family: "Cascadia Code", "Consolas", "SF Mono", monospace;
+      font-size: 9pt;
+      background: #eef1f0;
+      padding: 1px 4px;
+    }
+    pre {
+      font-family: "Cascadia Code", "Consolas", "SF Mono", monospace;
+      font-size: 8.4pt;
+      background: #f6f7f6;
+      border: 1px solid #e4e4e4;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+      page-break-inside: avoid;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.4pt;
+      margin: 6px 0 12px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid #e3e3e3;
+      padding: 5px 8px 5px 0;
+    }
+    th {
+      color: #555;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .note {
+      background: #fff8e6;
+      border-left: 3px solid #c48a00;
+      padding: 10px 12px;
+      margin: 12px 0;
+      page-break-inside: avoid;
+    }
+    .footer {
+      margin-top: 18px;
+      padding-top: 8px;
+      border-top: 1px solid #ddd;
+      color: #666;
+      font-size: 8.5pt;
+    }
+    .flow { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <p class="kicker">Flashwork · briefing técnico</p>
+  <h1>Contexto compartilhado entre agentes</h1>
+  <p class="meta">24 de agosto de 2026 · estado <strong>implementado</strong> (Fase 2) · para outro dev</p>
+
+  <div class="lead">
+    Irmãos de um run Auto compartilham a sessão Claude <strong>sem pagar a API para copiar o transcript</strong>.
+    Handoff e o first prompt injetam um <strong>ponteiro</strong> para chunks em disco.
+    Duas CLIs diferentes ainda não compartilham o mesmo composer — compartilham o <strong>conteúdo</strong> da sessão, não o processo.
+  </div>
+
+  <h2>Por que isso existe</h2>
+  <p>No Auto, vários panes (Claude, Codex, Gemini…) trabalham no mesmo pedido. Antes, cada pane nascia com uma conversa nova e o Flashwork tentava passar contexto colando histórico no <code>initialInput</code> — até ~48&nbsp;KB. Isso cobrava tokens só para copiar o passado, duplicava sessões Claude (<code>already claimed → fresh writer</code>) e não dividia o trabalho.</p>
+  <p>A Fase 2 troca o dump por um <strong>hub local</strong> e <strong>uma</strong> sessão Claude canônica por run.</p>
+
+  <h2>Arquitetura</h2>
+  <p class="flow">Um writer Claude (PTY + JSONL + <code>sessionId</code>) → o Flashwork indexa esse JSONL em disco, sem modelo → irmãos Claude fazem <code>--resume</code> da mesma id; Codex/Gemini/etc. leem chunks.</p>
+  <pre>Canonical Claude                 Context hub (0 tokens de API)
+PTY + JSONL + mutex     →        runs/&lt;runId&gt;/context/
+                                 chunks/  manifest.json  index.json
+                                          ↓
+                 Claude irmão         Codex / Gemini        Handoff
+                 --resume + lock      ponteiro + Read       mesmo hub</pre>
+  <p>Disco: <code>{profile}/runs/{runId}/context/</code> (mesmo root do journal). Chunks extrativos (~4&nbsp;KB, agrupados por arquivo tocado). Índice lexical (termos + paths). Sem embedding API.</p>
+
+  <h2>1. Como compartilhar entre sessões?</h2>
+  <p>Uma sessão Claude canônica por run Auto: um JSONL, um writer PTY, um <code>sessionId</code> (<code>PromptRun.canonicalClaudeSessionId</code>).</p>
+  <table>
+    <thead><tr><th>De → para</th><th>O que acontece</th></tr></thead>
+    <tbody>
+      <tr><td>Claude → Claude</td><td>Não cria conversa nova. <code>--resume</code> da id canônica. Se outro pane segura o writer, espera o lock (até 120&nbsp;s).</td></tr>
+      <tr><td>Claude → Codex / Gemini / OpenCode</td><td>Não entram no processo do Claude. Consomem o hub em <code>runs/&lt;id&gt;/context/</code>.</td></tr>
+      <tr><td>Handoff Claude ↔ Codex</td><td><code>materialize_agent_handoff</code> grava o mesmo hub em <code>handoffs/&lt;id&gt;/context/</code>. <code>contextPath</code> = <code>manifest.json</code>.</td></tr>
+    </tbody>
+  </table>
+  <p>O que não é compartilhado como processo vivo: duas CLIs não digitam no mesmo TUI. Dois processos Claude não escrevem a mesma <code>sessionId</code> ao mesmo tempo — por isso o mutex.</p>
+
+  <h2>2. Dá para reusar sessão sem gastar tokens?</h2>
+  <p><strong>Para copiar histórico para outro modelo: sim — 0 tokens de API.</strong> Parse do JSONL, split em chunks (<code>CHUNK_CHAR_CAP = 4000</code>) e índice invertido são locais. Sem embed, sem chat/completions para montar o hub.</p>
+  <p><strong>O próximo turno útil ainda cobra</strong> o que aquele CLI enviar (slice + chunks que ele Read). A economia é não reingerir ~48&nbsp;KB como first prompt.</p>
+  <table>
+    <thead><tr><th>Ação</th><th>Tokens de modelo</th></tr></thead>
+    <tbody>
+      <tr><td>Parse JSONL + chunk + índice local</td><td><strong>0</strong></td></tr>
+      <tr><td>Bootstrap do irmão (ponteiro, ≲ 2k chars)</td><td>irrisório, um shot</td></tr>
+      <tr><td>Agente lê o chunk <code>0003.md</code></td><td>só aquele chunk</td></tr>
+      <tr><td>Segundo Claude <code>--resume</code> a mesma sessão</td><td><strong>0</strong> para duplicar (não há duplicata)</td></tr>
+      <tr><td>Capsule antigo (~48k no <code>initialInput</code>)</td><td><strong>proibido</strong></td></tr>
+    </tbody>
+  </table>
+  <p>Refresh do watcher (<code>shouldIngestContext</code> + debounce 800&nbsp;ms): 0 chamadas de chat.</p>
+
+  <h2>3. O que acontece com as sessões Claude? Duplica?</h2>
+  <p><strong>Não, dentro de um run.</strong></p>
+  <ul>
+    <li>Primeira lane Claude: <code>--session-id</code> com UUID uma vez → <code>rememberCanonicalClaude</code> + persist no <code>PromptRun</code>.</li>
+    <li>Claude posterior no mesmo run: <code>--resume</code> dessa id, ou espera o lock.</li>
+    <li>Conflito de claim dessa id <strong>não</strong> cai no <code>already claimed; starting a fresh writer</code>.</li>
+    <li><code>planAutoLanes</code> emite no máximo um worker <code>agent === 'claude'</code>.</li>
+    <li>Retry de early-exit na sessão canônica não força UUID novo.</li>
+  </ul>
+  <p>Outros CLIs nunca ganham uma sessão Claude forjada. Ganham arquivos. O lock de writer é in-memory e é restaurado do <code>PromptRun</code> persistido no <code>setRun</code> / hydrate.</p>
+
+  <h2>4. Como o contexto passa? Ainda injeta no first prompt?</h2>
+  <p><strong>Só um ponteiro.</strong> Auto (<code>buildRunBootstrapInput</code>): papel + slice + <code>contextDir</code> absoluto + “leia <code>manifest.json</code> e só os chunks que batem nos seus arquivos.” Para um prompt curto, o texto fica &lt; 2k chars.</p>
+  <p>Handoff (<code>buildIndexBootstrap</code>): o mesmo ponteiro + o pedido do usuário. Não o corpo da capsule. O modelo puxa chunks com Read quando precisa. Qualidade é extrativa (turnos reais + arquivos tocados), não um resumo feito por LLM.</p>
+  <pre>[Flashwork Auto] You are a worker (Codex) for run {id}.
+Do the assigned slice. Do not paste or request the sibling transcript.
+Shared context is on disk at "{abs}/context". Read manifest.json and only
+the chunks that match your files. The index was built locally with no API cost.
+
+{slice do usuário}</pre>
+
+  <h2>Antes × agora</h2>
+  <table>
+    <thead><tr><th>Pergunta</th><th>Antes</th><th>Agora</th></tr></thead>
+    <tbody>
+      <tr><td>Compartilhar</td><td>Board + first prompt gordo; sessão nova por pane</td><td>Uma sessão Claude + hub local</td></tr>
+      <tr><td>Reuso sem tokens</td><td>Resume só no mesmo pane; Auto mintava chat novo</td><td>Resume canônico; índice de graça para construir</td></tr>
+      <tr><td>Irmãos Claude</td><td>Segundo pane = JSONL novo (<code>fresh writer</code>)</td><td>Mesmo JSONL, lock, <code>--resume</code></td></tr>
+      <tr><td>Passar contexto</td><td>Transcript/capsule no <code>initialInput</code></td><td>Caminho; chunks em disco</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Limites honestos</h2>
+  <div class="note">
+    <p style="margin:0 0 6px"><code>prepare_agent_handoff</code> ainda monta um rascunho interno da conversa para ter texto a chunkar. O que mudou é o que entra no <code>initialInput</code>.</p>
+    <p style="margin:0 0 6px">Se prepare/materialize falha (ou a origem não é Claude/Codex), o fallback ainda aponta o journal + o pedido do usuário.</p>
+    <p style="margin:0">O próximo turno de qualquer CLI continua cobrado pelo provedor. Duas CLIs não compartilham um composer vivo — restrição dos produtos, não um TODO nosso.</p>
+  </div>
+
+  <h2>Onde olhar no código</h2>
+  <table>
+    <thead><tr><th>Peça</th><th>Arquivo</th></tr></thead>
+    <tbody>
+      <tr><td>Mint / resume da sessão canônica</td><td><code>src/lib/promptRun/startPromptRun.ts</code></td></tr>
+      <tr><td>Mutex de writer</td><td><code>src/lib/promptRun/claudeWriterLock.ts</code></td></tr>
+      <tr><td><code>--session-id</code> vs <code>--resume</code></td><td><code>src/lib/sessionLaunch.ts</code>, <code>useXtermSession.ts</code></td></tr>
+      <tr><td>Bootstrap ponteiro</td><td><code>src/lib/promptRun/bootstrapPrompt.ts</code></td></tr>
+      <tr><td>Handoff ponteiro</td><td><code>src/lib/promptRun/executeHandoff.ts</code></td></tr>
+      <tr><td>Chunk + índice (TS)</td><td><code>src/lib/promptRun/contextChunks.ts</code></td></tr>
+      <tr><td>Hub + ingest (Rust)</td><td><code>src-tauri/src/context_hub.rs</code></td></tr>
+      <tr><td>Ingest ao vivo</td><td><code>src/hooks/usePromptRunWatcher.ts</code></td></tr>
+    </tbody>
+  </table>
+
+  <p class="footer">Flashwork Orchestrator · briefing interno para compartilhar · não é spec de produto. Testes no momento da implementação: 451 passing (Vitest) + testes do módulo <code>context_hub</code>.</p>
+</body>
+</html>

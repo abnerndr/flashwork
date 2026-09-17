@@ -36,6 +36,18 @@ describe('preference normalization', () => {
       automaticParkingOptIn: false,
     })
   })
+
+  it('strips legacy OmniRoute preference keys', () => {
+    const preferences = normalizePreferences({
+      omniRouteEnabled: true,
+      omniRouteBaseUrl: 'http://127.0.0.1:20128',
+      omniRouteCaveman: true,
+    })
+
+    expect(preferences).not.toHaveProperty('omniRouteEnabled')
+    expect(preferences).not.toHaveProperty('omniRouteBaseUrl')
+    expect(preferences).not.toHaveProperty('omniRouteCaveman')
+  })
 })
 
 describe('projects file migration', () => {

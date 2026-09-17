@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { intlLocale, useT, type Locale, type TFunction } from '../../lib/i18n'
 import { listClaudeSessions, restartPty, type ClaudeSessionMeta } from '../../lib/tauri'
 import { agentCliCommand, type AgentType } from '../../lib/types'
@@ -80,23 +79,18 @@ export function ClaudeHistoryModal({
     setBusyId(sessionId)
     try {
                                                                         
-      // remove --resume <id> antigo e adiciona o novo.
+      // Drop a previous --resume <id> and append the new one.
       const old = extraArgs ?? []
       const filtered: string[] = []
       for (let i = 0; i < old.length; i++) {
         if (old[i] === '--resume') {
-          i++ // pula o sessionId antigo
+          i++ // skip the previous session id
           continue
         }
         filtered.push(old[i])
       }
       const newExtraArgs = [...filtered, '--resume', sessionId]
-      const env = await resolveOmniRouteSpawnEnv(
-        undefined,
-        useProjectsStore.getState().preferences,
-        agentType,
-      )
-      const preparedRuntime = preparePtyRuntimeLaunch(agentType, 'full', newExtraArgs, env)
+      const preparedRuntime = preparePtyRuntimeLaunch(agentType, 'full', newExtraArgs)
 
       await restartPty({
         id: ptyId,

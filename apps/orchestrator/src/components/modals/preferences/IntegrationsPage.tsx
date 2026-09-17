@@ -8,7 +8,6 @@ import {
   cliShimUninstall,
 } from '../../../lib/tauri'
 import { useProjectsStore } from '../../../stores/projectsStore'
-import { useUiStore } from '../../../stores/uiStore'
 import controls from '../controls.module.css'
 import styles from '../PreferencesModal.module.css'
 import { SettingsSection } from './primitives'
@@ -103,38 +102,9 @@ export function IntegrationsPage() {
   const t = useT()
   const preferences = useProjectsStore((state) => state.preferences)
   const setPreferences = useProjectsStore((state) => state.setPreferences)
-  const pushToast = useUiStore((state) => state.pushToast)
   return (
     <>
       <TerminalCommandSection />
-
-      <SettingsSection id="omniroute" title={t('omni.title')} description={t('omni.enableHint')}>
-        <div className={styles.integrationFields}>
-          <label className={controls.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={preferences.omniRouteEnabled}
-              onChange={(event) => setPreferences({ omniRouteEnabled: event.target.checked })}
-            />
-            <span className={controls.checkboxLabel}>{t('omni.enable')}</span>
-          </label>
-          <label className={controls.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={preferences.omniRouteCaveman}
-              onChange={(event) => {
-                const enabled = event.target.checked
-                setPreferences({ omniRouteCaveman: enabled })
-                if (enabled) {
-                  pushToast({ title: t('omni.caveman'), body: t('omni.cavemanHint') })
-                }
-              }}
-            />
-            <span className={controls.checkboxLabel}>{t('omni.caveman')}</span>
-          </label>
-          <p>{t('omni.cavemanHint')}</p>
-        </div>
-      </SettingsSection>
 
       <SettingsSection id="spotify" title={t('prefs.spotify')} description={t('prefs.spotifyDesc')}>
         <div className={styles.integrationFields}>

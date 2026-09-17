@@ -3,7 +3,6 @@
 import { nanoid } from 'nanoid'
 
 import { preparePtyRuntimeLaunch } from '../lib/agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from '../lib/flashwork/omniRouteSpawn'
 import { getLocale, translate } from '../lib/i18n'
 import { buildAgentLaunch } from '../lib/sessionLaunch'
 import {
@@ -581,12 +580,10 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
                                                           
             for (const tab of terminal.tabs) {
               if (!tab.ptyId) continue
-              const env = await resolveOmniRouteSpawnEnv(undefined, get().preferences, tab.type)
               const runtime = preparePtyRuntimeLaunch(
                 tab.type,
                 tab.runtimeProfile,
                 tab.extraArgs ?? [],
-                env,
               )
               const launch = buildAgentLaunch(tab.type, runtime.args)
               useTerminalsStore.getState().beginRestart(tab.ptyId)

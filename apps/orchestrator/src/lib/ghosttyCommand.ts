@@ -20,7 +20,7 @@ export function buildGhosttyCommand(type: AgentType, extraArgs?: string[]): stri
 
 /**
  * Ghostty's EXEC backend only takes `cfg.command` (no env map). Prefix POSIX `env`
- * so the CLI process receives OmniRoute variables without changing the shim FFI.
+ * so the CLI process receives caller variables without changing the shim FFI.
  */
 export function prefixGhosttyCommandEnv(
   command: string,

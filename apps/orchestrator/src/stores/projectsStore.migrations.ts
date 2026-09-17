@@ -33,7 +33,12 @@ import {
   MAX_RECENT_PROJECT_TABS,
 } from './projectsStore.constants'
 
-type LegacyPreferences = Partial<Preferences> & { showGitControl?: boolean }
+type LegacyPreferences = Partial<Preferences> & {
+  showGitControl?: boolean
+  omniRouteEnabled?: boolean
+  omniRouteBaseUrl?: string
+  omniRouteCaveman?: boolean
+}
 
 function normalizeStoredAccent(value: unknown, fallback?: string): string | undefined {
   if (typeof value !== 'string') return fallback
@@ -68,8 +73,11 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
   const preferences = {
     ...DEFAULT_PREFERENCES,
     ...(raw ?? {}),
-  } as Preferences & { showGitControl?: boolean }
+  } as Preferences & LegacyPreferences
   delete preferences.showGitControl
+  delete preferences.omniRouteEnabled
+  delete preferences.omniRouteBaseUrl
+  delete preferences.omniRouteCaveman
   const rawResourcePolicy = raw?.resourcePolicy
   const resourcePolicy = {
     ...DEFAULT_PREFERENCES.resourcePolicy,

@@ -14,7 +14,6 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { buildGhosttyCommand } from '../../lib/ghosttyCommand'
 import { useT } from '../../lib/i18n'
 import { noteBoardTerminalComplete } from '../../lib/taskBoard/submitBoardTask'
@@ -135,8 +134,6 @@ export const TerminalPane = memo(function TerminalPane({
   )
   // Native Ghostty rendering is opt-in and macOS-only; other platforms use xterm.js.
   const nativeTerminalMacos = useProjectsStore((s) => s.preferences.nativeTerminalMacos ?? false)
-  const omniRouteEnabled = useProjectsStore((s) => s.preferences.omniRouteEnabled)
-  const omniRouteBaseUrl = useProjectsStore((s) => s.preferences.omniRouteBaseUrl)
   const useNativeBackend = shouldUseNativeBackend(nativeTerminalMacos)
 
   // repo para injetar o MCP (o XTermView resolve o config/bootstrap).
@@ -213,16 +210,10 @@ export const TerminalPane = memo(function TerminalPane({
     if (activeTab.type === 'claude') {
       resumeSessionId = await resolveClaudeResumeId(restartCwd, resumeSessionId)
     }
-    const env = await resolveOmniRouteSpawnEnv(
-      undefined,
-      useProjectsStore.getState().preferences,
-      activeTab.type,
-    )
     const preparedRuntime = preparePtyRuntimeLaunch(
       activeTab.type,
       activeTab.runtimeProfile,
       activeTab.extraArgs ?? [],
-      env,
     )
     const launch = buildAgentLaunch(activeTab.type, preparedRuntime.args, resumeSessionId)
     if (launch.sessionId && launch.sessionId !== activeTab.sessionId) {
@@ -255,7 +246,7 @@ export const TerminalPane = memo(function TerminalPane({
       requestPaneFocus(terminal.id)
       window.setTimeout(() => requestPaneFocus(terminal.id), 160)
     } catch (err) {
-      console.error('restart pty falhou', err)
+      console.error('restart pty failed', err)
       pushToast({ title: t('ui.terminal.restartFailed'), body: String(err) })
     }
   }
@@ -524,8 +515,6 @@ export const TerminalPane = memo(function TerminalPane({
                   surfaceId={activeTab.id}
                   cwd={activeTab.cwd?.trim() || terminal.cwd?.trim() || undefined}
                   command={buildGhosttyCommand(activeTab.type, activeTab.extraArgs)}
-                  agentType={activeTab.type}
-                  omniRoutePrefs={{ omniRouteEnabled, omniRouteBaseUrl }}
                   onSpawned={(id) => {
                     setResumePending(false)
                     if (activeTab.ptyId !== id) {

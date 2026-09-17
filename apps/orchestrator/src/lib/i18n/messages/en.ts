@@ -2108,32 +2108,6 @@ export const en = {
   'skills.removedLinkOnly': 'The shared copy was kept at {path}',
   'skills.removeFailed': 'Could not remove the skill',
   'skills.errBundled': 'This skill ships with the agent and cannot be removed from Flashwork.',
-
-  /* ---- OmniRoute / 9router ---- */
-  'omni.title': 'OmniRoute',
-  'omni.sub': 'Optional local model gateway · {url}',
-  'omni.connected': 'Connected',
-  'omni.offline': 'Offline',
-  'omni.refresh': 'Refresh',
-  'omni.enable': 'Use 9router for agent APIs',
-  'omni.enableHint':
-    'When on, new Claude Code and Codex panes send requests to this gateway. Existing panes keep their current environment until restarted.',
-  'omni.caveman': 'Caveman (terse replies)',
-  'omni.cavemanHint':
-    'Default off. Flashwork does not rewrite 9router’s database. Turn this on only if you also enable Caveman in the 9router Token Saver dashboard.',
-  'omni.install': 'Install 9router',
-  'omni.installHint': 'Uses npm the same way Flashwork installs CLIs. Needs Node.js.',
-  'omni.start': 'Start gateway',
-  'omni.stop': 'Stop gateway',
-  'omni.passwordLabel': 'Dashboard password (shown once)',
-  'omni.generatePassword': 'Generate password',
-  'omni.openDashboard': 'Open dashboard',
-  'omni.apiKeyLabel': 'Gateway API key from the dashboard',
-  'omni.saveKey': 'Save key',
-  'omni.needsNode': 'Install Node.js first, then 9router.',
-  'omni.portBusy': 'Port 20128 is already in use. Flashwork will attach without killing that process.',
-  'omni.customUrl': 'Gateway URL',
-  'omni.checking': 'Checking…',
 } as const
 
 export type MessageKey = keyof typeof en

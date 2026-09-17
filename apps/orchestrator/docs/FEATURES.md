@@ -100,13 +100,6 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 
 ![Home view with recent projects and quick actions](screenshots/home-view.png)
 
-## OmniRoute (optional)
-
-- Opt-in local 9router sidecar on `127.0.0.1:20128`.
-- Install via npm using the same PTY installer as coding CLIs.
-- New agent panes receive `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` and the dashboard key only when the gateway is enabled, healthy, and the key is saved.
-- Caveman defaults to off.
-
 ## Search and Navigation
 
 - Jump modal for terminals.

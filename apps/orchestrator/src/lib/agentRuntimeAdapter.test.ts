@@ -10,7 +10,7 @@ describe('preparePtyRuntimeLaunch', () => {
     })
   })
 
-  it('keeps caller env including OmniRoute keys on the full profile', () => {
+  it('keeps caller-provided env on the full profile', () => {
     const env = { ANTHROPIC_BASE_URL: 'http://127.0.0.1:20128/v1' }
     expect(preparePtyRuntimeLaunch('claude', 'full', [], env).env).toEqual(env)
   })

@@ -2122,31 +2122,4 @@ export const ptBR: Record<MessageKey, string> = {
   'skills.removedLinkOnly': 'A cópia compartilhada foi mantida em {path}',
   'skills.removeFailed': 'Não deu para remover a skill',
   'skills.errBundled': 'Essa skill vem com o agente e não pode ser removida pelo Flashwork.',
-
-  /* ---- OmniRoute / 9router ---- */
-  'omni.title': 'OmniRoute',
-  'omni.sub': 'Gateway local opcional de modelos · {url}',
-  'omni.connected': 'Conectado',
-  'omni.offline': 'Offline',
-  'omni.refresh': 'Atualizar',
-  'omni.enable': 'Usar o 9router nas APIs dos agentes',
-  'omni.enableHint':
-    'Quando ligado, novos painéis Claude Code e Codex enviam pedidos a este gateway. Painéis existentes mantêm o ambiente atual até serem reiniciados.',
-  'omni.caveman': 'Caveman (respostas curtas)',
-  'omni.cavemanHint':
-    'Desligado por padrão. O Flashwork não reescreve o banco do 9router. Ligue isto só se também ativar Caveman no dashboard Token Saver do 9router.',
-  'omni.install': 'Instalar 9router',
-  'omni.installHint': 'Usa npm do mesmo jeito que o Flashwork instala CLIs. Precisa de Node.js.',
-  'omni.start': 'Iniciar gateway',
-  'omni.stop': 'Parar gateway',
-  'omni.passwordLabel': 'Senha do dashboard (mostrada uma vez)',
-  'omni.generatePassword': 'Gerar senha',
-  'omni.openDashboard': 'Abrir dashboard',
-  'omni.apiKeyLabel': 'Chave de API do gateway (do dashboard)',
-  'omni.saveKey': 'Salvar chave',
-  'omni.needsNode': 'Instale o Node.js primeiro, depois o 9router.',
-  'omni.portBusy':
-    'A porta 20128 já está em uso. O Flashwork anexa sem matar esse processo.',
-  'omni.customUrl': 'URL do gateway',
-  'omni.checking': 'Verificando…',
 }

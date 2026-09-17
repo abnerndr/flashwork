@@ -54,8 +54,8 @@ export function useAgentOperationBusy(): string | null {
 
 /**
  * `lockKey` identifies the run that holds the app-wide lock. Agent installs pass the agent id
- * (or `node-toolchain` when the same screen also installs Node). Sidecar installs pass their
- * own id so two `npm -g` runs still cannot overlap.
+ * (or `node-toolchain` when the same screen also installs Node). Only one install runs at a
+ * time so two `npm -g` operations cannot overlap.
  */
 export function useCommandInstall(lockKey: string, defaultVerifyCommand: string) {
   const [status, setStatus] = useState<AgentInstallStatus>('idle')

@@ -46,7 +46,6 @@ import { UsageStrip } from './UsageStrip'
 import { ActivityGraph } from './ActivityGraph'
 import { TimeAnalytics } from './TimeAnalytics'
 import { FlashworkFloors } from '../FlashworkFloors'
-import { RouterStatus } from '../RouterStatus'
 import styles from './HomeView.module.css'
 
 const RECENT_PROJECTS_LIMIT = 6
@@ -651,7 +650,6 @@ export function HomeView() {
 
       <div className={styles.overviewGrid}>
         <FlashworkFloors />
-        <RouterStatus />
       </div>
 
       <section className={styles.section}>

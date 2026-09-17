@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { useT } from '../../lib/i18n'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { resolveClaudeResumeId } from '../../lib/sessionResume'
@@ -382,16 +381,10 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
   const restartTerminal = async (projectId: string, term: Terminal) => {
     const activeTab = activeTerminalTab(term)
     if (!activeTab?.ptyId || term.disabled) return
-    const env = await resolveOmniRouteSpawnEnv(
-      undefined,
-      useProjectsStore.getState().preferences,
-      activeTab.type,
-    )
     const runtime = preparePtyRuntimeLaunch(
       activeTab.type,
       activeTab.runtimeProfile,
       activeTab.extraArgs ?? [],
-      env,
     )
     const resumeId =
       activeTab.type === 'claude'

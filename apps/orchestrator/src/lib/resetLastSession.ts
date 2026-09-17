@@ -10,7 +10,6 @@
    
 
 import { preparePtyRuntimeLaunch } from './agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from './flashwork/omniRouteSpawn'
 import { getActiveSessions, saveSession } from './sessionResume'
 import { acquireSpawnSlot, releaseSpawnSlot } from './spawnQueue'
 import {
@@ -212,16 +211,10 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
       const savedOpenCodeId = target.agent === 'opencode' ? active?.opencodeSessionId : undefined
       const sessionId = await latestSessionId(target.agent, cwd, exclude, savedOpenCodeId)
       const extraArgs = buildResumeArgs(target.agent, target.extraArgs, sessionId)
-      const env = await resolveOmniRouteSpawnEnv(
-        undefined,
-        useProjectsStore.getState().preferences,
-        target.agent,
-      )
       const preparedRuntime = preparePtyRuntimeLaunch(
         target.agent,
         target.runtimeProfile,
         extraArgs,
-        env,
       )
 
                                                                         

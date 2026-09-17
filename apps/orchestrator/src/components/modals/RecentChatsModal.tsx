@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
-import { resolveOmniRouteSpawnEnv } from '../../lib/flashwork/omniRouteSpawn'
 import { intlLocale, type Locale, type TFunction,useT } from '../../lib/i18n'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
@@ -171,16 +170,10 @@ export function RecentChatsModal() {
     if (!tab?.ptyId) return
     setBusyId(entry.id)
     try {
-      const env = await resolveOmniRouteSpawnEnv(
-        undefined,
-        useProjectsStore.getState().preferences,
-        agent,
-      )
       const preparedRuntime = preparePtyRuntimeLaunch(
         agent,
         tab.runtimeProfile,
         extraArgsFor(agent),
-        env,
       )
       const launch = buildAgentLaunch(agent, preparedRuntime.args, entry.id)
       await restartPty({

@@ -26,6 +26,15 @@ export function isWindows(): boolean {
   return /Windows/i.test(navigator.userAgent)
 }
 
+export type OSFamily = 'windows' | 'macos' | 'linux'
+
+/** Windows, macOS, or Linux. WSL user agents are Linux, not Windows. */
+export function osFamily(): OSFamily {
+  if (isWindows()) return 'windows'
+  if (isMacOS()) return 'macos'
+  return 'linux'
+}
+
    
                                                                        
                                                                            

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatShortcut, isMacOS, normalizeCwd, shouldUseNativeBackend } from './platform'
+import { formatShortcut, isMacOS, normalizeCwd, osFamily, shouldUseNativeBackend } from './platform'
 
 function setUserAgent(ua: string) {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(ua)
@@ -63,6 +63,25 @@ describe('normalizeCwd', () => {
 
   it('remove o prefixo verbatim UNC \\\\?\\UNC\\', () => {
     expect(normalizeCwd('\\\\?\\UNC\\server\\share\\project')).toBe('\\\\server\\share\\project')
+  })
+})
+
+describe('osFamily', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('returns windows for a Windows user agent', () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+    expect(osFamily()).toBe('windows')
+  })
+
+  it('returns macos for a Macintosh user agent', () => {
+    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15')
+    expect(osFamily()).toBe('macos')
+  })
+
+  it('returns linux for a Linux user agent including WSL', () => {
+    setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36')
+    expect(osFamily()).toBe('linux')
   })
 })
 

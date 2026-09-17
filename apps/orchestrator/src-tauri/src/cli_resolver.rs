@@ -28,6 +28,24 @@ pub fn default_shell() -> String {
     }
 }
 
+fn shell_stem(command: &str) -> String {
+    std::path::Path::new(command)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(command)
+        .to_ascii_lowercase()
+}
+
+/// True when `command` is itself a shell we can spawn as the PTY process.
+/// Used so installer PTYs get an interactive pwsh/bash instead of being wrapped
+/// in `default_shell() -Command` / `-lc`, which is not a prompt we can write into.
+pub(crate) fn is_interactive_shell_name(command: &str) -> bool {
+    matches!(
+        shell_stem(command).as_str(),
+        "pwsh" | "powershell" | "bash" | "zsh" | "sh"
+    )
+}
+
 pub fn command_builder_for_terminal(
     initial_command: Option<&str>,
     resolved_launcher: Option<&str>,
@@ -38,6 +56,19 @@ pub fn command_builder_for_terminal(
         .filter(|value| !value.is_empty());
 
     let mut builder = match trimmed {
+        Some(command) if extra_args.is_empty() && is_interactive_shell_name(command) => {
+            // Spawn pwsh/bash as the PTY process itself. Wrapping them in
+            // default_shell() -NoProfile -Command / -lc would nest another
+            // non-interactive shell and break writing an install pipeline
+            // into the prompt.
+            let exe = resolved_launcher.unwrap_or(command);
+            let mut builder = CommandBuilder::new(exe);
+            let stem = shell_stem(exe);
+            if stem == "pwsh" || stem == "powershell" {
+                builder.arg("-NoLogo");
+            }
+            builder
+        }
         Some(command) => {
             let arg = resolved_launcher
                 .map(|s| s.to_string())
@@ -60,7 +91,7 @@ pub fn command_builder_for_terminal(
             }
             #[cfg(not(windows))]
             {
-                // POSIX shell: exec do launcher + args, com aspas simples escapadas.
+                // POSIX: exec the launcher plus args, with single quotes escaped.
                 let esc = |s: &str| s.replace('\'', "'\\''");
                 let mut line = format!("exec '{}'", esc(&arg));
                 for a in extra_args {
@@ -108,12 +139,6 @@ pub fn command_builder_for_terminal(
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
 
-    // terminal vai renderizar. Confirmado com um teste isolado rodando o
-
-    // — nem DECRQSS/XTGETTCAP, embora responda OSC 10/11/DSR/DA
-
-    // causa conhecida de "artefatos estranhos contendo '66'" em terminais
-
     if trimmed == Some("opencode") {
         builder.env("OPENTUI_FORCE_EXPLICIT_WIDTH", "false");
     }
@@ -143,14 +168,49 @@ pub async fn find_cli_launcher(agent: String) -> Option<String> {
     .unwrap_or(None)
 }
 
+/// After a successful install: drop any cached hit (the old binary may still exist —
+/// that is the shadowing case), probe the user's login PATH, then resolve again.
+#[tauri::command]
+pub async fn refresh_cli_path(command: String) -> Option<String> {
+    tokio::task::spawn_blocking(move || {
+        invalidate_launcher_cache(&command);
+        let resolved = resolve_cli_launcher_refreshed(&command)?;
+        cache_launcher(&command, resolved.clone());
+        Some(resolved.to_string_lossy().to_string())
+    })
+    .await
+    .unwrap_or(None)
+}
+
 static LAUNCHER_CACHE: OnceLock<std::sync::Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
+
+fn launcher_cache() -> &'static std::sync::Mutex<HashMap<String, PathBuf>> {
+    LAUNCHER_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
+fn cache_launcher(command: &str, path: PathBuf) {
+    if let Ok(mut map) = launcher_cache().lock() {
+        map.insert(command.to_string(), path);
+    }
+}
+
+fn invalidate_launcher_cache(command: &str) {
+    if let Ok(mut map) = launcher_cache().lock() {
+        map.remove(command);
+    }
+}
+
+#[cfg(test)]
+fn launcher_cache_get(command: &str) -> Option<PathBuf> {
+    launcher_cache().lock().ok()?.get(command).cloned()
+}
 
 /// Resolving a launcher walks every PATH entry and every agent directory looking for four
 /// extensions, and it runs on every terminal boot. Only hits are cached, and a hit is dropped as
 /// soon as its file is gone — so installing an agent is picked up at once and uninstalling it is
 /// noticed on the next lookup, without the cache ever answering for something that is not there.
 pub fn find_windows_cli_launcher(command: &str) -> Option<PathBuf> {
-    let cache = LAUNCHER_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+    let cache = launcher_cache();
 
     if let Ok(map) = cache.lock() {
         if let Some(path) = map.get(command) {
@@ -161,9 +221,7 @@ pub fn find_windows_cli_launcher(command: &str) -> Option<PathBuf> {
     }
 
     let resolved = resolve_cli_launcher(command)?;
-    if let Ok(mut map) = cache.lock() {
-        map.insert(command.to_string(), resolved.clone());
-    }
+    cache_launcher(command, resolved.clone());
     Some(resolved)
 }
 
@@ -178,11 +236,10 @@ fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
             dirs.push(home.join(".local").join("bin"));
             dirs.push(home.join(".cargo").join("bin"));
         }
-        // App .app lançado via Finder/DMG não roda como login shell: herda o
-        // PATH mínimo do Launch Services (sem .zshrc/.zprofile), então CLIs
-        // instaladas via `brew install` ficam invisíveis pro `which` acima
-        // mesmo estando no disco. Cobrir os prefixos padrão do Homebrew
-        // (Apple Silicon e Intel) como fallback fixo.
+        // A .app launched from Finder inherits Launch Services' minimal PATH
+        // (no .zshrc/.zprofile), so Homebrew CLIs are invisible to `which`
+        // even when they exist on disk. Cover the default prefixes as a
+        // fixed fallback.
         dirs.extend(homebrew_dirs());
         for dir in dirs {
             let candidate = dir.join(command);
@@ -198,28 +255,104 @@ fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
         let mut dirs = Vec::<PathBuf>::new();
         dirs.extend(split_windows_path_expanded(&rebuilt_path()));
         dirs.extend(agent_search_dirs());
-
-        // exclusivamente `agy`. Nunca use o desktop como fallback para o CLI.
-        let candidates_to_try = match command {
-            "antigravity" | "agy" => vec!["agy"],
-            other => vec![other],
-        };
-
-        for cmd_name in candidates_to_try {
-            for dir in &dirs {
-                for extension in ["cmd", "exe", "bat", "ps1"] {
-                    let candidate = dir.join(format!("{cmd_name}.{extension}"));
-                    if candidate.is_file() {
-                        return Some(candidate);
-                    }
-                }
-            }
-        }
-        None
+        search_windows_cli(command, &dirs)
     }
 }
 
-#[derive(serde::Serialize, Debug, Clone, Default)]
+/// Login-shell probe plus a fresh PATH walk. Used only after install — not on
+/// every terminal boot, because spawning bash/pwsh is relatively expensive.
+fn resolve_cli_launcher_refreshed(command: &str) -> Option<PathBuf> {
+    if let Some(path) = probe_login_shell_command(command) {
+        return Some(path);
+    }
+    #[cfg(windows)]
+    {
+        let mut dirs = Vec::<PathBuf>::new();
+        // Re-read the registry PATH; the installer may have just added
+        // `%USERPROFILE%\.local\bin`. `rebuilt_path()` is cached for the
+        // process lifetime and would still be stale here.
+        dirs.extend(split_windows_path_expanded(&build_rebuilt_path()));
+        dirs.extend(agent_search_dirs());
+        return search_windows_cli(command, &dirs);
+    }
+    #[cfg(not(windows))]
+    {
+        resolve_cli_launcher(command)
+    }
+}
+
+#[cfg(windows)]
+fn search_windows_cli(command: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    // Antigravity's CLI binary is exclusively `agy`. Never fall back to the desktop app.
+    let candidates_to_try = match command {
+        "antigravity" | "agy" => vec!["agy"],
+        other => vec![other],
+    };
+
+    for cmd_name in candidates_to_try {
+        for dir in dirs {
+            for extension in ["cmd", "exe", "bat", "ps1"] {
+                let candidate = dir.join(format!("{cmd_name}.{extension}"));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_safe_cli_name(command: &str) -> bool {
+    !command.is_empty()
+        && command.len() <= 64
+        && command
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+/// First non-empty line of `command -v` / `Get-Command` stdout, if it looks like a path.
+pub(crate) fn parse_which_output(stdout: &str) -> Option<PathBuf> {
+    let line = stdout.lines().map(str::trim).find(|l| !l.is_empty())?;
+    if line.contains(char::is_whitespace) {
+        return None;
+    }
+    Some(PathBuf::from(line))
+}
+
+/// Expensive login-shell lookup. Post-install only — not used on terminal boot.
+fn probe_login_shell_command(command: &str) -> Option<PathBuf> {
+    if !is_safe_cli_name(command) {
+        return None;
+    }
+
+    #[cfg(windows)]
+    {
+        let shell = default_shell();
+        let script = format!(
+            "(Get-Command -Name {command} -ErrorAction SilentlyContinue | Select-Object -First 1).Source"
+        );
+        let mut proc = std::process::Command::new(&shell);
+        proc.args(["-NoLogo", "-NoProfile", "-Command", &script]);
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            proc.creation_flags(CREATE_NO_WINDOW);
+        }
+        let output = proc.output().ok()?;
+        parse_which_output(&String::from_utf8_lossy(&output.stdout)).filter(|p| p.is_file())
+    }
+
+    #[cfg(not(windows))]
+    {
+        let output = std::process::Command::new("bash")
+            .args(["-lc", &format!("command -v {command}")])
+            .output()
+            .ok()?;
+        parse_which_output(&String::from_utf8_lossy(&output.stdout)).filter(|p| p.is_file())
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallToolchain {
     pub node: Option<String>,
@@ -229,6 +362,39 @@ pub struct InstallToolchain {
     pub choco: bool,
     pub bun: bool,
     pub pnpm: bool,
+    #[serde(default)]
+    pub brew: bool,
+    #[serde(default = "toolchain_os")]
+    pub os: String,
+}
+
+impl Default for InstallToolchain {
+    fn default() -> Self {
+        Self {
+            node: None,
+            npm: false,
+            winget: false,
+            scoop: false,
+            choco: false,
+            bun: false,
+            pnpm: false,
+            brew: false,
+            os: toolchain_os(),
+        }
+    }
+}
+
+/// Maps `std::env::consts::OS` onto the three families the install catalog uses.
+fn map_toolchain_os(os: &str) -> String {
+    match os {
+        "macos" => "macos".to_string(),
+        "windows" => "windows".to_string(),
+        _ => "linux".to_string(),
+    }
+}
+
+fn toolchain_os() -> String {
+    map_toolchain_os(std::env::consts::OS)
 }
 
 fn node_version() -> Option<String> {
@@ -302,6 +468,8 @@ pub async fn probe_install_toolchain() -> InstallToolchain {
             choco: has("choco"),
             bun: has("bun"),
             pnpm: has("pnpm"),
+            brew: has("brew"),
+            os: toolchain_os(),
         }
     })
     .await
@@ -963,5 +1131,63 @@ mod tests {
     fn resolves_cli_launcher_on_unix() {
         assert!(find_windows_cli_launcher("sh").is_some());
         assert!(find_windows_cli_launcher("non_existent_binary_xyz_123").is_none());
+    }
+
+    #[test]
+    fn map_toolchain_os_maps_known_families() {
+        assert_eq!(map_toolchain_os("macos"), "macos");
+        assert_eq!(map_toolchain_os("windows"), "windows");
+        assert_eq!(map_toolchain_os("linux"), "linux");
+        assert_eq!(map_toolchain_os("freebsd"), "linux");
+    }
+
+    #[test]
+    fn omitted_brew_deserializes_to_false() {
+        let parsed: InstallToolchain = serde_json::from_str(
+            r#"{"node":null,"npm":false,"winget":false,"scoop":false,"choco":false,"bun":false,"pnpm":false}"#,
+        )
+        .expect("probe JSON without brew");
+        assert!(!parsed.brew);
+        assert_eq!(parsed.os, toolchain_os());
+    }
+
+    #[test]
+    fn interactive_shell_names_are_detected() {
+        assert!(is_interactive_shell_name("pwsh"));
+        assert!(is_interactive_shell_name("pwsh.exe"));
+        assert!(is_interactive_shell_name("/usr/bin/bash"));
+        assert!(is_interactive_shell_name("/usr/bin/zsh"));
+        assert!(!is_interactive_shell_name("claude"));
+        assert!(!is_interactive_shell_name("npm"));
+    }
+
+    #[test]
+    fn safe_cli_names_reject_shell_metacharacters() {
+        assert!(is_safe_cli_name("claude"));
+        assert!(is_safe_cli_name("agy"));
+        assert!(is_safe_cli_name("gemini-cli"));
+        assert!(!is_safe_cli_name(""));
+        assert!(!is_safe_cli_name("claude; rm -rf /"));
+        assert!(!is_safe_cli_name("$(evil)"));
+        assert!(!is_safe_cli_name("claude | iex"));
+    }
+
+    #[test]
+    fn parse_which_output_takes_the_first_path_line() {
+        assert_eq!(
+            parse_which_output("  /home/u/.local/bin/claude\n"),
+            Some(PathBuf::from("/home/u/.local/bin/claude"))
+        );
+        assert_eq!(parse_which_output(""), None);
+        assert_eq!(parse_which_output("claude () {\n  true\n}\n"), None);
+    }
+
+    #[test]
+    fn invalidate_launcher_cache_drops_entry_even_if_the_file_still_exists() {
+        let path = PathBuf::from("/tmp/flashwork-stale-cli-that-need-not-exist");
+        cache_launcher("flashwork-test-cli", path.clone());
+        assert_eq!(launcher_cache_get("flashwork-test-cli"), Some(path));
+        invalidate_launcher_cache("flashwork-test-cli");
+        assert_eq!(launcher_cache_get("flashwork-test-cli"), None);
     }
 }

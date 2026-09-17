@@ -36,7 +36,7 @@
 - [x] No OmniRoute / OpenRouter / 9router in product code
 - [ ] Creating a project without a folder is impossible
 - [ ] Auto/Task Board runs without requiring a model picker
-- [ ] CLI install and update work on Windows, Linux, and macOS
+- [x] CLI install and update work on Windows, Linux, and macOS
 - [ ] Users can save Anthropic, OpenAI, and Gemini API keys
 - [ ] Token HUD and usage widgets cover every coding CLI, not only Claude
 - [ ] Flows tab behind a Beta badge

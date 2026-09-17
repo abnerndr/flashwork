@@ -223,6 +223,7 @@ export const en = {
   'agentInstall.updateFailedBody': '{agent} may still be on the previous version. Try again.',
   'agentInstall.updateFailedShadowed':
     '{agent} was reinstalled, but {path} is still the version on PATH.',
+  'agentInstall.openInstallLocation': 'Open install location',
   'agentInstall.uninstallTitle': 'Uninstall {agent}',
   'agentInstall.uninstallConfirm':
     'This removes {agent} from this machine. Flashwork will run the command below in a shell:',
@@ -250,6 +251,8 @@ export const en = {
   'agentInstall.installNode': 'Install Node.js',
   'agentInstall.downloadNode': 'Download Node.js',
   'agentInstall.method.native': 'Official installer',
+  'agentInstall.method.unixNative': 'Official installer (Unix)',
+  'agentInstall.method.brew': 'Homebrew',
   'agentInstall.method.npm': 'npm',
   'agentInstall.method.winget': 'WinGet',
   'agentInstall.method.scoop': 'Scoop',

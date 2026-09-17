@@ -58,7 +58,7 @@ If a vendor URL 404s at implement time, keep the docs link and hide that method 
 
 ### Task 1: Catalog is OS-aware (pure)
 
-- [ ] **Step 1: Failing tests** (extend `agentInstall.test.ts`)
+- [x] **Step 1: Failing tests** (extend `agentInstall.test.ts`)
 
 ```ts
 it('does not offer PowerShell native install on linux', () => {
@@ -83,10 +83,10 @@ it('update re-runs unix native installer when there is no npm', () => {
 })
 ```
 
-- [ ] **Step 2: Run** `npx vitest run src/lib/agentInstall.test.ts` — FAIL until catalog splits
-- [ ] **Step 3: Change `InstallMethod` to `{ os?: OSFamily | OSFamily[] }` defaulting to all**
-- [ ] **Step 4: `installMethodsFor(agent, toolchain, os = osFamily())` filters `method.os`**
-- [ ] **Step 5: `updateMethodsFor` maps npm install → `npm install -g <pkg>@latest`; native → same native command; winget → `winget upgrade <id>`; brew → `brew upgrade <formula>`**
+- [x] **Step 2: Run** `npx vitest run src/lib/agentInstall.test.ts` — FAIL until catalog splits
+- [x] **Step 3: Change `InstallMethod` to `{ os?: OSFamily | OSFamily[] }` defaulting to all**
+- [x] **Step 4: `installMethodsFor(agent, toolchain, os = osFamily())` filters `method.os`**
+- [x] **Step 5: `updateMethodsFor` maps npm install → `npm install -g <pkg>@latest`; native → same native command; winget → `winget upgrade <id>`; brew → `brew upgrade <formula>`**
 
 Never use `npm update -g` as the only strategy; `install -g pkg@latest` is what the current Update button already intended by re-running install.
 
@@ -94,9 +94,9 @@ Never use `npm update -g` as the only strategy; `install -g pkg@latest` is what 
 
 ### Task 2: Toolchain probe knows brew and OS
 
-- [ ] **Step 1: Extend `InstallToolchain` with `brew: boolean`**
-- [ ] **Step 2: Rust `probe_install_toolchain` sets `brew` when `which brew` / `where brew` succeeds**
-- [ ] **Step 3: Existing tests for winget/npm still pass; add a unit test that methods requiring `brew` hide when `brew: false`**
+- [x] **Step 1: Extend `InstallToolchain` with `brew: boolean`**
+- [x] **Step 2: Rust `probe_install_toolchain` sets `brew` when `which brew` / `where brew` succeeds**
+- [x] **Step 3: Existing tests for winget/npm still pass; add a unit test that methods requiring `brew` hide when `brew: false`**
 
 ---
 
@@ -109,19 +109,19 @@ Bugs to close (all three OSes):
 3. **Shadow conflict:** keep existing `shadowConflict` toast; add a “Open install location” using `openInFileExplorer(dirname(path))`.
 4. **Fatal nvm prefix:** keep `installOutputIsFatal`; Unix should still `unset npm_config_prefix`.
 
-- [ ] **Step 1: `installShellLine(command, osFamily())` — windows ps1 unchanged; unix `command && exit 0 || exit 1` without wrapping npm in `cmd /c`**
-- [ ] **Step 2: `useCommandInstall` after code 0: `findCliLauncher` with refreshed PATH (Tauri command that reads the user’s login PATH)**
-- [ ] **Step 3: cargo/vitest for PATH helper if implemented in Rust**
+- [x] **Step 1: `installShellLine(command, osFamily())` — windows ps1 unchanged; unix `command && exit 0 || exit 1` without wrapping npm in `cmd /c`**
+- [x] **Step 2: `useCommandInstall` after code 0: `findCliLauncher` with refreshed PATH (Tauri command that reads the user’s login PATH)**
+- [x] **Step 3: cargo/vitest for PATH helper if implemented in Rust**
 
 ---
 
 ### Task 4: UI
 
-- [ ] **Step 1: `AgentInstallModal` lists methods for `osFamily()`; empty list → docs URL + copy (already has docs)**
-- [ ] **Step 2: `AgentUpdateButton` uses `updateMethodsFor(...)[0]`; if empty, hide the button (do not no-op npm)**
-- [ ] **Step 3: Onboarding `AgentsStep` install/update uses the same helpers**
-- [ ] **Step 4: i18n `agentInstall.method.brew`, `agentInstall.method.unixNative`**
-- [ ] **Step 5: CHANGELOG — install/update CLIs on Windows, Linux, and macOS**
+- [x] **Step 1: `AgentInstallModal` lists methods for `osFamily()`; empty list → docs URL + copy (already has docs)**
+- [x] **Step 2: `AgentUpdateButton` uses `updateMethodsFor(...)[0]`; if empty, hide the button (do not no-op npm)**
+- [x] **Step 3: Onboarding `AgentsStep` install/update uses the same helpers**
+- [x] **Step 4: i18n `agentInstall.method.brew`, `agentInstall.method.unixNative`**
+- [x] **Step 5: CHANGELOG — install/update CLIs on Windows, Linux, and macOS**
 
 ---
 

@@ -12,6 +12,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Installing and updating coding CLIs now works on Windows, Linux, and macOS (native scripts, npm,
+  WinGet, Homebrew).
 - Auto keeps a single Claude Code conversation per run. Other CLIs read small on-disk context
   chunks instead of receiving a pasted transcript. Handoff uses the same chunk index.
 

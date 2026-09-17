@@ -10,9 +10,11 @@ import {
   needsNodeToolchain,
   NODE_DOWNLOAD_URL,
   nodeInstallMethods,
+  parentPath,
 } from '../../lib/agentInstall'
-import { useT } from '../../lib/i18n'
-import { openInBrowser, probeInstallToolchain } from '../../lib/tauri'
+import { type MessageKey, useT } from '../../lib/i18n'
+import { osFamily } from '../../lib/platform'
+import { openInBrowser, openInFileExplorer, probeInstallToolchain } from '../../lib/tauri'
 import type { AgentType } from '../../lib/types'
 import { Modal } from '../modals/Modal'
 import controls from '../modals/controls.module.css'
@@ -33,18 +35,24 @@ const ANSI_PATTERN =
 
 const METHOD_LABEL_KEY = {
   native: 'agentInstall.method.native',
+  brew: 'agentInstall.method.brew',
   npm: 'agentInstall.method.npm',
   winget: 'agentInstall.method.winget',
   scoop: 'agentInstall.method.scoop',
   choco: 'agentInstall.method.choco',
-} as const
+} as const satisfies Record<InstallMethod['id'], MessageKey>
+
+function methodLabelKey(id: InstallMethod['id']): MessageKey {
+  if (id === 'native' && osFamily() !== 'windows') return 'agentInstall.method.unixNative'
+  return METHOD_LABEL_KEY[id]
+}
 
 export function AgentInstallModal({ agent, label, open, onClose, onInstalled, nested }: Props) {
   const t = useT()
   const [toolchain, setToolchain] = useState<InstallToolchain | null>(null)
   const [probing, setProbing] = useState(true)
   const [chosenId, setChosenId] = useState<InstallMethod['id'] | null>(null)
-  const { status, log, install, reset } = useAgentInstall(agent)
+  const { status, log, shadowConflict, install, reset } = useAgentInstall(agent)
   const nodeInstall = useAgentInstall(agent, 'node-toolchain')
   const busyAgent = useAgentOperationBusy()
   const notifiedRef = useRef(false)
@@ -142,7 +150,7 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
                   onChange={() => setChosenId(method.id)}
                 />
                 <span className={styles.methodBody}>
-                  <b>{t(METHOD_LABEL_KEY[method.id])}</b>
+                  <b>{t(methodLabelKey(method.id))}</b>
                   <code>{method.command}</code>
                 </span>
               </label>
@@ -185,6 +193,18 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
 
       {status === 'failed' ? (
         <p className={`${styles.modalText} ${styles.statusFailed}`}>{t('agentInstall.failed')}</p>
+      ) : null}
+
+      {shadowConflict ? (
+        <button
+          type="button"
+          className={styles.linkBtn}
+          onClick={() => {
+            void openInFileExplorer(parentPath(shadowConflict.path)).catch(() => undefined)
+          }}
+        >
+          {t('agentInstall.openInstallLocation')}
+        </button>
       ) : null}
 
       {cleanLog.trim() ? <pre className={styles.log}>{cleanLog}</pre> : null}

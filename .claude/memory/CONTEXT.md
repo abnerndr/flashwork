@@ -18,7 +18,7 @@ Auto launch classifies a prompt (`classifyTask.ts`) and picks an agent (`selectA
 
 OmniRoute/9router **was removed** (P09 / ADR 009). Agents spawn with vendor CLIs only; Flashwork does not set `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL`. There is no OpenRouter.com integration in the tree.
 
-CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is **Windows-first**: native methods are PowerShell `irm … | iex`; Update only re-runs the npm method. Linux/macOS native installers are missing or wrong. **P10 fixes this.**
+CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Windows-first: native scripts, npm, WinGet, and Homebrew cover Windows, Linux, and macOS. Update uses the same method that installed when known, else npm `@latest`, else the native installer. P10 shipped.
 
 ## Token metrics (Claude-only)
 
@@ -113,6 +113,5 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 | 7 | No IDE editor behind the orchestrator |
 | 8 | Model/token/agent choice still leaks to the developer |
 | 9 | No N8N-like flow canvas (beta) |
-| 11 | CLI install/update broken or incomplete on Windows, Linux, and macOS |
 | 12 | No first-party Anthropic / OpenAI / Gemini API key path |
 | 13 | Token HUD / usage widgets are Claude-centric; Gemini and other panes are not identified or metered |

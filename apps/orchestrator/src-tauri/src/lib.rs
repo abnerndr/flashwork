@@ -14,9 +14,9 @@ mod cli_shim;
 mod codex_app_server;
 mod codex_sessions;
 mod codex_usage;
+mod context_hub;
 mod contract_check;
 mod crash_watch;
-mod context_hub;
 mod diagnostics;
 mod discord_presence;
 mod economy_agents;
@@ -48,7 +48,6 @@ mod profiles;
 mod project_detector;
 mod projects;
 mod prompt_run;
-mod task_board;
 mod provider_common;
 mod pty;
 mod remote;
@@ -60,6 +59,7 @@ mod skills;
 mod spotify;
 mod stats;
 mod supervisor;
+mod task_board;
 mod telemetry;
 mod validation;
 mod window_style;
@@ -305,6 +305,7 @@ pub fn run() {
             profiles::rename_profile,
             profiles::delete_profile,
             cli_resolver::find_cli_launcher,
+            cli_resolver::refresh_cli_path,
             cli_resolver::probe_install_toolchain,
             cli_resolver::agent_cli_version,
             cli_launch::cli_take_pending_open,
@@ -469,10 +470,7 @@ pub fn run() {
 }
 
 #[tauri::command]
-fn quit_app(
-    app: tauri::AppHandle,
-    sessions: tauri::State<'_, PtySessions>,
-) {
+fn quit_app(app: tauri::AppHandle, sessions: tauri::State<'_, PtySessions>) {
     // The Windows job object remains the hard guarantee that descendants die with the app. The
     // best-effort explicit teardown runs in the background so a slow process tree cannot block exit.
     pty::kill_all_sessions_background(sessions.inner());

@@ -222,6 +222,7 @@ export const ptBR: Record<MessageKey, string> = {
   'agentInstall.updateFailedBody': '{agent} pode ainda estar na versão anterior. Tente novamente.',
   'agentInstall.updateFailedShadowed':
     '{agent} foi reinstalado, mas {path} continua sendo a versão no PATH.',
+  'agentInstall.openInstallLocation': 'Abrir local da instalação',
   'agentInstall.uninstallTitle': 'Desinstalar o {agent}',
   'agentInstall.uninstallConfirm':
     'Isto remove o {agent} desta máquina. O Flashwork vai rodar o comando abaixo num shell:',
@@ -249,6 +250,8 @@ export const ptBR: Record<MessageKey, string> = {
   'agentInstall.installNode': 'Instalar o Node.js',
   'agentInstall.downloadNode': 'Baixar o Node.js',
   'agentInstall.method.native': 'Instalador oficial',
+  'agentInstall.method.unixNative': 'Instalador oficial (Unix)',
+  'agentInstall.method.brew': 'Homebrew',
   'agentInstall.method.npm': 'npm',
   'agentInstall.method.winget': 'WinGet',
   'agentInstall.method.scoop': 'Scoop',

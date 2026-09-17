@@ -6,25 +6,27 @@ Resume here if the session context runs out. Implement **one numbered plan at a 
 
 Owner (2026-09-17): after each numbered plan, **commit and merge locally to `master`**. Do not push. Do not pause for merge/PR options. The owner will review after **all** remaining plans. Do **not** stop or restart `tauri dev` / Vite. i18n in `en.ts` and `pt-BR.ts`. English in versioned source.
 
+## Shipped
+
+| Plan | Commit | Status |
+| --- | --- | --- |
+| P09 Remove OmniRoute | `9a18cbc` merged to `master` | done |
+| P10 CLI install/update | pending merge | completed |
+
 ## Current slice
 
-**Plan:** P09 — `docs/superpowers/plans/2026-09-17-09-remove-omniroute.md`  
-**ADR:** `.claude/adr/009-remove-omniroute.md` (accepted)  
-**Branch:** `feat/p09-remove-omniroute` (workspace in place; not a linked worktree)  
-**Status:** completed (Tasks 1–3)
+**Plan:** P10 — `docs/superpowers/plans/2026-09-17-10-cli-install-update.md`  
+**ADR:** `.claude/adr/009-remove-omniroute.md`  
+**Branch:** `feat/p10-cli-install-update`  
+**Status:** completed (Tasks 1–4). Next: P12.
 
 | Task | Name | Status |
 | --- | --- | --- |
-| 1 | Stop rewriting spawn env | completed |
-| 2 | Remove sidecar backend and UI | completed |
-| 3 | Docs (FEATURES, CHANGELOG, CONTEXT) | completed |
+| 1 | Catalog is OS-aware (pure) | completed |
+| 2 | Toolchain probe knows brew and OS | completed |
+| 3 | PTY install finds the binary after success | completed |
+| 4 | UI (modal, update button, onboarding, i18n, CHANGELOG) | completed |
 
-## Next slice
+## After P10
 
-Start P10 (`docs/superpowers/plans/2026-09-17-10-cli-install-update.md`).
-
-## Notes
-
-- Call sites of `resolveOmniRouteSpawnEnv` included files not listed in the P09 plan: `GhosttySurface/index.tsx`, `ClaudeHistoryModal.tsx`, `ProjectSidebar/sidebarMenus.tsx`.
-- Preference keys `omniRouteEnabled` / `omniRouteBaseUrl` / `omniRouteCaveman` dropped in Task 2 with projects.json migration.
-- Minor leftover: OS keyring may still hold `service=flashwork` / `user=omniroute-gateway` for users who saved a gateway key (no product command deletes it).
+Start P12 (`docs/superpowers/plans/2026-09-17-12-token-metrics-all-agents.md`).

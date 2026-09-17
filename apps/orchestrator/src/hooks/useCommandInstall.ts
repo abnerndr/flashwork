@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import { type InstallMethod, installOutputIsFatal, installShellLine } from '../lib/agentInstall'
+import {
+  type InstallMethod,
+  installerPtyCommand,
+  installOutputIsFatal,
+  installShellLine,
+} from '../lib/agentInstall'
+import { osFamily } from '../lib/platform'
 import {
   agentCliVersion,
   findCliLauncher,
   killPty,
   listenPtyData,
   listenPtyExit,
+  refreshCliPath,
   spawnPty,
   writePty,
 } from '../lib/tauri'
@@ -24,6 +31,21 @@ export type AgentInstallShadowConflict = { path: string }
 const MAX_LOG_CHARS = 12_000
 const PROMPT_SETTLE_MS = 900
 const CLEAR_LINE = '\x15'
+
+/**
+ * Spawn an interactive pwsh (Windows) or bash (Unix) PTY. `command_builder_for_terminal`
+ * wraps a named command in default_shell() -Command / -lc, which is not a prompt — except
+ * for known shell names, which it now launches as the PTY process itself. The install
+ * pipeline is written into that shell, not passed as spawnPty.command. If pwsh/bash is
+ * missing, fall back to the app default shell (powershell.exe / $SHELL).
+ */
+async function spawnInstallerPty(ptyId: string): Promise<{ id: string }> {
+  try {
+    return await spawnPty({ cols: 100, rows: 24, id: ptyId, command: installerPtyCommand() })
+  } catch {
+    return spawnPty({ cols: 100, rows: 24, id: ptyId })
+  }
+}
 
 function trimLog(value: string): string {
   return value.length > MAX_LOG_CHARS ? value.slice(value.length - MAX_LOG_CHARS) : value
@@ -103,10 +125,7 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
 
       const ptyId = `agent-install:${lockKey}:${Date.now()}`
       try {
-        // A bare shell, then the command written into it: the native installers
-        // are pipelines (`irm ... | iex`), which cannot be expressed as a
-        // launcher plus argv.
-        const spawned = await spawnPty({ cols: 100, rows: 24, id: ptyId })
+        const spawned = await spawnInstallerPty(ptyId)
         if (disposedRef.current) {
           void killPty(spawned.id).catch(() => undefined)
           return
@@ -144,8 +163,11 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
               return
             }
             // A zero exit code still doesn't confirm the binary landed somewhere we
-            // can launch it from, so ask the resolver.
-            void findCliLauncher(command)
+            // can launch it from. Drop the stale launcher cache and re-resolve
+            // with the user's login PATH before verifying.
+            void refreshCliPath(command)
+              .catch(() => null)
+              .then(() => findCliLauncher(command))
               .then(async (found) => {
                 if (disposedRef.current) return
                 const worked = method.verifyAbsent ? !found : Boolean(found)
@@ -176,7 +198,7 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
 
         await new Promise((resolve) => setTimeout(resolve, PROMPT_SETTLE_MS))
         if (disposedRef.current || settledRef.current) return
-        await writePty(spawned.id, `${CLEAR_LINE}${installShellLine(method.command)}`)
+        await writePty(spawned.id, `${CLEAR_LINE}${installShellLine(method.command, osFamily())}`)
       } catch (error) {
         setLog((current) => trimLog(`${current}\n${String(error)}`))
         setStatus('failed')

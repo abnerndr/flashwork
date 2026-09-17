@@ -2,9 +2,9 @@ import { ArrowUpCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useAgentInstall, useAgentOperationBusy } from '../../hooks/useAgentInstall'
-import { installMethodsFor, type InstallToolchain } from '../../lib/agentInstall'
+import { type InstallToolchain, parentPath, updateMethodsFor } from '../../lib/agentInstall'
 import { useT } from '../../lib/i18n'
-import { probeInstallToolchain } from '../../lib/tauri'
+import { openInFileExplorer, probeInstallToolchain } from '../../lib/tauri'
 import type { AgentType } from '../../lib/types'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './agentActions.module.css'
@@ -16,8 +16,8 @@ type Props = {
 }
 
 /**
- * Re-runs the agent's own install command, which is how every package manager in the catalog
- * upgrades an existing install. Only offered where an update was actually detected.
+ * Runs the first OS-aware update method (`updateMethodsFor`). Hidden when none exist so we
+ * never fall back to a no-op npm command.
  */
 export function AgentUpdateButton({ agent, label, onUpdated }: Props) {
   const t = useT()
@@ -57,23 +57,36 @@ export function AgentUpdateButton({ agent, label, onUpdated }: Props) {
     }
   }, [status, shadowConflict, onUpdated, pushToast, t, label, agent])
 
-  const method = installMethodsFor(agent, toolchain).find((entry) => entry.id === 'npm')
+  const method = updateMethodsFor(agent, toolchain)[0]
   if (!method) return null
 
   const running = status === 'running'
   return (
-    <button
-      type="button"
-      className={styles.quietBtn}
-      disabled={running || (busyAgent !== null && busyAgent !== agent)}
-      title={method.command}
-      onClick={() => {
-        notifiedRef.current = null
-        void install(method)
-      }}
-    >
-      <ArrowUpCircle size={13} />
-      {running ? t('agentInstall.installing') : t('onboarding.agentUpdateAction')}
-    </button>
+    <>
+      <button
+        type="button"
+        className={styles.quietBtn}
+        disabled={running || (busyAgent !== null && busyAgent !== agent)}
+        title={method.command}
+        onClick={() => {
+          notifiedRef.current = null
+          void install(method)
+        }}
+      >
+        <ArrowUpCircle size={13} />
+        {running ? t('agentInstall.installing') : t('onboarding.agentUpdateAction')}
+      </button>
+      {shadowConflict ? (
+        <button
+          type="button"
+          className={styles.linkBtn}
+          onClick={() => {
+            void openInFileExplorer(parentPath(shadowConflict.path)).catch(() => undefined)
+          }}
+        >
+          {t('agentInstall.openInstallLocation')}
+        </button>
+      ) : null}
+    </>
   )
 }

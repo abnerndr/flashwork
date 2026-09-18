@@ -23,7 +23,12 @@ export const MODEL_CATALOG: Record<ProviderId, ModelEntry[]> = {
   ],
 }
 
+/** Pure selector: the `router`-role entry in `models`, or its first entry as a fallback. */
+export function pickRouterModelFrom(models: ModelEntry[]): string {
+  return models.find((m) => m.role === 'router')?.id ?? models[0].id
+}
+
+/** Router model id from the checked-in Task 1 snapshot only (ignores any catalog overlay). */
 export function pickRouterModel(provider: ProviderId): string {
-  return MODEL_CATALOG[provider].find((m) => m.role === 'router')?.id
-    ?? MODEL_CATALOG[provider][0].id
+  return pickRouterModelFrom(MODEL_CATALOG[provider])
 }

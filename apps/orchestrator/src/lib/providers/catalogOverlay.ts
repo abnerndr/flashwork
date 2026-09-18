@@ -6,7 +6,7 @@
  * hasn't run yet. A successful, user-triggered refresh only updates this
  * process-lifetime overlay — it never mutates `MODEL_CATALOG` itself.
  */
-import { MODEL_CATALOG, type ModelEntry, type ProviderId } from './modelCatalog'
+import { MODEL_CATALOG, type ModelEntry, type ProviderId, pickRouterModelFrom } from './modelCatalog'
 import type { CatalogModel, CatalogRefreshResult } from '../tauri/providers'
 
 let overlay: Partial<Record<ProviderId, ModelEntry[]>> = {}
@@ -38,6 +38,15 @@ export function applyCatalogRefresh(result: CatalogRefreshResult): void {
 /** The effective catalog for `provider`: the refreshed overlay if present, otherwise the Task 1 fallback. */
 export function getModelCatalog(provider: ProviderId): ModelEntry[] {
   return overlay[provider] ?? MODEL_CATALOG[provider]
+}
+
+/**
+ * Router model id for `provider` using the effective catalog (overlay when present, otherwise
+ * the Task 1 snapshot). Production pickers (e.g. P07/Auto model selection) must import this —
+ * not `pickRouterModel` from `./modelCatalog`, which only ever sees the static snapshot.
+ */
+export function pickEffectiveRouterModel(provider: ProviderId): string {
+  return pickRouterModelFrom(getModelCatalog(provider))
 }
 
 /** True once at least one provider has a refreshed overlay for this process. */

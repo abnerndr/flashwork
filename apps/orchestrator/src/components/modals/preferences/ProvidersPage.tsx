@@ -148,6 +148,15 @@ function CatalogRefreshRow() {
     setResult(null)
     try {
       const refreshed = await providerCatalogRefresh()
+      const producedOverlay = Object.values(refreshed).some(
+        (models) => Array.isArray(models) && models.length > 0,
+      )
+      if (!producedOverlay) {
+        // Every provider failed (or returned no models): keep the existing snapshot
+        // and leave the timestamp untouched — nothing was actually refreshed.
+        setResult('error')
+        return
+      }
       applyCatalogRefresh(refreshed)
       markCatalogRefreshed()
       setRefreshedAt(getCatalogRefreshedAt())

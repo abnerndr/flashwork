@@ -7,6 +7,7 @@ import {
   getModelCatalog,
   hasCatalogOverlay,
   markCatalogRefreshed,
+  pickEffectiveRouterModel,
   resetCatalogOverlay,
 } from './catalogOverlay'
 
@@ -84,5 +85,48 @@ describe('catalogOverlay', () => {
 
     expect(hasCatalogOverlay()).toBe(false)
     expect(getCatalogRefreshedAt()).toBeNull()
+  })
+
+  it('applying an empty refresh result (all providers failed) leaves the overlay untouched', () => {
+    applyCatalogRefresh({})
+
+    expect(hasCatalogOverlay()).toBe(false)
+    expect(getModelCatalog('anthropic')).toBe(MODEL_CATALOG.anthropic)
+    expect(getModelCatalog('openai')).toBe(MODEL_CATALOG.openai)
+    expect(getModelCatalog('google')).toBe(MODEL_CATALOG.google)
+  })
+})
+
+describe('pickEffectiveRouterModel', () => {
+  it('falls back to the static snapshot router id when no overlay is present', () => {
+    const routerId = MODEL_CATALOG.anthropic.find((m) => m.role === 'router')?.id
+    expect(pickEffectiveRouterModel('anthropic')).toBe(routerId)
+  })
+
+  it('uses the overlay router id once a refresh has populated it', () => {
+    const staticRouterId = MODEL_CATALOG.openai.find((m) => m.role === 'router')?.id as string
+
+    applyCatalogRefresh({
+      openai: [
+        { id: staticRouterId, label: 'Refreshed router label' },
+        { id: 'gpt-6-preview', label: 'GPT-6 preview' },
+      ],
+    })
+
+    // The refreshed router entry keeps its known role, so the overlay id still wins.
+    expect(pickEffectiveRouterModel('openai')).toBe(staticRouterId)
+    expect(getModelCatalog('openai').find((m) => m.id === staticRouterId)?.label).toBe(
+      'Refreshed router label',
+    )
+  })
+
+  it('diverges from the static snapshot when the overlay drops the old router id entirely', () => {
+    const staticRouterId = MODEL_CATALOG.google.find((m) => m.role === 'router')?.id as string
+
+    // Refresh returns only a brand-new id (defaults to 'coding'); the old router id is gone.
+    applyCatalogRefresh({ google: [{ id: 'gemini-3-preview', label: 'Gemini 3 preview' }] })
+
+    expect(pickEffectiveRouterModel('google')).not.toBe(staticRouterId)
+    expect(pickEffectiveRouterModel('google')).toBe('gemini-3-preview')
   })
 })

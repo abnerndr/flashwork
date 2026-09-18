@@ -5,6 +5,7 @@ import {
   type ModelEntry,
   type ProviderId,
   pickRouterModel,
+  pickRouterModelFrom,
 } from './modelCatalog'
 
 const PROVIDER_IDS: ProviderId[] = ['anthropic', 'openai', 'google']
@@ -42,6 +43,30 @@ describe('pickRouterModel', () => {
     const routerEntry = MODEL_CATALOG[provider].find((m: ModelEntry) => m.role === 'router')
     if (routerEntry) {
       expect(id).toBe(routerEntry.id)
+    }
+  })
+})
+
+describe('pickRouterModelFrom', () => {
+  it('returns the router-role entry when one exists', () => {
+    const models: ModelEntry[] = [
+      { id: 'a', label: 'A', role: 'coding' },
+      { id: 'b', label: 'B', role: 'router' },
+    ]
+    expect(pickRouterModelFrom(models)).toBe('b')
+  })
+
+  it('falls back to the first entry when no router-role entry exists', () => {
+    const models: ModelEntry[] = [
+      { id: 'a', label: 'A', role: 'coding' },
+      { id: 'b', label: 'B', role: 'ui' },
+    ]
+    expect(pickRouterModelFrom(models)).toBe('a')
+  })
+
+  it('pickRouterModel(provider) delegates to pickRouterModelFrom(MODEL_CATALOG[provider])', () => {
+    for (const provider of PROVIDER_IDS) {
+      expect(pickRouterModel(provider)).toBe(pickRouterModelFrom(MODEL_CATALOG[provider]))
     }
   })
 })

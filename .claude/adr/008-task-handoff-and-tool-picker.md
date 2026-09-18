@@ -1,6 +1,6 @@
 # ADR 008 — Task attachments and per-task tool picker
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: task-board, mcp, skills, handoff
 

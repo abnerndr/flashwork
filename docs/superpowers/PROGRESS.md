@@ -14,22 +14,22 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P10 CLI install/update | `b3bdd6f` | done |
 | P12 Token metrics all agents | `89c9746` | done (Task 6 skipped — P11 was not shipped yet) |
 | P11 First-party provider APIs | `0e0a2fd` | done |
+| P01 Task handoff + MCP/skills picker | `772237d` | done |
 
 ## Current slice
 
-**Plan:** P01 — `docs/superpowers/plans/2026-09-17-01-task-handoff-mcp-skills.md`  
-**ADR:** `.claude/adr/008-task-handoff-and-tool-picker.md`  
-**Branch:** start `feat/p01-task-handoff-mcp-skills` from `master`  
+**Plan:** P02 — `docs/superpowers/plans/2026-09-17-02-skills-mcp-marketplace.md`  
+**ADR:** `.claude/adr/003-unified-mcp-skills-surface.md`  
+**Branch:** start `feat/p02-skills-mcp-marketplace` from `master`  
 **Status:** not started.
 
-## After P01
+## After P02
 
-Start P02 (`docs/superpowers/plans/2026-09-17-02-skills-mcp-marketplace.md`).
+Start P04 (`docs/superpowers/plans/2026-09-17-04-project-harness-rag.md`).
 
-## P11 notes (for later slices)
+## P01 notes (for later slices)
 
-- Preferences → Providers stores Anthropic / OpenAI / Gemini keys in the OS keyring (`flashwork.provider.<id>`). Keys never return to the WebView.
-- CLI injection is opt-in via `useAnthropicKeyOnCli` / `useOpenaiKeyOnCli` / `useGoogleKeyOnCli` and only on `spawn_pty` / `restart_pty`. Task Board `run_planner_cli` and Codex app-server still spawn without that injection (follow-up).
-- `provider_chat` and `provider_catalog_refresh` call official vendor HTTPS only. HTTP 401 → `provider_unauthorized`. Timeouts: 2500 ms router, 120 s coding.
-- Effective catalog picker for P07: `pickEffectiveRouterModel` in `apps/orchestrator/src/lib/providers/catalogOverlay.ts` (not `pickRouterModel` on the static snapshot).
-- Environment may append `Co-authored-by: Cursor` on commits; same as P09–P12.
+- Attachments live under `{profile}/task-board/attachments/{cardId}/` until P04 migrates to `.flashwork/history/tasks/<cardId>/attachments/`.
+- `task_write_tools_json` creates `tools.json`; restrict mode fails closed if the write fails.
+- Bootstrap pointers only — no pasted attachment bodies. Optional Claude `--add-dir` for the attachments folder is still a follow-up.
+- Orphan attachment files are not cleaned up on chip remove / card delete yet.

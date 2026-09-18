@@ -31,15 +31,17 @@ CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Wind
 
 **P12 shipped.** P11 adds `provider_chat` for direct Anthropic/OpenAI/Gemini HTTP; API-path token metering for Auto-without-CLI still waits on later router work (P07 not shipped).
 
-## Task Board (shipped, incomplete for the program)
+## Task Board (shipped; P01 attachments + tool picker)
 
 - UI: `apps/orchestrator/src/components/TaskBoardView/index.tsx`
-- Types: `TaskCard` / `TaskSlicePlan` in `apps/orchestrator/src/lib/types.ts`
-- Create form: title, prompt, priority, allowed files, verify commands
+- Types: `TaskCard` / `TaskSlicePlan` / `TaskAttachment` / `TaskToolSelection` in `apps/orchestrator/src/lib/types.ts`
+- Create form: title, prompt, priority, allowed files, verify commands, **Attach handoff**, **Restrict tools** (MCP + skills)
+- Attachments copy under `{profile}/task-board/attachments/{cardId}/` (migrate to `.flashwork/` with P04)
+- Spawn writes `tools.json` via `task_write_tools_json` and points agents at paths (no markdown paste)
 - Scheduler: `submitBoardTask.ts`, `planner.ts`, `useTaskBoardScheduler.ts`
 - Markdown render of a board for siblings: `boardMarkdown.ts`
 
-**Missing:** upload/attach a `.md` handoff or spec; pick which local MCPs and skills the task may use.
+**P01 shipped (ADR 008).** Follow-ups: orphan attachment cleanup; optional `--add-dir` for Claude sandbox; planner still sees title/prompt more than attachment bodies.
 
 ## MCP (shipped)
 
@@ -106,8 +108,6 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 
 | # | Gap |
 | --- | --- |
-| 1 | Task Board cannot attach a `.md` handoff/spec |
-| 2 | Task Board cannot select MCPs/skills for a run |
 | 3 | No install surface for skills (MCP registry exists; skills do not) |
 | 4 | Visual polish: icons + type, VS Code–like workbench chrome |
 | 5 | Project = folder + isolated harness/RAG/history |

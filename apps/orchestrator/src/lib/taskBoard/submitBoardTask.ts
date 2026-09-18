@@ -58,6 +58,7 @@ async function prepareCardAttachments(
     const toolsJsonPath = await taskWriteToolsJson(card.id, JSON.stringify(payload, null, 2))
     return { attachmentsDir, toolsJsonPath }
   } catch (cause) {
+    if (selection.mode === 'restrict') throw cause
     console.warn('[task-board] tools.json write failed:', cause)
     return { attachmentsDir }
   }
@@ -280,32 +281,40 @@ export async function continueBoardCard(cardId: string): Promise<void> {
   const project = useProjectsStore.getState().projects.find((item) => item.id === card.projectId)
   if (!project) return
   const run = usePromptRunStore.getState().byProjectId[card.projectId]
-  const { attachmentsDir, toolsJsonPath } = await prepareCardAttachments(card)
-  const steps = await launchPromptRunLanes({
-    projectId: card.projectId,
-    cwd: card.cwd,
-    runId: card.runId,
-    unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
-    lanes: pending.map(sliceToLane),
-    allowedFiles: card.allowedFiles,
-    boardPath: card.boardPath,
-    contextDir: run?.id === card.runId ? run.contextDir : undefined,
-    attachmentsDir,
-    toolsJsonPath,
-    createAgentTerminal: (projectId, launch) =>
-      useProjectsStore.getState().createAgentTerminal(projectId, launch),
-  })
-  for (const step of steps) {
-    usePromptRunStore.getState().appendStep(card.projectId, step)
+  try {
+    const { attachmentsDir, toolsJsonPath } = await prepareCardAttachments(card)
+    const steps = await launchPromptRunLanes({
+      projectId: card.projectId,
+      cwd: card.cwd,
+      runId: card.runId,
+      unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
+      lanes: pending.map(sliceToLane),
+      allowedFiles: card.allowedFiles,
+      boardPath: card.boardPath,
+      contextDir: run?.id === card.runId ? run.contextDir : undefined,
+      attachmentsDir,
+      toolsJsonPath,
+      createAgentTerminal: (projectId, launch) =>
+        useProjectsStore.getState().createAgentTerminal(projectId, launch),
+    })
+    for (const step of steps) {
+      usePromptRunStore.getState().appendStep(card.projectId, step)
+    }
+    let index = 0
+    const nextPlan = card.slicePlan.map((slice) => {
+      if (!pending.some((item) => item.id === slice.id)) return slice
+      const step = steps[index]
+      index += 1
+      return { ...slice, status: 'running' as const, terminalId: step?.terminalId }
+    })
+    useTaskBoardStore.getState().patchCard(cardId, { slicePlan: nextPlan })
+  } catch (cause) {
+    console.warn('[task-board] continue failed:', cause)
+    useTaskBoardStore.getState().patchCard(cardId, {
+      column: 'blocked',
+      error: boardInvokeError(cause),
+    })
   }
-  let index = 0
-  const nextPlan = card.slicePlan.map((slice) => {
-    if (!pending.some((item) => item.id === slice.id)) return slice
-    const step = steps[index]
-    index += 1
-    return { ...slice, status: 'running' as const, terminalId: step?.terminalId }
-  })
-  useTaskBoardStore.getState().patchCard(cardId, { slicePlan: nextPlan })
 }
 
 export function failBoardLane(terminalId: string): void {

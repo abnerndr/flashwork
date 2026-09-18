@@ -28,6 +28,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Task board cards in **Restrict tools** mode now block instead of starting when `tools.json`
+  cannot be written; project-default mode still soft-fails and continues without the file.
 - Task board `tools.json` is now written through a dedicated command that creates the card's
   attachments folder on demand, instead of the generic file writer (which required the file to
   already exist and silently failed). It now writes for every board start — including cards with

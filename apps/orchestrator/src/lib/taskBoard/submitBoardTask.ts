@@ -12,7 +12,7 @@ import {
   runValidation,
   skillsScan,
   writePromptRunBoard,
-  writeTextFile,
+  taskWriteToolsJson,
   ensurePromptRunContext,
 } from '../tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -24,7 +24,7 @@ import type { AutoLane } from '../promptRun/planAutoLanes'
 import { isPromptRunBlocking } from '../promptRun/isPromptRunBlocking'
 import { isAgentAuthError } from '../promptRun/detectHandoffTrigger'
 import { excludeFailedAgents, markAgentAuthFailed } from '../promptRun/failedAgents'
-import { attachmentsDirFor, buildToolsJsonPayload, joinAttachmentsPath } from './attachments'
+import { attachmentsDirFor, buildToolsJsonPayload } from './attachments'
 import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
 import { buildPlannerPrompt, planBoardSlices } from './planner'
 import { boardInvokeError, decideBoardStartFailure } from './boardStart'
@@ -40,26 +40,27 @@ const PLANNER_TIMEOUT_MS = 8_000
 const DEFAULT_TOOL_SELECTION = { mode: 'projectDefault' as const, mcpServerIds: [], skillNames: [] }
 
 /**
- * When the card has attachments, resolves the shared attachments directory
- * and writes `tools.json` (the resolved MCP/skill allowlist) beside them so
- * workers can read pointers on disk instead of having the prompt paste
+ * Resolves the shared attachments directory (when the card has markdown
+ * attachments) and always writes `tools.json` (the resolved MCP/skill
+ * allowlist) under the card's attachments dir via a dedicated Tauri command
+ * that creates that dir on demand. This runs for every board start —
+ * including `restrict` mode cards with zero attachments — so agents always
+ * get an on-disk tool allowlist pointer instead of the prompt pasting
  * attachment markdown or the full tool catalog inline.
  */
 async function prepareCardAttachments(
   card: TaskCard,
 ): Promise<{ attachmentsDir?: string; toolsJsonPath?: string }> {
   const attachmentsDir = attachmentsDirFor(card.attachments)
-  if (!attachmentsDir) return {}
   const selection = card.toolSelection ?? DEFAULT_TOOL_SELECTION
   const payload = buildToolsJsonPayload(selection, { mcpServerIds: [], skillNames: [] })
-  const toolsJsonPath = joinAttachmentsPath(attachmentsDir, 'tools.json')
   try {
-    await writeTextFile(toolsJsonPath, JSON.stringify(payload, null, 2))
+    const toolsJsonPath = await taskWriteToolsJson(card.id, JSON.stringify(payload, null, 2))
+    return { attachmentsDir, toolsJsonPath }
   } catch (cause) {
     console.warn('[task-board] tools.json write failed:', cause)
     return { attachmentsDir }
   }
-  return { attachmentsDir, toolsJsonPath }
 }
 
 function sliceToLane(slice: TaskSlicePlan): AutoLane {

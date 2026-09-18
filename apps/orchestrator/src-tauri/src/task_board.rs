@@ -192,6 +192,26 @@ fn write_json_atomically(path: &Path, contents: &str) -> Result<(), String> {
     fs::rename(&temporary, path).map_err(|error| error.to_string())
 }
 
+/// Writes the resolved MCP/skill allowlist for a card as `tools.json` under
+/// `{attachments_root}/{card_id}/tools.json`, creating the card directory if
+/// needed. Unlike the generic `write_text_file` command, this does not
+/// require the destination to already exist, so it works for cards with no
+/// prior markdown attachments (e.g. `restrict` mode with zero attachments).
+/// Returns the absolute path written.
+fn task_write_tools_json_inner(
+    attachments_root: PathBuf,
+    card_id: String,
+    json: String,
+) -> Result<String, String> {
+    validate_card_id(&card_id)?;
+    let destination = attachment_destination_path(&attachments_root, &card_id, "tools.json")?;
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    write_json_atomically(&destination, &json)?;
+    Ok(destination.to_string_lossy().to_string())
+}
+
 fn load_cards(path: &Path) -> Result<Vec<TaskCardRecord>, String> {
     if !path.exists() {
         return Ok(Vec::new());
@@ -280,6 +300,20 @@ pub async fn task_attach_markdown(
     })
     .await
     .map_err(|error| format!("task_attach_markdown task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn task_write_tools_json(
+    app: AppHandle,
+    card_id: String,
+    json: String,
+) -> Result<String, String> {
+    let attachments_root = crate::paths::task_board_attachments_dir(&app)?;
+    tokio::task::spawn_blocking(move || {
+        task_write_tools_json_inner(attachments_root, card_id, json)
+    })
+    .await
+    .map_err(|error| format!("task_write_tools_json task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -493,5 +527,83 @@ mod tests {
 
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&source_dir);
+    }
+
+    #[test]
+    fn task_write_tools_json_inner_rejects_invalid_card_id() {
+        let root = unique_temp_dir("tools-json-bad-card");
+        let result = task_write_tools_json_inner(
+            root,
+            "../escape".to_string(),
+            "{\"mode\":\"projectDefault\"}".to_string(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn task_write_tools_json_inner_creates_card_dir_and_writes_file() {
+        let root = unique_temp_dir("tools-json-happy-path");
+        // The card directory does not exist yet — no prior attachment was
+        // made for this card, mirroring `restrict` mode with zero attachments.
+        let path = task_write_tools_json_inner(
+            root.clone(),
+            "card_1".to_string(),
+            "{\"mode\":\"restrict\",\"mcpServerIds\":[\"figma\"],\"skillNames\":[]}".to_string(),
+        )
+        .expect("write should succeed even without an existing card dir");
+
+        let written = PathBuf::from(&path);
+        assert!(written.starts_with(&root));
+        assert_eq!(
+            written.file_name().and_then(|name| name.to_str()),
+            Some("tools.json")
+        );
+        assert_eq!(
+            fs::read_to_string(&written).unwrap(),
+            "{\"mode\":\"restrict\",\"mcpServerIds\":[\"figma\"],\"skillNames\":[]}"
+        );
+        // No leftover temp file from the atomic write.
+        assert!(!written.with_extension("json.tmp").exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn task_write_tools_json_inner_overwrites_existing_file() {
+        let root = unique_temp_dir("tools-json-overwrite");
+        task_write_tools_json_inner(
+            root.clone(),
+            "card_1".to_string(),
+            "{\"mode\":\"projectDefault\"}".to_string(),
+        )
+        .expect("first write should succeed");
+        let path = task_write_tools_json_inner(
+            root.clone(),
+            "card_1".to_string(),
+            "{\"mode\":\"restrict\",\"mcpServerIds\":[],\"skillNames\":[\"qa\"]}".to_string(),
+        )
+        .expect("second write should succeed");
+
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "{\"mode\":\"restrict\",\"mcpServerIds\":[],\"skillNames\":[\"qa\"]}"
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn task_write_tools_json_inner_confines_path_under_attachments_root() {
+        let root = unique_temp_dir("tools-json-confinement");
+        let path = task_write_tools_json_inner(
+            root.clone(),
+            "card_1".to_string(),
+            "{\"mode\":\"projectDefault\"}".to_string(),
+        )
+        .expect("write should succeed");
+        let written = PathBuf::from(&path);
+        assert_eq!(written, root.join("card_1").join("tools.json"));
+
+        let _ = fs::remove_dir_all(&root);
     }
 }

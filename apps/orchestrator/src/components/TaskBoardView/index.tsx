@@ -213,9 +213,10 @@ export function TaskBoardView() {
 
   const createCard = () => {
     if (!project || !trimmedTitle || (!trimmedPrompt && attachments.length === 0)) return
-    const finalPrompt =
-      trimmedPrompt ||
-      t('taskBoard.attachOnlyPrompt', { title: trimmedTitle })
+    // The persisted card.prompt must stay in English regardless of the UI
+    // locale — it is read by agent CLIs, not shown as translated UI text.
+    // `taskBoard.attachOnlyPrompt` remains available for UI hints elsewhere.
+    const finalPrompt = trimmedPrompt || `See attached: ${trimmedTitle}`
     upsertCard(
       createTaskCardDraft({
         projectId: project.id,

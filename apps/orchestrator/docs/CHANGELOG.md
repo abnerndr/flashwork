@@ -26,6 +26,16 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 - Auto keeps a single Claude Code conversation per run. Other CLIs read small on-disk context
   chunks instead of receiving a pasted transcript. Handoff uses the same chunk index.
 
+### Fixed
+
+- Task board `tools.json` is now written through a dedicated command that creates the card's
+  attachments folder on demand, instead of the generic file writer (which required the file to
+  already exist and silently failed). It now writes for every board start — including cards with
+  **Restrict tools** on and zero markdown attachments — so the resolved MCP/skill allowlist always
+  reaches the spawned agent.
+- Attach-only cards (no prompt, only a markdown handoff) now persist an English `card.prompt`
+  (`See attached: {title}`) regardless of the active UI locale.
+
 ### Removed
 
 - OmniRoute / 9router sidecar. Agents use vendor CLIs or provider API keys.

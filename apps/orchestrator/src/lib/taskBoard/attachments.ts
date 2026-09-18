@@ -74,11 +74,14 @@ export function buildTaskBootstrap(args: {
   attachmentsDir?: string
   toolsJsonPath?: string
 }): string {
-  if (!args.attachmentsDir) return args.prompt
-  const lines = ['Task attachments are on disk. Read them:', args.attachmentsDir]
+  const lines: string[] = []
+  if (args.attachmentsDir) {
+    lines.push('Task attachments are on disk. Read them:', args.attachmentsDir)
+  }
   if (args.toolsJsonPath) {
     lines.push(`Selected tools (JSON): ${args.toolsJsonPath}`)
   }
+  if (lines.length === 0) return args.prompt
   lines.push('', args.prompt)
   return lines.join('\n')
 }

@@ -8,11 +8,12 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { FolderKanban, Plus, Square, Trash2, X } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { FolderKanban, Paperclip, Plus, Square, Trash2, X } from 'lucide-react'
+import { nanoid } from 'nanoid'
+import { type ReactNode, useMemo, useState } from 'react'
 
 import { pickFiles } from '../../lib/dialog'
-import { useT, type MessageKey } from '../../lib/i18n'
+import { type MessageKey, useT } from '../../lib/i18n'
 import {
   cardDragId,
   columnDropId,
@@ -22,12 +23,26 @@ import {
 import { boardErrorMessageKey } from '../../lib/taskBoard/boardStart'
 import { toCwdRelative } from '../../lib/taskBoard/schedule'
 import { pumpTaskBoardQueue, stopBoardCard } from '../../lib/taskBoard/submitBoardTask'
+import { pickAndAttachMarkdown } from '../../lib/tauri/taskAttachments'
 import { getProjectDefaultCwd } from '../../lib/terminalFactory'
-import { AGENT_TYPE_LABELS, type TaskBoardColumn, type TaskCard } from '../../lib/types'
+import {
+  AGENT_TYPE_LABELS,
+  type TaskAttachment,
+  type TaskBoardColumn,
+  type TaskCard,
+  type TaskToolSelection,
+} from '../../lib/types'
 import { selectActiveProject, useProjectsStore } from '../../stores/projectsStore'
 import { createTaskCardDraft, useTaskBoardStore } from '../../stores/taskBoardStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './TaskBoardView.module.css'
+import { TaskToolPicker } from './TaskToolPicker'
+
+const DEFAULT_TOOL_SELECTION: TaskToolSelection = {
+  mode: 'projectDefault',
+  mcpServerIds: [],
+  skillNames: [],
+}
 
 const COLUMN_KEYS: Record<TaskBoardColumn, MessageKey> = {
   backlog: 'taskBoard.column.backlog',
@@ -167,6 +182,9 @@ export function TaskBoardView() {
   const [files, setFiles] = useState<string[]>([])
   const [verify, setVerify] = useState('')
   const [projectId, setProjectId] = useState(activeProject?.id ?? projects[0]?.id ?? '')
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([])
+  const [toolSelection, setToolSelection] = useState<TaskToolSelection>(DEFAULT_TOOL_SELECTION)
+  const [draftCardId, setDraftCardId] = useState(() => nanoid())
 
   const project = projects.find((item) => item.id === projectId) ?? activeProject ?? projects[0]
   const cwd = getProjectDefaultCwd(project, projects)
@@ -182,32 +200,60 @@ export function TaskBoardView() {
     }
     for (const card of cards) grouped[card.column].push(card)
     for (const column of TASK_BOARD_COLUMNS) {
-      grouped[column].sort((left, right) => left.priority - right.priority || left.createdAt - right.createdAt)
+      grouped[column].sort(
+        (left, right) => left.priority - right.priority || left.createdAt - right.createdAt,
+      )
     }
     return grouped
   }, [cards])
 
+  const trimmedTitle = title.trim()
+  const trimmedPrompt = prompt.trim()
+  const canCreate = Boolean(project && trimmedTitle && (trimmedPrompt || attachments.length > 0))
+
   const createCard = () => {
-    if (!project || !title.trim() || !prompt.trim()) return
+    if (!project || !trimmedTitle || (!trimmedPrompt && attachments.length === 0)) return
+    const finalPrompt =
+      trimmedPrompt ||
+      t('taskBoard.attachOnlyPrompt', { title: attachments[0]?.title ?? trimmedTitle })
     upsertCard(
       createTaskCardDraft({
         projectId: project.id,
         cwd,
-        title: title.trim(),
-        prompt: prompt.trim(),
+        title: trimmedTitle,
+        prompt: finalPrompt,
         allowedFiles: files,
         priority,
         verifyCommands: verify
           .split('\n')
           .map((line) => line.trim())
           .filter(Boolean),
+        attachments,
+        toolSelection,
+        createId: () => draftCardId,
       }),
     )
     setTitle('')
     setPrompt('')
     setFiles([])
     setVerify('')
+    setAttachments([])
+    setToolSelection(DEFAULT_TOOL_SELECTION)
+    setDraftCardId(nanoid())
   }
+
+  const attachHandoff = () => {
+    void pickAndAttachMarkdown(draftCardId)
+      .then((picked) => {
+        if (picked.length > 0) setAttachments((current) => [...current, ...picked])
+      })
+      .catch((cause) => {
+        console.warn('[task-board] attach handoff failed:', cause)
+      })
+  }
+
+  const removeAttachment = (attachmentId: string) =>
+    setAttachments((current) => current.filter((item) => item.id !== attachmentId))
 
   const openCard = (card: TaskCard) => {
     const terminalId = card.slicePlan?.find((slice) => slice.terminalId)?.terminalId
@@ -271,6 +317,31 @@ export function TaskBoardView() {
           {t('taskBoard.prompt')}
           <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={3} />
         </label>
+        <div className={styles.attachments}>
+          <div className={styles.filesHead}>
+            <span>{t('taskBoard.attachmentsHint')}</span>
+            <button type="button" onClick={attachHandoff}>
+              <Paperclip size={12} />
+              {t('taskBoard.attachHandoff')}
+            </button>
+          </div>
+          {attachments.length > 0 ? (
+            <ul>
+              {attachments.map((attachment) => (
+                <li key={attachment.id}>
+                  <span>{attachment.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(attachment.id)}
+                    aria-label={t('common.remove')}
+                  >
+                    <X size={12} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <div className={styles.files}>
           <div className={styles.filesHead}>
             <span>{t('taskBoard.files')}</span>
@@ -301,7 +372,10 @@ export function TaskBoardView() {
               {files.map((file) => (
                 <li key={file}>
                   <span>{file}</span>
-                  <button type="button" onClick={() => setFiles((current) => current.filter((item) => item !== file))}>
+                  <button
+                    type="button"
+                    onClick={() => setFiles((current) => current.filter((item) => item !== file))}
+                  >
                     <X size={12} />
                   </button>
                 </li>
@@ -318,7 +392,13 @@ export function TaskBoardView() {
             placeholder={t('taskBoard.verifyHint')}
           />
         </label>
-        <button type="submit" className={styles.submit} disabled={!project || !title.trim() || !prompt.trim()}>
+        <div className={styles.full}>
+          <TaskToolPicker cwd={cwd} toolSelection={toolSelection} onChange={setToolSelection} />
+        </div>
+        {trimmedTitle && !canCreate ? (
+          <p className={`${styles.hint} ${styles.full}`}>{t('taskBoard.attachNeedPromptOrFile')}</p>
+        ) : null}
+        <button type="submit" className={styles.submit} disabled={!canCreate}>
           {t('taskBoard.create')}
         </button>
       </form>

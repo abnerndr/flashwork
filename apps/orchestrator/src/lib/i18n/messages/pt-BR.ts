@@ -700,6 +700,12 @@ export const ptBR: Record<MessageKey, string> = {
   'providers.statusSaved': 'Chave salva',
   'providers.statusEmpty': 'Nenhuma chave salva',
   'providers.useOnCli': 'Usar esta chave ao iniciar a CLI correspondente',
+  'providers.refresh': 'Atualizar lista de modelos',
+  'providers.refreshing': 'Atualizando…',
+  'providers.refreshSuccess': 'Lista de modelos atualizada',
+  'providers.refreshError': 'Não foi possível atualizar a lista de modelos — mantendo a atual',
+  'providers.refreshedAt': 'Última atualização: {time}',
+  'providers.refreshNever': 'Nunca atualizada',
 
   /* ---- theme picker ---- */
   'themePicker.title': 'Escolher tema',

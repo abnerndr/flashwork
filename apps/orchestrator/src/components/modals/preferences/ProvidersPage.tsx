@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 
 import { type MessageKey, useT } from '../../../lib/i18n'
+import { applyCatalogRefresh } from '../../../lib/providers/catalogOverlay'
 import type { ProviderId } from '../../../lib/providers/modelCatalog'
-import { providerKeyClear, providerKeySet, providerKeyStatus } from '../../../lib/tauri'
+import {
+  providerCatalogRefresh,
+  providerKeyClear,
+  providerKeySet,
+  providerKeyStatus,
+} from '../../../lib/tauri'
 import type { Preferences } from '../../../lib/types'
 import { useProjectsStore } from '../../../stores/projectsStore'
 import controls from '../controls.module.css'
@@ -126,6 +132,53 @@ function ProviderRow({ config }: { config: ProviderRowConfig }) {
   )
 }
 
+function CatalogRefreshRow() {
+  const t = useT()
+  const locale = useProjectsStore((state) => state.preferences.language)
+  const refreshedAt = useProjectsStore((state) => state.preferences.providersCatalogRefreshedAt)
+  const setPreferences = useProjectsStore((state) => state.setPreferences)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<'success' | 'error' | null>(null)
+
+  const handleRefresh = async () => {
+    setBusy(true)
+    setResult(null)
+    try {
+      const refreshed = await providerCatalogRefresh()
+      applyCatalogRefresh(refreshed)
+      setPreferences({ providersCatalogRefreshedAt: Date.now() })
+      setResult('success')
+    } catch {
+      // Total failure: keep the existing snapshot untouched, per the locked contract.
+      setResult('error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const refreshedLabel = refreshedAt
+    ? t('providers.refreshedAt', { time: new Date(refreshedAt).toLocaleString(locale) })
+    : t('providers.refreshNever')
+
+  return (
+    <div className={styles.providerRow}>
+      <div className={controls.inputActionRow}>
+        <button
+          type="button"
+          className={controls.btn}
+          disabled={busy}
+          onClick={() => void handleRefresh()}
+        >
+          {busy ? t('providers.refreshing') : t('providers.refresh')}
+        </button>
+        <span className={styles.providerStatus}>{refreshedLabel}</span>
+      </div>
+      {result === 'success' ? <p className={styles.providerRowHeader}>{t('providers.refreshSuccess')}</p> : null}
+      {result === 'error' ? <p className={styles.providerError}>{t('providers.refreshError')}</p> : null}
+    </div>
+  )
+}
+
 export function ProvidersPage() {
   const t = useT()
   return (
@@ -135,6 +188,7 @@ export function ProvidersPage() {
       description={t('providers.description')}
     >
       <div className={styles.providerList}>
+        <CatalogRefreshRow />
         {PROVIDER_ROWS.map((config) => (
           <ProviderRow key={config.id} config={config} />
         ))}

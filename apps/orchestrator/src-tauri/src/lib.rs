@@ -459,6 +459,8 @@ pub fn run() {
             providers::provider_key_set,
             providers::provider_key_status,
             providers::provider_key_clear,
+            providers::provider_chat,
+            providers::provider_catalog_refresh,
             ping,
         ])
         .build(tauri::generate_context!())

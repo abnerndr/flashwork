@@ -689,6 +689,12 @@ export const en = {
   'providers.statusSaved': 'Key saved',
   'providers.statusEmpty': 'No key saved',
   'providers.useOnCli': 'Use this key when spawning the matching CLI',
+  'providers.refresh': 'Refresh model list',
+  'providers.refreshing': 'Refreshing…',
+  'providers.refreshSuccess': 'Model list refreshed',
+  'providers.refreshError': 'Could not refresh the model list — keeping the current one',
+  'providers.refreshedAt': 'Last refreshed: {time}',
+  'providers.refreshNever': 'Never refreshed',
 
   /* ---- theme picker ---- */
   'themePicker.title': 'Pick theme',

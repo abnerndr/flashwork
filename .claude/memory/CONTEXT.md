@@ -20,14 +20,14 @@ OmniRoute/9router **was removed** (P09 / ADR 009). Agents spawn with vendor CLIs
 
 CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Windows-first: native scripts, npm, WinGet, and Homebrew cover Windows, Linux, and macOS. Update uses the same method that installed when known, else npm `@latest`, else the native installer. P10 shipped.
 
-## Token metrics (Claude-only)
+## Token metrics (identity shipped; Gemini/OpenCode usage on Home)
 
-- Token HUD (`TokenHud` + `agentCostStore`) only meters panes that are `claude` | `codex` | `opencode` **and** have a session id. Gemini falls through to `claudeSessionId` and is dropped.
-- `get_session_cost` errors with `agente sem custo suportado` for other agents. Pricing matches Opus/Sonnet/Haiku names only.
-- Home `UsageStrip`: Claude + Codex. Antigravity only in the usage modal. OpenCode summary exists in Tauri and is unused on Home. No Gemini card.
-- Resume list `RESUMABLE_AGENTS` = Claude, Codex, OpenCode, Antigravity. No `gemini_sessions.rs`.
+- Token HUD lists every live coding-agent pane from `tab.type` + PTY alive flags, labeled `{agent} · {folder}`. Cost is parsed for Claude, Codex, OpenCode, and Gemini when a session id/file exists; other agents stay on the list with `cost: null`.
+- Home `UsageStrip`: Claude, Codex, Gemini (tokens today), OpenCode (last 24h cost/tokens). Antigravity stays in the usage modal. No Copilot quota card (CLI has no usage file/subcommand in this slice).
+- Gemini sessions: `gemini_sessions.rs` snapshots `~/.gemini/tmp/*/chats/*.jsonl` (skips antigravity slugs). Resume includes Gemini.
+- Pricing table covers Claude families, GPT, and Gemini 2.5/2.0 flash + 2.5 pro.
 
-**P12** makes every live agent pane identifiable and meters tokens/cost where the vendor writes them.
+**P12 shipped.** Remaining API-path metering for Auto-without-CLI waits on P11.
 
 ## Task Board (shipped, incomplete for the program)
 
@@ -114,4 +114,4 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 | 8 | Model/token/agent choice still leaks to the developer |
 | 9 | No N8N-like flow canvas (beta) |
 | 12 | No first-party Anthropic / OpenAI / Gemini API key path |
-| 13 | Token HUD / usage widgets are Claude-centric; Gemini and other panes are not identified or metered |
+| 13 | API-path token metering for Auto-without-CLI waits on P11 `provider_chat` |

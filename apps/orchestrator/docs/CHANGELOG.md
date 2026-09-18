@@ -12,6 +12,13 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Token HUD lists every live coding-agent pane (Gemini, Copilot, Antigravity, Mimo, Freebuff
+  included), labeled as `{agent} · {folder}`. Cost is parsed for Claude, Codex, OpenCode, and Gemini
+  when a session file exists; other agents stay listed with no price.
+- Home usage strip shows Gemini tokens spent today and OpenCode last-24h cost/tokens.
+- Gemini CLI is found via gemini or gemini-cli, including nvm/fnm/npm global bins.
+- Gemini panes show token usage and estimated cost when a Gemini CLI session jsonl exists for the
+  project.
 - Installing and updating coding CLIs now works on Windows, Linux, and macOS (native scripts, npm,
   WinGet, Homebrew).
 - Auto keeps a single Claude Code conversation per run. Other CLIs read small on-disk context

@@ -62,7 +62,7 @@ const RESUMABLE_AGENTS = ['claude', 'codex', 'opencode', 'antigravity']
 
 ### Task 1: HUD lists every live agent pane
 
-- [ ] **Step 1: Failing test** for a pure helper extracted from the store
+- [x] **Step 1: Failing test** for a pure helper extracted from the store
 
 ```ts
 // src/lib/agentCost/liveAgentSessions.test.ts
@@ -79,15 +79,15 @@ it('includes gemini panes without a session id', () => {
 
 Live list is built from `useTerminalsStore` + the pane’s `AgentType` (from the terminal/sub-tab), **not** only `getActiveSessions()`.
 
-- [ ] **Step 2: Implement `selectLiveCostTargets`**
-- [ ] **Step 3: `refresh` still calls `getSessionCost` when `sessionId` exists; on miss or unsupported, keep `cost: null`**
-- [ ] **Step 4: TokenHud row label = `{AGENT_TYPE_LABELS[agent]} · {shortCwd}`** so Gemini is not an unlabeled folder name
+- [x] **Step 2: Implement `selectLiveCostTargets`**
+- [x] **Step 3: `refresh` still calls `getSessionCost` when `sessionId` exists; on miss or unsupported, keep `cost: null`**
+- [x] **Step 4: TokenHud row label = `{AGENT_TYPE_LABELS[agent]} · {shortCwd}`** so Gemini is not an unlabeled folder name
 
 ---
 
 ### Task 2: Pricing table beyond Claude
 
-- [ ] **Step 1: Replace `pricing_for` substring opus/sonnet/haiku with a table**
+- [x] **Step 1: Replace `pricing_for` substring opus/sonnet/haiku with a table**
 
 Families (locked v1, USD per 1M tokens, update numbers from vendor pages at implement time):
 
@@ -103,8 +103,8 @@ Families (locked v1, USD per 1M tokens, update numbers from vendor pages at impl
 
 If `get_model_pricing` already returns a row, prefer it over the table.
 
-- [ ] **Step 2: cargo tests for `pricing_for("gemini-2.5-flash")` is Some**
-- [ ] **Step 3: Unknown model ⇒ `cost_usd: None`, still sum tokens**
+- [x] **Step 2: cargo tests for `pricing_for("gemini-2.5-flash")` is Some**
+- [x] **Step 3: Unknown model ⇒ `cost_usd: None`, still sum tokens**
 
 ---
 
@@ -118,11 +118,11 @@ Approach (ordered, no guessing at runtime):
 2. Parse JSON/JSONL for `usageMetadata` / `tokens` / `model` fields commonly emitted by `@google/gemini-cli`.
 3. If the on-disk format has no tokens, scrape the PTY log for a line matching `(\d+)\s*(input\|prompt).{0,20}(\d+)\s*(output\|candidates)` (case insensitive) — last match wins. Store on the cost entry as `source: 'pty'`.
 
-- [ ] **Step 1: `snapshot_gemini_sessions(cwd) -> Vec<{id, mtime, size}>`**
-- [ ] **Step 2: `get_session_cost("gemini", …)` uses that snapshot**
-- [ ] **Step 3: `SavedSession.geminiSessionId` + `RESUMABLE_AGENTS` includes `'gemini'`**
-- [ ] **Step 4: `savedConversationIdFor` returns gemini id**
-- [ ] **Step 5: Tests with a fixture JSON copied into `src-tauri/tests/fixtures/gemini/`**
+- [x] **Step 1: `snapshot_gemini_sessions(cwd) -> Vec<{id, mtime, size}>`**
+- [x] **Step 2: `get_session_cost("gemini", …)` uses that snapshot**
+- [x] **Step 3: `SavedSession.geminiSessionId` + `RESUMABLE_AGENTS` includes `'gemini'`**
+- [x] **Step 4: `savedConversationIdFor` returns gemini id**
+- [x] **Step 5: Tests with a fixture JSON copied into `src-tauri/tests/fixtures/gemini/`**
 
 ---
 
@@ -130,10 +130,10 @@ Approach (ordered, no guessing at runtime):
 
 `find_windows_cli_launcher("gemini")` on Unix is `which` + `~/.local/bin` + Homebrew. GUI apps miss nvm/fnm/npm-prefix.
 
-- [ ] **Step 1: When resolving `gemini`, also try `gemini-cli`**
-- [ ] **Step 2: Extra search dirs (all OSes):** `~/.nvm/versions/node/*/bin`, `~/.fnm/aliases/default/bin`, `npm prefix -g` + `/bin`, Windows `%APPDATA%\npm`
-- [ ] **Step 3: cargo/vitest: alias list is `["gemini", "gemini-cli"]` for agent gemini**
-- [ ] **Step 4: Same extra dirs help Copilot (`copilot`) and others; do not special-case only Claude**
+- [x] **Step 1: When resolving `gemini`, also try `gemini-cli`**
+- [x] **Step 2: Extra search dirs (all OSes):** `~/.nvm/versions/node/*/bin`, `~/.fnm/aliases/default/bin`, `npm prefix -g` + `/bin`, Windows `%APPDATA%\npm`
+- [x] **Step 3: cargo/vitest: alias list is `["gemini", "gemini-cli"]` for agent gemini**
+- [x] **Step 4: Same extra dirs help Copilot (`copilot`) and others; do not special-case only Claude**
 
 This is the “cannot identify Gemini terminal” launcher half; Task 1 is the HUD half.
 
@@ -141,12 +141,12 @@ This is the “cannot identify Gemini terminal” launcher half; Task 1 is the H
 
 ### Task 5: Usage strip — Gemini and OpenCode
 
-- [ ] **Step 1: `get_gemini_usage`** — if the CLI has a quota command, call it; else aggregate today’s session tokens from Task 3 (show tokens spent, not a fake 5h Claude bar)
-- [ ] **Step 2: `GeminiCard` in `UsageStrip` using `AgentIcon type="gemini"`**
-- [ ] **Step 3: OpenCode card from existing `get_opencode_usage_summary(24)`** (cost_usd + tokens) — data already exists, unused on Home
-- [ ] **Step 4: `AiUsageModal` loads Gemini + OpenCode caches in `Promise.allSettled`**
-- [ ] **Step 5: i18n `widget.geminiNoUsage`, `widget.opencodeNoUsage` (OpenCode strings already exist — use them)**
-- [ ] **Step 6: CHANGELOG**
+- [x] **Step 1: `get_gemini_usage`** — if the CLI has a quota command, call it; else aggregate today’s session tokens from Task 3 (show tokens spent, not a fake 5h Claude bar)
+- [x] **Step 2: `GeminiCard` in `UsageStrip` using `AgentIcon type="gemini"`**
+- [x] **Step 3: OpenCode card from existing `get_opencode_usage_summary(24)`** (cost_usd + tokens) — data already exists, unused on Home
+- [x] **Step 4: `AiUsageModal` loads Gemini + OpenCode caches in `Promise.allSettled`**
+- [x] **Step 5: i18n `widget.geminiNoUsage`, `widget.opencodeNoUsage` (OpenCode strings already exist — use them)**
+- [x] **Step 6: CHANGELOG**
 
 Copilot quota: only add a card if a local file or `copilot` CLI subcommand returns usage in this slice; otherwise HUD row + tokens is enough.
 
@@ -156,8 +156,8 @@ Copilot quota: only add a card if a local file or `copilot` CLI subcommand retur
 
 When `provider_chat` returns usage in the JSON body, map to `SessionCost` and upsert `byPtyId` under a synthetic id `api:<provider>:<runId>` so Auto-without-CLI still shows spend.
 
-- [ ] **Step 1: Helper `sessionCostFromProviderUsage(provider, model, usage)`**
-- [ ] **Step 2: Unit test Anthropic `usage.input_tokens` / `output_tokens`**
+- [x] **Step 1: Helper `sessionCostFromProviderUsage(provider, model, usage)`** — skipped (P11 not shipped; comment in `agentCostStore`)
+- [x] **Step 2: Unit test Anthropic `usage.input_tokens` / `output_tokens`** — skipped with Step 1
 
 Depends on P11; if P11 is not shipped, skip this task and leave a comment in `agentCostStore` — do not block Tasks 1–5.
 

@@ -56,6 +56,19 @@ export async function getAntigravityUsage(): Promise<AntigravityUsage> {
   return invoke<AntigravityUsage>('get_antigravity_usage')
 }
 
+export type GeminiUsage = {
+  input_tokens: number
+  output_tokens: number
+  cache_read: number
+  total_tokens: number
+  cost_usd: number | null
+  session_count: number
+}
+
+export async function getGeminiUsage(): Promise<GeminiUsage> {
+  return invoke<GeminiUsage>('get_gemini_usage')
+}
+
                                                                         
 export type ModelRate = {
   family: string

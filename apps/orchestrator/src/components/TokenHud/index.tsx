@@ -7,7 +7,7 @@ import { basename } from '../../lib/paths'
 import { useT } from '../../lib/i18n'
 import { useAgentCostStore, selectCostTotals } from '../../stores/agentCostStore'
 import { useProjectsStore } from '../../stores/projectsStore'
-import type { AgentType } from '../../lib/types'
+import { AGENT_TYPE_LABELS } from '../../lib/types'
 import styles from './TokenHud.module.css'
 
 const POLL_MS = 4000
@@ -91,10 +91,12 @@ export function TokenHud() {
           return (
             <li key={e.ptyId} className={styles.row}>
               <span className={styles.rowIcon} aria-hidden>
-                <AgentIcon type={e.agent as AgentType} size={14} theme={uiTheme} />
+                <AgentIcon type={e.agent} size={14} theme={uiTheme} />
               </span>
               <span className={styles.rowLabel}>
-                <strong>{shortCwd(e.cwd)}</strong>
+                <strong>
+                  {AGENT_TYPE_LABELS[e.agent]} · {shortCwd(e.cwd)}
+                </strong>
                 <span className={styles.rowMeta}>
                   {cost?.model ?? e.agent} · {fmtTokens(cost?.total_tokens ?? 0)} {t('hud.tokens')}
                 </span>

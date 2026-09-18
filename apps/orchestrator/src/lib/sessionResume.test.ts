@@ -44,6 +44,16 @@ describe('savedConversationIdFor', () => {
       ),
     ).toBe('opencode-chat')
   })
+
+  it('returns the saved Gemini session id', () => {
+    expect(
+      savedConversationIdFor(
+        { ...baseSession, agent: 'gemini', geminiSessionId: 'gemini-chat' },
+        'gemini',
+        'D:/Work/Project',
+      ),
+    ).toBe('gemini-chat')
+  })
 })
 
 describe('pickUsableSessionId', () => {

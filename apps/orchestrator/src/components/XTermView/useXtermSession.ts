@@ -60,6 +60,7 @@ import {
   snapshotAntigravitySessions,
   snapshotClaudeSessions,
   snapshotCodexSessions,
+  snapshotGeminiSessions,
   snapshotOpenCodeSessions,
   spawnPty,
   writeClipboardText,
@@ -863,7 +864,7 @@ export function useXtermSession(params: {
       }
     })
 
-    const RESUMABLE_AGENTS = ['claude', 'codex', 'opencode', 'antigravity']
+    const RESUMABLE_AGENTS = ['claude', 'codex', 'opencode', 'antigravity', 'gemini']
 
     async function start() {
       try {
@@ -924,10 +925,11 @@ export function useXtermSession(params: {
         let claudeCreateKnownId = Boolean(sessionCreate)
         const canonicalRunId =
           command === 'claude' ? canonicalRunIdForSession(resumeId) : undefined
-        // Fallback: se a tentativa anterior morreu no nascimento usando resume,
+        // Fallback: if the previous attempt died at spawn while using resume,
+        // reopen without a conversation id.
 
         if (forceFreshRef.current && !canonicalRunId) {
-          console.warn(`[pty-launch] ${command} reabrindo SEM resume (fallback de early-exit)`)
+          console.warn(`[pty-launch] ${command} reopening WITHOUT resume (early-exit fallback)`)
           resumeId = undefined
         }
         if (
@@ -963,15 +965,15 @@ export function useXtermSession(params: {
           registerSessionClaim(command, cwd, resumeId, sessionPersistenceKey)
         }
 
-        // `trustSessionId` pula essa checagem — confirmado empiricamente que
-
-        // verdade e descarta o resume, apagando `sessionId` do tab.
+        // `trustSessionId` skips this check — empirically confirmed that a
+        // missing snapshot would otherwise drop resume and clear `sessionId`.
         if (
           !trustSessionId &&
           (command === 'claude' ||
             command === 'codex' ||
             command === 'antigravity' ||
-            command === 'opencode') &&
+            command === 'opencode' ||
+            command === 'gemini') &&
           resumeId &&
           cwd
         ) {
@@ -983,9 +985,11 @@ export function useXtermSession(params: {
                   ? await snapshotCodexSessions(cwd)
                   : command === 'antigravity'
                     ? await snapshotAntigravitySessions(cwd)
-                    : await snapshotOpenCodeSessions(cwd)
+                    : command === 'gemini'
+                      ? await snapshotGeminiSessions(cwd)
+                      : await snapshotOpenCodeSessions(cwd)
             const usable =
-              command === 'claude'
+              command === 'claude' || command === 'gemini'
                 ? pickUsableSessionId(existing, resumeId)
                 : existing.some((session) => session.id === resumeId)
                   ? resumeId
@@ -1087,7 +1091,7 @@ export function useXtermSession(params: {
           ? buildAgentLaunch(
               command,
               preparedRuntime.args,
-              resumeId,
+              command === 'gemini' ? undefined : resumeId,
               undefined,
               mcpConfigPaths,
               command === 'claude' && Boolean(resumeId) && claudeCreateKnownId,
@@ -1122,7 +1126,9 @@ export function useXtermSession(params: {
                   ? snapshotOpenCodeSessions(cwd).catch(() => [])
                   : command === 'claude'
                     ? snapshotClaudeSessions(cwd).catch(() => [])
-                    : null
+                    : command === 'gemini'
+                      ? snapshotGeminiSessions(cwd).catch(() => [])
+                      : null
             : null
 
         // Too many parallel PTY spawns can stall the app.
@@ -1151,7 +1157,7 @@ export function useXtermSession(params: {
         }
         console.info(`[pty-launch] ${command ?? 'shell'} spawn OK id=${response.id}`)
         spawnedAtRef.current = Date.now()
-        usedResumeRef.current = Boolean(resumeId)
+        usedResumeRef.current = command !== 'gemini' && Boolean(resumeId)
         if (disposed) return
         setBootPhase('attaching')
         ptyIdRef.current = response.id
@@ -1180,7 +1186,7 @@ export function useXtermSession(params: {
           })
         }
 
-        // spawn vai consumir essa entrada e injetar o resume adequado da CLI.
+        // spawn will consume this entry and inject the CLI's resume args.
         if (command && RESUMABLE_AGENTS.includes(command)) {
           saveSession(sessionPersistenceKey, {
             sessionId: response.id,
@@ -1188,6 +1194,7 @@ export function useXtermSession(params: {
             codexSessionId: command === 'codex' ? launch.sessionId : undefined,
             opencodeSessionId: command === 'opencode' ? launch.sessionId : undefined,
             antigravitySessionId: command === 'antigravity' ? launch.sessionId : undefined,
+            geminiSessionId: command === 'gemini' ? (launch.sessionId ?? resumeId) : undefined,
             cwd: cwd ?? '',
             agent: command,
             timestamp: Date.now(),
@@ -1197,7 +1204,8 @@ export function useXtermSession(params: {
             (command === 'codex' ||
               command === 'antigravity' ||
               command === 'opencode' ||
-              command === 'claude') &&
+              command === 'claude' ||
+              command === 'gemini') &&
             cwd &&
             discoveredSessionsBeforePromise
           ) {
@@ -1226,7 +1234,9 @@ export function useXtermSession(params: {
                       ? await snapshotAntigravitySessions(cwd).catch(() => [])
                       : command === 'claude'
                         ? await snapshotClaudeSessions(cwd).catch(() => [])
-                        : await snapshotOpenCodeSessions(cwd).catch(() => [])
+                        : command === 'gemini'
+                          ? await snapshotGeminiSessions(cwd).catch(() => [])
+                          : await snapshotOpenCodeSessions(cwd).catch(() => [])
 
                 // equivalente no bloco de resume acima.
                 let filteredSessions = sessions
@@ -1248,6 +1258,7 @@ export function useXtermSession(params: {
                     codexSessionId: command === 'codex' ? newSession.id : undefined,
                     antigravitySessionId: command === 'antigravity' ? newSession.id : undefined,
                     opencodeSessionId: command === 'opencode' ? newSession.id : undefined,
+                    geminiSessionId: command === 'gemini' ? newSession.id : undefined,
                     cwd: cwd ?? '',
                     agent: command,
                     timestamp: Date.now(),

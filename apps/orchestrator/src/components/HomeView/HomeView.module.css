@@ -1028,13 +1028,29 @@
   background: color-mix(in srgb, var(--bg-sunken) 72%, transparent);
 }
 
+.usageActivity {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.usageActivity > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .usageStripTwo {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 @media (max-width: 1100px) {
-  .usageStrip {
+  .usageStrip:not(.usageStripTwo) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .usageActivity {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 @media (max-width: 720px) {
@@ -1122,6 +1138,16 @@
   color: var(--agent-antigravity);
   background: var(--agent-antigravity-soft);
   border-color: color-mix(in srgb, var(--agent-antigravity) 28%, transparent);
+}
+.badgeGemini {
+  color: var(--agent-gemini);
+  background: color-mix(in srgb, var(--agent-gemini) 14%, transparent);
+  border-color: color-mix(in srgb, var(--agent-gemini) 26%, transparent);
+}
+.badgeOpencode {
+  color: var(--agent-opencode);
+  background: color-mix(in srgb, var(--agent-opencode) 14%, transparent);
+  border-color: color-mix(in srgb, var(--agent-opencode) 28%, transparent);
 }
 .badgeActivity {
   color: var(--status-working);

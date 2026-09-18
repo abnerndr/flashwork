@@ -10,7 +10,9 @@ import type {
   AntigravityUsage,
   ClaudeUsage,
   CodexUsage,
+  GeminiUsage,
   MemoryStats,
+  OpenCodeUsageSummary,
   RuntimeSnapshot,
 } from '../lib/tauri'
 import type { AgentType } from '../lib/types'
@@ -85,6 +87,8 @@ type UiState = {
   claudeUsage: ClaudeUsage | null
   codexUsage: CodexUsage | null
   antigravityUsage: AntigravityUsage | null
+  geminiUsage: GeminiUsage | null
+  opencodeUsage: OpenCodeUsageSummary | null
                                                                                   
   focusedTerminalId: string | null
   /**
@@ -136,6 +140,8 @@ type UiState = {
   setClaudeUsage: (value: ClaudeUsage | null) => void
   setCodexUsage: (value: CodexUsage | null) => void
   setAntigravityUsage: (value: AntigravityUsage | null) => void
+  setGeminiUsage: (value: GeminiUsage | null) => void
+  setOpencodeUsage: (value: OpenCodeUsageSummary | null) => void
   setFocusedTerminal: (id: string | null) => void
   requestPaneFocus: (terminalId: string) => void
   setActiveTerminal: (projectId: string, terminalId: string) => void
@@ -177,6 +183,8 @@ export const useUiStore = create<UiState>((set) => ({
   claudeUsage: null,
   codexUsage: null,
   antigravityUsage: null,
+  geminiUsage: null,
+  opencodeUsage: null,
   focusedTerminalId: null,
   keptAlivePaneIds: [],
   mountedPaneIds: [],
@@ -227,6 +235,8 @@ export const useUiStore = create<UiState>((set) => ({
   setClaudeUsage: (value) => set({ claudeUsage: value }),
   setCodexUsage: (value) => set({ codexUsage: value }),
   setAntigravityUsage: (value) => set({ antigravityUsage: value }),
+  setGeminiUsage: (value) => set({ geminiUsage: value }),
+  setOpencodeUsage: (value) => set({ opencodeUsage: value }),
   setFocusedTerminal: (id) => set({ focusedTerminalId: id }),
   requestPaneFocus: (terminalId) => set({ focusRequest: { terminalId, ts: Date.now() } }),
   setActiveTerminal: (projectId, terminalId) => set({ activeTerminal: { projectId, terminalId } }),

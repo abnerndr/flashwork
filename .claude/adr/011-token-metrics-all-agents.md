@@ -1,6 +1,6 @@
 # ADR 011 — Token metrics and agent identity for every CLI
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: tokens, usage, gemini, hud
 

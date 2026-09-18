@@ -26,6 +26,8 @@ import { AntigravityIcon, ClaudeIcon, CodexIcon } from '../icons/AgentIcons'
 import { getCachedClaudeUsage } from '../../lib/claudeUsageCache'
 import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { getCachedAntigravityUsage } from '../../lib/antigravityUsageCache'
+import { getCachedGeminiUsage } from '../../lib/geminiUsageCache'
+import { getCachedOpenCodeUsage } from '../../lib/opencodeUsageCache'
 import { requestAppClose } from '../../hooks/useCloseConfirmation'
 import { observeClaudeReset, observeCodexReset } from '../../lib/limitResetWatch'
 import { useT } from '../../lib/i18n'
@@ -38,6 +40,25 @@ import styles from './TitleBar.module.css'
 const CLAUDE_POLL_INTERVAL_MS = 5 * 60_000
 const REMOTE_CONTROL_POLL_INTERVAL_MS = 2_000
 const APP_TITLE = import.meta.env.DEV ? '(DEV) Flashwork' : 'Flashwork'
+const USAGE_FAIL_LIMIT = 3
+
+type UsageFailKey = 'claude' | 'codex' | 'antigravity' | 'gemini' | 'opencode'
+
+function applySettledUsage<T>(
+  result: PromiseSettledResult<T>,
+  failures: Record<UsageFailKey, number>,
+  key: UsageFailKey,
+  onValue: (value: T) => void,
+  onGiveUp: () => void,
+) {
+  if (result.status === 'fulfilled') {
+    failures[key] = 0
+    onValue(result.value)
+    return
+  }
+  failures[key] += 1
+  if (failures[key] >= USAGE_FAIL_LIMIT) onGiveUp()
+}
 
 function usagePillColor(utilization: number): string {
   if (utilization >= 80) return 'var(--status-offline)'
@@ -102,6 +123,8 @@ export function TitleBar() {
   const setClaudeUsage = useUiStore((s) => s.setClaudeUsage)
   const setCodexUsage = useUiStore((s) => s.setCodexUsage)
   const setAntigravityUsage = useUiStore((s) => s.setAntigravityUsage)
+  const setGeminiUsage = useUiStore((s) => s.setGeminiUsage)
+  const setOpencodeUsage = useUiStore((s) => s.setOpencodeUsage)
   const openModal = useUiStore((s) => s.openModal_)
   const workspaceTabs = useProjectsStore((s) => s.workspace.tabs)
   const activeWorkspaceTabId = useProjectsStore((s) => s.workspace.activeTabId)
@@ -163,23 +186,51 @@ export function TitleBar() {
   useEffect(() => {
     let cancelled = false
     let interval: number | null = null
-    let consecutiveFailures = 0
+    let inFlight = false
+    const failures: Record<UsageFailKey, number> = {
+      claude: 0,
+      codex: 0,
+      antigravity: 0,
+      gemini: 0,
+      opencode: 0,
+    }
     const tick = async () => {
-      if (!activeRef.current) return
+      if (!activeRef.current || inFlight) return
+      inFlight = true
       try {
-        const usage = await getCachedClaudeUsage()
-        if (!cancelled) {
+        const [claude, codex, antigravity, gemini, opencode] = await Promise.allSettled([
+          getCachedClaudeUsage(),
+          getCachedCodexUsage(),
+          getCachedAntigravityUsage(),
+          getCachedGeminiUsage(),
+          getCachedOpenCodeUsage(),
+        ])
+        if (cancelled) return
+        applySettledUsage(claude, failures, 'claude', (usage) => {
           setClaudeUsage(usage)
           observeClaudeReset(usage)
-          consecutiveFailures = 0
-        }
-      } catch {
-                                                                               
-                                                                                  
-        consecutiveFailures += 1
-        if (consecutiveFailures >= 3 && !cancelled) {
-          setClaudeUsage(null)
-        }
+        }, () => setClaudeUsage(null))
+        applySettledUsage(codex, failures, 'codex', (usage) => {
+          setCodexUsage(usage)
+          observeCodexReset(usage)
+        }, () => setCodexUsage(null))
+        applySettledUsage(
+          antigravity,
+          failures,
+          'antigravity',
+          setAntigravityUsage,
+          () => setAntigravityUsage(null),
+        )
+        applySettledUsage(gemini, failures, 'gemini', setGeminiUsage, () => setGeminiUsage(null))
+        applySettledUsage(
+          opencode,
+          failures,
+          'opencode',
+          setOpencodeUsage,
+          () => setOpencodeUsage(null),
+        )
+      } finally {
+        inFlight = false
       }
     }
     const startupDelay = window.setTimeout(() => {
@@ -191,68 +242,13 @@ export function TitleBar() {
       window.clearTimeout(startupDelay)
       if (interval !== null) window.clearInterval(interval)
     }
-  }, [setClaudeUsage])
-
-                                                                                
-                                                                       
-  useEffect(() => {
-    let cancelled = false
-    let interval: number | null = null
-    let consecutiveFailures = 0
-    const tick = async () => {
-      if (!activeRef.current) return
-      try {
-        const usage = await getCachedCodexUsage()
-        if (!cancelled) {
-          setCodexUsage(usage)
-          observeCodexReset(usage)
-          consecutiveFailures = 0
-        }
-      } catch {
-        consecutiveFailures += 1
-        if (consecutiveFailures >= 3 && !cancelled) {
-          setCodexUsage(null)
-        }
-      }
-    }
-    const startupDelay = window.setTimeout(() => {
-      void tick()
-      interval = window.setInterval(tick, CLAUDE_POLL_INTERVAL_MS)
-    }, 2500)
-    return () => {
-      cancelled = true
-      window.clearTimeout(startupDelay)
-      if (interval !== null) window.clearInterval(interval)
-    }
-  }, [setCodexUsage])
-
-                                                                                                     
-  useEffect(() => {
-    let cancelled = false
-    let interval: number | null = null
-    const tick = async () => {
-      if (!activeRef.current) return
-      try {
-        const usage = await getCachedAntigravityUsage()
-        if (!cancelled) {
-          setAntigravityUsage(usage)
-        }
-      } catch {
-        if (!cancelled) {
-          setAntigravityUsage(null)
-        }
-      }
-    }
-    const startupDelay = window.setTimeout(() => {
-      void tick()
-      interval = window.setInterval(tick, CLAUDE_POLL_INTERVAL_MS)
-    }, 3000)
-    return () => {
-      cancelled = true
-      window.clearTimeout(startupDelay)
-      if (interval !== null) window.clearInterval(interval)
-    }
-  }, [setAntigravityUsage])
+  }, [
+    setAntigravityUsage,
+    setClaudeUsage,
+    setCodexUsage,
+    setGeminiUsage,
+    setOpencodeUsage,
+  ])
 
   const win = getCurrentWindow()
 

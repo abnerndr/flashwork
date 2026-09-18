@@ -73,4 +73,15 @@ describe('buildAgentLaunch', () => {
       ).args,
     ).toEqual(['--conversation', 'agy-pane', '--dangerously-skip-permissions'])
   })
+
+  it('Gemini does not inject a resume flag for a saved session UUID', () => {
+    const launch = buildAgentLaunch(
+      'gemini',
+      ['--yolo'],
+      'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    )
+    expect(launch.args).toEqual(['--yolo'])
+    expect(launch.sessionId).toBeUndefined()
+    expect(launch.createdSession).toBe(false)
+  })
 })

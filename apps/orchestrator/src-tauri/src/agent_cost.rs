@@ -5,9 +5,9 @@
 use serde::Serialize;
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-/// Anthropic. Validado via skill claude-api (tabela de modelos atual).
+/// USD per 1M tokens. Cache write/read multipliers match Claude (5m=1.25x, 1h=2x, read=0.1x).
 struct Pricing {
     input: f64,
     output: f64,
@@ -58,22 +58,28 @@ fn opencode_db_path_fallback_guess() -> Option<PathBuf> {
     }
 }
 
-///
+/// Locked v1 family table: (needle, input USD/1M, output USD/1M). First `contains` match wins.
+/// More-specific GPT needles (`gpt-5-mini`, `gpt-4o-mini`) come before generic `gpt-5` / `gpt-4o`.
+const FAMILY_RATES: &[(&str, f64, f64)] = &[
+    ("gpt-5-mini", 0.4, 1.6),
+    ("o4-mini", 0.4, 1.6),
+    ("gpt-4o-mini", 0.4, 1.6),
+    ("gpt-5", 2.5, 10.0),
+    ("gpt-4o", 2.5, 10.0),
+    ("gemini-2.5-flash", 0.15, 0.60),
+    ("gemini-2.0-flash", 0.15, 0.60),
+    ("gemini-2.5-pro", 1.25, 10.0),
+    ("opus", 5.0, 25.0),
+    ("sonnet", 3.0, 15.0),
+    ("haiku", 1.0, 5.0),
+];
 
 fn pricing_for(model: &str) -> Option<Pricing> {
     let m = model.to_ascii_lowercase();
-
-    // input, output → derivados: 5m=1.25x, 1h=2x, read=0.1x
-    let base = if m.contains("opus") {
-        (5.0, 25.0)
-    } else if m.contains("sonnet") {
-        (3.0, 15.0)
-    } else if m.contains("haiku") {
-        (1.0, 5.0)
-    } else {
-        return None;
-    };
-    let (input, output) = base;
+    let (input, output) = FAMILY_RATES
+        .iter()
+        .find(|(needle, _, _)| m.contains(needle))
+        .map(|(_, input, output)| (*input, *output))?;
     Some(Pricing {
         input,
         output,
@@ -107,9 +113,29 @@ pub struct SessionCost {
     pub total_tokens: u64,
 
     pub cost_usd: Option<f64>,
-    /// Modelo dominante (mais output) — pro HUD mostrar um label.
+    /// Dominant model (highest output) — HUD label.
     pub model: Option<String>,
     pub by_model: Vec<ModelCost>,
+    /// `pty` when tokens were scraped from a sibling log because the JSONL had none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+}
+
+pub(crate) fn estimate_token_cost_usd(
+    model: &str,
+    input: u64,
+    output: u64,
+    cache_read: u64,
+) -> Option<f64> {
+    let mut mc = ModelCost {
+        model: model.to_string(),
+        input,
+        output,
+        cache_read,
+        ..Default::default()
+    };
+    mc.compute_cost();
+    mc.cost_usd
 }
 
 impl ModelCost {
@@ -331,10 +357,60 @@ fn get_session_cost_inner(
             }
             result_by_model
         }
+        "gemini" => {
+            let home = crate::gemini_sessions::gemini_home_dir()
+                .ok_or_else(|| "gemini home directory not found".to_string())?;
+            return gemini_session_cost(&home, &cwd, &session_id);
+        }
         other => return Err(format!("agente sem custo suportado: {other}")),
     };
 
     Ok(aggregate(agent, session_id, by_model))
+}
+
+pub(crate) fn gemini_session_cost(
+    gemini_home: &Path,
+    cwd: &str,
+    session_id: &str,
+) -> Result<SessionCost, String> {
+    let Some(path) = crate::gemini_sessions::find_session_jsonl(gemini_home, cwd, session_id)
+    else {
+        return Err(format!("gemini session {session_id} not found"));
+    };
+    let parsed = crate::gemini_sessions::parse_gemini_jsonl(&path);
+    let (by_model, source) = if parsed.token_record_count == 0 {
+        if let Some((input, output)) = crate::gemini_sessions::scrape_session_pty_logs(&path) {
+            (
+                vec![ModelCost {
+                    model: "gemini".to_string(),
+                    input,
+                    output,
+                    ..Default::default()
+                }],
+                Some("pty".to_string()),
+            )
+        } else {
+            (Vec::new(), None)
+        }
+    } else {
+        (
+            parsed
+                .by_model
+                .into_iter()
+                .map(|m| ModelCost {
+                    model: m.model,
+                    input: m.input,
+                    output: m.output,
+                    cache_read: m.cache_read,
+                    ..Default::default()
+                })
+                .collect(),
+            None,
+        )
+    };
+    let mut cost = aggregate("gemini".to_string(), session_id.to_string(), by_model);
+    cost.source = source;
+    Ok(cost)
 }
 
 #[tauri::command]
@@ -407,9 +483,9 @@ pub struct ModelRate {
 
 #[tauri::command]
 pub fn get_model_pricing() -> Vec<ModelRate> {
-    ["opus", "sonnet", "haiku"]
+    FAMILY_RATES
         .iter()
-        .filter_map(|family| {
+        .filter_map(|(family, _, _)| {
             pricing_for(family).map(|p| ModelRate {
                 family: (*family).to_string(),
                 input: p.input,
@@ -567,5 +643,86 @@ mod tests {
         };
         mc.compute_cost();
         assert_eq!(mc.cost_usd, Some(5.0));
+    }
+
+    #[test]
+    fn pricing_for_gemini_25_flash_is_some() {
+        let p = pricing_for("gemini-2.5-flash").expect("gemini-2.5-flash should have pricing");
+        assert_eq!(p.input, 0.15);
+        assert_eq!(p.output, 0.60);
+    }
+
+    #[test]
+    fn pricing_for_gpt5_mini_rates_differ_from_gpt5() {
+        let mini = pricing_for("gpt-5-mini").expect("gpt-5-mini should have pricing");
+        let full = pricing_for("gpt-5").expect("gpt-5 should have pricing");
+        assert_eq!(mini.input, 0.4);
+        assert_eq!(mini.output, 1.6);
+        assert_eq!(full.input, 2.5);
+        assert_eq!(full.output, 10.0);
+        assert_ne!(mini.input, full.input);
+        assert_ne!(mini.output, full.output);
+    }
+
+    #[test]
+    fn unknown_model_leaves_cost_usd_none_but_still_sums_tokens() {
+        let mc = ModelCost {
+            model: "deepseek-v4-flash-free".to_string(),
+            input: 100,
+            output: 50,
+            cache_read: 10,
+            cache_write_5m: 5,
+            cache_write_1h: 2,
+            ..Default::default()
+        };
+        let total = aggregate("opencode".to_string(), "sess".to_string(), vec![mc]);
+        assert_eq!(total.cost_usd, None);
+        assert_eq!(total.input, 100);
+        assert_eq!(total.output, 50);
+        assert_eq!(total.cache_read, 10);
+        assert_eq!(total.cache_write_5m, 5);
+        assert_eq!(total.cache_write_1h, 2);
+        assert_eq!(total.total_tokens, 167);
+    }
+
+    fn gemini_fixture_home() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gemini")
+    }
+
+    #[test]
+    fn gemini_fixture_session_cost_dedups_and_prices() {
+        let cost = gemini_session_cost(
+            &gemini_fixture_home(),
+            "/repo",
+            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        )
+        .expect("fixture session");
+        assert_eq!(cost.input, 150);
+        assert_eq!(cost.output, 30);
+        assert_eq!(cost.cache_read, 5);
+        assert!(cost.cost_usd.is_some());
+        assert_eq!(cost.source, None);
+        assert_eq!(cost.model.as_deref(), Some("gemini-2.5-flash"));
+    }
+
+    #[test]
+    fn gemini_unknown_session_id_errors() {
+        match gemini_session_cost(&gemini_fixture_home(), "/repo", "does-not-exist") {
+            Ok(_) => panic!("missing session should error"),
+            Err(err) => assert!(err.contains("does-not-exist")),
+        }
+    }
+
+    #[test]
+    fn gemini_pty_scrape_sets_source_when_jsonl_has_no_tokens() {
+        let cost = gemini_session_cost(
+            &gemini_fixture_home(),
+            "/repo-pty",
+            "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+        )
+        .expect("pty fixture session");
+        assert_eq!(cost.input, 99);
+        assert_eq!(cost.output, 7);
+        assert_eq!(cost.source.as_deref(), Some("pty"));
     }
 }

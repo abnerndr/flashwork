@@ -12,6 +12,16 @@ export async function snapshotAntigravitySessions(
   return invoke<AntigravitySessionSnapshot[]>('snapshot_antigravity_sessions', { cwd })
 }
 
+export type GeminiSessionSnapshot = {
+  id: string
+  modified_at_ms: number
+  size_bytes: number
+}
+
+export async function snapshotGeminiSessions(cwd: string): Promise<GeminiSessionSnapshot[]> {
+  return invoke<GeminiSessionSnapshot[]>('snapshot_gemini_sessions', { cwd })
+}
+
                                                             
 export type ModelCost = {
   model: string
@@ -37,6 +47,7 @@ export type SessionCost = {
   cost_usd: number | null
   model: string | null
   by_model: ModelCost[]
+  source?: string | null
 }
 
 export async function getSessionCost(

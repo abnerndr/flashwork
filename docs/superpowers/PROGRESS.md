@@ -6,27 +6,21 @@ Resume here if the session context runs out. Implement **one numbered plan at a 
 
 Owner (2026-09-17): after each numbered plan, **commit and merge locally to `master`**. Do not push. Do not pause for merge/PR options. The owner will review after **all** remaining plans. Do **not** stop or restart `tauri dev` / Vite. i18n in `en.ts` and `pt-BR.ts`. English in versioned source.
 
-## Shipped
+## Shipped (on local `master`, not pushed)
 
 | Plan | Commit | Status |
 | --- | --- | --- |
-| P09 Remove OmniRoute | `9a18cbc` merged to `master` | done |
-| P10 CLI install/update | pending merge | completed |
+| P09 Remove OmniRoute | `9a18cbc` | done |
+| P10 CLI install/update | `b3bdd6f` | done |
+| P12 Token metrics all agents | _(pending commit)_ | done (Task 6 skipped — P11 not shipped) |
 
 ## Current slice
 
-**Plan:** P10 — `docs/superpowers/plans/2026-09-17-10-cli-install-update.md`  
-**ADR:** `.claude/adr/009-remove-omniroute.md`  
-**Branch:** `feat/p10-cli-install-update`  
-**Status:** completed (Tasks 1–4). Next: P12.
+**Plan:** P11 — `docs/superpowers/plans/2026-09-17-11-provider-apis.md`  
+**ADR:** `.claude/adr/010-first-party-provider-apis.md`  
+**Branch:** start `feat/p11-provider-apis` from `master`  
+**Status:** not started.
 
-| Task | Name | Status |
-| --- | --- | --- |
-| 1 | Catalog is OS-aware (pure) | completed |
-| 2 | Toolchain probe knows brew and OS | completed |
-| 3 | PTY install finds the binary after success | completed |
-| 4 | UI (modal, update button, onboarding, i18n, CHANGELOG) | completed |
+## After P11
 
-## After P10
-
-Start P12 (`docs/superpowers/plans/2026-09-17-12-token-metrics-all-agents.md`).
+Start P01 (`docs/superpowers/plans/2026-09-17-01-task-handoff-mcp-skills.md`).

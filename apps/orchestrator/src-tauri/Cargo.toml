@@ -46,7 +46,7 @@ tiny_http = "0.12"
 # feature explícita ele usa um store mock e todo get_password() falha. Os
 # backends nativos são declarados por plataforma abaixo (macos/windows/linux).
 keyring = { version = "3", default-features = false }
-chrono = { version = "0.4", default-features = false, features = ["std"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 dirs-next = "2"
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "bmp"] }

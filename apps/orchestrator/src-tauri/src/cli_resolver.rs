@@ -2,9 +2,11 @@ use portable_pty::CommandBuilder;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::sync::OnceLock;
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(windows)]
 use winreg::{enums::*, RegKey};
@@ -205,6 +207,231 @@ fn launcher_cache_get(command: &str) -> Option<PathBuf> {
     launcher_cache().lock().ok()?.get(command).cloned()
 }
 
+/// Binary names to try when resolving `command`. Gemini ships as either `gemini`
+/// or `gemini-cli`; every other agent keeps a single name.
+pub(crate) fn cli_name_aliases(command: &str) -> Vec<&str> {
+    match command {
+        "gemini" => vec!["gemini", "gemini-cli"],
+        "gemini-cli" => vec!["gemini-cli", "gemini"],
+        other => vec![other],
+    }
+}
+
+/// Well-known extra directories for Node-installed CLIs (nvm, fnm, npm global).
+/// The nvm entry is the glob pattern `…/.nvm/versions/node/*/bin`.
+/// Paths are constructed from `home` and optional `app_data` (`%APPDATA%`)
+/// and need not exist on disk.
+pub(crate) fn extra_cli_search_dir_candidates(
+    home: &Path,
+    app_data: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut dirs = vec![
+        home.join(".nvm")
+            .join("versions")
+            .join("node")
+            .join("*")
+            .join("bin"),
+        home.join(".fnm").join("aliases").join("default").join("bin"),
+        home.join(".local")
+            .join("share")
+            .join("fnm")
+            .join("aliases")
+            .join("default")
+            .join("bin"),
+        home.join(".npm-global").join("bin"),
+    ];
+    if let Some(app_data) = app_data {
+        dirs.push(app_data.join("npm"));
+    } else {
+        dirs.push(home.join("AppData").join("Roaming").join("npm"));
+    }
+    dirs
+}
+
+/// Runtime extra dirs for launcher lookup only (not Windows PTY Path injection).
+/// nvm glob expanded, extra fnm homes, well-known npm-global, and a cached
+/// `npm prefix -g` that is killed on timeout. Parent `npm_config_prefix` is
+/// ignored — it points at the Flashwork package when launched via `npm run`.
+fn extra_cli_search_dirs() -> Vec<PathBuf> {
+    let home = env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .map(PathBuf::from);
+    let app_data = env::var_os("APPDATA").map(PathBuf::from);
+    let mut dirs = Vec::new();
+
+    if let Some(home) = home.as_ref() {
+        dirs.extend(extra_node_manager_dirs(home, app_data.as_deref()));
+    } else if let Some(app_data) = app_data.as_ref() {
+        dirs.push(app_data.join("npm"));
+    }
+
+    dirs.extend(fnm_version_dirs());
+    if let Some(prefix) = npm_prefix_global_cached() {
+        dirs.push(prefix.join("bin"));
+        dirs.push(prefix);
+    }
+    dedupe_paths(dirs)
+}
+
+/// Extra nvm/fnm/npm-global dirs derived from `home`. Used by tests so expansion
+/// can be checked without spawning npm or mutating process env.
+pub(crate) fn extra_node_manager_dirs(home: &Path, app_data: Option<&Path>) -> Vec<PathBuf> {
+    let mut dirs = nvm_node_bin_dirs(home);
+    for candidate in extra_cli_search_dir_candidates(home, app_data) {
+        if is_nvm_versions_glob(&candidate) {
+            continue;
+        }
+        dirs.push(candidate);
+    }
+    dirs.extend(fnm_installations_in(&home.join(".fnm")));
+    dirs.extend(fnm_installations_in(
+        &home.join(".local").join("share").join("fnm"),
+    ));
+    dirs
+}
+
+fn is_nvm_versions_glob(path: &Path) -> bool {
+    path.file_name().is_some_and(|name| name == "bin")
+        && path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .is_some_and(|name| name == "*")
+}
+
+pub(crate) fn nvm_node_bin_dirs(home: &Path) -> Vec<PathBuf> {
+    let versions = home.join(".nvm").join("versions").join("node");
+    let Ok(entries) = fs::read_dir(&versions) else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<(PathBuf, SystemTime)> = entries
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let bin = entry.path().join("bin");
+            if !bin.is_dir() {
+                return None;
+            }
+            let modified = entry.metadata().and_then(|m| m.modified()).ok()?;
+            Some((bin, modified))
+        })
+        .collect();
+    dirs.sort_by(|a, b| b.1.cmp(&a.1));
+    dirs.into_iter().map(|(path, _)| path).collect()
+}
+
+/// `None` = not yet known (including after a timeout). `Some(None)` = npm missing.
+/// `Some(Some(path))` = hit. Timeouts must not freeze a miss for the process lifetime.
+static NPM_PREFIX_CACHE: OnceLock<std::sync::Mutex<Option<Option<PathBuf>>>> = OnceLock::new();
+
+fn npm_prefix_cache() -> &'static std::sync::Mutex<Option<Option<PathBuf>>> {
+    NPM_PREFIX_CACHE.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+enum NpmPrefixResult {
+    Found(PathBuf),
+    Missing,
+    TimedOut,
+}
+
+fn npm_prefix_global_cached() -> Option<PathBuf> {
+    if cfg!(test) {
+        return None;
+    }
+    if let Ok(guard) = npm_prefix_cache().lock() {
+        if let Some(cached) = guard.as_ref() {
+            return cached.clone();
+        }
+    }
+    match probe_npm_prefix_global(Duration::from_secs(1)) {
+        NpmPrefixResult::Found(path) => {
+            if let Ok(mut guard) = npm_prefix_cache().lock() {
+                *guard = Some(Some(path.clone()));
+            }
+            Some(path)
+        }
+        NpmPrefixResult::Missing => {
+            if let Ok(mut guard) = npm_prefix_cache().lock() {
+                *guard = Some(None);
+            }
+            None
+        }
+        NpmPrefixResult::TimedOut => None,
+    }
+}
+
+/// Time-boxed `npm prefix -g`. The child is killed on timeout so it cannot leak.
+/// `npm_config_prefix` injected by `npm run` is stripped in the child so the
+/// result is the user's global prefix, not the Flashwork package.
+fn probe_npm_prefix_global(timeout: Duration) -> NpmPrefixResult {
+    let mut cmd = std::process::Command::new("npm");
+    cmd.args(["prefix", "-g"]);
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::null());
+    cmd.env_remove("npm_config_prefix");
+    cmd.env_remove("npm_config_global_prefix");
+    cmd.env_remove("NPM_CONFIG_PREFIX");
+    cmd.env_remove("NPM_CONFIG_GLOBAL_PREFIX");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = match cmd.spawn() {
+        Ok(child) => child,
+        Err(_) => return NpmPrefixResult::Missing,
+    };
+    let mut stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return NpmPrefixResult::Missing;
+        }
+    };
+
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return read_npm_prefix_output(status, &mut stdout),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return NpmPrefixResult::TimedOut;
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return NpmPrefixResult::Missing;
+            }
+        }
+    }
+}
+
+fn read_npm_prefix_output(
+    status: std::process::ExitStatus,
+    stdout: &mut impl Read,
+) -> NpmPrefixResult {
+    if !status.success() {
+        return NpmPrefixResult::Missing;
+    }
+    let mut buf = Vec::new();
+    if stdout.read_to_end(&mut buf).is_err() {
+        return NpmPrefixResult::Missing;
+    }
+    let prefix = String::from_utf8_lossy(&buf);
+    let prefix = prefix.trim();
+    if prefix.is_empty() {
+        NpmPrefixResult::Missing
+    } else {
+        NpmPrefixResult::Found(PathBuf::from(prefix))
+    }
+}
+
 /// Resolving a launcher walks every PATH entry and every agent directory looking for four
 /// extensions, and it runs on every terminal boot. Only hits are cached, and a hit is dropped as
 /// soon as its file is gone — so installing an agent is picked up at once and uninstalling it is
@@ -226,10 +453,14 @@ pub fn find_windows_cli_launcher(command: &str) -> Option<PathBuf> {
 }
 
 fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
+    let aliases = cli_name_aliases(command);
+
     #[cfg(not(windows))]
     {
-        if let Ok(path) = which::which(command) {
-            return Some(path);
+        for alias in &aliases {
+            if let Ok(path) = which::which(alias) {
+                return Some(path);
+            }
         }
         let mut dirs = Vec::<PathBuf>::new();
         if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
@@ -241,10 +472,13 @@ fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
         // even when they exist on disk. Cover the default prefixes as a
         // fixed fallback.
         dirs.extend(homebrew_dirs());
-        for dir in dirs {
-            let candidate = dir.join(command);
-            if candidate.is_file() {
-                return Some(candidate);
+        dirs.extend(extra_cli_search_dirs());
+        for alias in &aliases {
+            for dir in &dirs {
+                let candidate = dir.join(alias);
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
             }
         }
         return None;
@@ -255,15 +489,23 @@ fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
         let mut dirs = Vec::<PathBuf>::new();
         dirs.extend(split_windows_path_expanded(&rebuilt_path()));
         dirs.extend(agent_search_dirs());
-        search_windows_cli(command, &dirs)
+        dirs.extend(extra_cli_search_dirs());
+        for alias in &aliases {
+            if let Some(path) = search_windows_cli(alias, &dirs) {
+                return Some(path);
+            }
+        }
+        None
     }
 }
 
 /// Login-shell probe plus a fresh PATH walk. Used only after install — not on
 /// every terminal boot, because spawning bash/pwsh is relatively expensive.
 fn resolve_cli_launcher_refreshed(command: &str) -> Option<PathBuf> {
-    if let Some(path) = probe_login_shell_command(command) {
-        return Some(path);
+    for alias in cli_name_aliases(command) {
+        if let Some(path) = probe_login_shell_command(alias) {
+            return Some(path);
+        }
     }
     #[cfg(windows)]
     {
@@ -273,7 +515,13 @@ fn resolve_cli_launcher_refreshed(command: &str) -> Option<PathBuf> {
         // process lifetime and would still be stale here.
         dirs.extend(split_windows_path_expanded(&build_rebuilt_path()));
         dirs.extend(agent_search_dirs());
-        return search_windows_cli(command, &dirs);
+        dirs.extend(extra_cli_search_dirs());
+        for alias in cli_name_aliases(command) {
+            if let Some(path) = search_windows_cli(alias, &dirs) {
+                return Some(path);
+            }
+        }
+        return None;
     }
     #[cfg(not(windows))]
     {
@@ -611,12 +859,18 @@ pub fn pnpm_bin_dirs() -> Vec<PathBuf> {
 }
 
 pub fn fnm_version_dirs() -> Vec<PathBuf> {
+    // PATH injection for Windows PTYs: FNM_DIR or %LOCALAPPDATA%\fnm only.
+    // Extra Unix homes belong in extra_cli_search_dirs (launcher lookup).
     let fnm_root = env::var_os("FNM_DIR")
         .map(PathBuf::from)
         .or_else(|| env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("fnm")));
     let Some(root) = fnm_root else {
         return Vec::new();
     };
+    fnm_installations_in(&root)
+}
+
+fn fnm_installations_in(root: &Path) -> Vec<PathBuf> {
     let versions_dir = root.join("node-versions");
     let Ok(entries) = fs::read_dir(&versions_dir) else {
         return Vec::new();
@@ -1189,5 +1443,117 @@ mod tests {
         assert_eq!(launcher_cache_get("flashwork-test-cli"), Some(path));
         invalidate_launcher_cache("flashwork-test-cli");
         assert_eq!(launcher_cache_get("flashwork-test-cli"), None);
+    }
+
+    #[test]
+    fn cli_name_aliases_gemini_includes_gemini_cli() {
+        assert_eq!(cli_name_aliases("gemini"), vec!["gemini", "gemini-cli"]);
+    }
+
+    #[test]
+    fn cli_name_aliases_gemini_cli_puts_asked_name_first() {
+        assert_eq!(
+            cli_name_aliases("gemini-cli"),
+            vec!["gemini-cli", "gemini"]
+        );
+    }
+
+    #[test]
+    fn cli_name_aliases_other_commands_stay_unaliased() {
+        assert_eq!(cli_name_aliases("copilot"), vec!["copilot"]);
+        assert_eq!(cli_name_aliases("claude"), vec!["claude"]);
+        assert_eq!(cli_name_aliases("agy"), vec!["agy"]);
+    }
+
+    fn rendered_extra_dirs(home: &std::path::Path, app_data: Option<&std::path::Path>) -> Vec<String> {
+        extra_cli_search_dir_candidates(home, app_data)
+            .into_iter()
+            .map(|d| d.to_string_lossy().replace('\\', "/"))
+            .collect()
+    }
+
+    #[test]
+    fn extra_cli_search_dir_candidates_include_nvm_fnm_and_appdata_npm() {
+        let home = PathBuf::from("/home/tester");
+        let app_data = PathBuf::from("/home/tester/AppData/Roaming");
+        let dirs = rendered_extra_dirs(&home, Some(&app_data));
+
+        assert!(
+            dirs.iter()
+                .any(|d| d.ends_with("/.nvm/versions/node/*/bin")),
+            "expected nvm glob bin path, got {dirs:?}"
+        );
+        assert!(
+            dirs.iter()
+                .any(|d| d.ends_with("/.fnm/aliases/default/bin")),
+            "expected fnm default alias bin, got {dirs:?}"
+        );
+        assert!(
+            dirs.iter().any(|d| d.ends_with("/AppData/Roaming/npm")),
+            "expected APPDATA npm, got {dirs:?}"
+        );
+        assert!(
+            dirs.iter().any(|d| d.ends_with("/.npm-global/bin")),
+            "expected well-known npm-global bin, got {dirs:?}"
+        );
+    }
+
+    #[test]
+    fn nvm_node_bin_dirs_expands_existing_bins_and_skips_star_path() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let home = std::env::temp_dir().join(format!(
+            "flashwork-nvm-glob-{}-{}",
+            std::process::id(),
+            nanos
+        ));
+        let _guard = DeleteDirOnDrop(home.clone());
+
+        let node = home.join(".nvm").join("versions").join("node");
+        fs::create_dir_all(node.join("v18")).expect("v18 dir without bin");
+        let v22_bin = node.join("v22").join("bin");
+        fs::create_dir_all(&v22_bin).expect("v22 bin");
+        fs::write(v22_bin.join("gemini"), b"").expect("dummy gemini");
+
+        let expanded = nvm_node_bin_dirs(&home);
+        let rendered: Vec<String> = expanded
+            .iter()
+            .map(|d| d.to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert!(
+            rendered.iter().any(|d| d.ends_with("/v22/bin")),
+            "expected v22/bin, got {rendered:?}"
+        );
+        assert!(
+            !rendered.iter().any(|d| d.ends_with("/v18/bin")),
+            "v18 has no bin dir, got {rendered:?}"
+        );
+        assert!(
+            !rendered.iter().any(|d| d.contains('*')),
+            "expansion must not keep a literal * path, got {rendered:?}"
+        );
+
+        let extra = extra_node_manager_dirs(&home, None);
+        let extra_rendered: Vec<String> = extra
+            .iter()
+            .map(|d| d.to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert!(
+            extra_rendered.iter().any(|d| d.ends_with("/v22/bin")),
+            "extra dirs should include expanded v22/bin, got {extra_rendered:?}"
+        );
+        assert!(
+            !extra_rendered.iter().any(|d| d.contains('*')),
+            "extra dirs must not include a literal * path, got {extra_rendered:?}"
+        );
+    }
+
+    struct DeleteDirOnDrop(PathBuf);
+    impl Drop for DeleteDirOnDrop {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
     }
 }

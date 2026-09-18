@@ -1,0 +1,2 @@
+{"sessionId":"should-be-ignored","projectHash":"x","startTime":"2026-01-01T00:00:00.000Z","lastUpdated":"2026-01-01T00:00:00.000Z","kind":"main"}
+{"id":"m1","type":"gemini","tokens":{"input":1,"output":1,"cached":0,"thoughts":0,"tool":0,"total":2},"model":"gemini-2.5-flash"}

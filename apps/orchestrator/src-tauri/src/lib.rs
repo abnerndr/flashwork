@@ -22,6 +22,7 @@ mod discord_presence;
 mod economy_agents;
 mod event_bus;
 mod filesystem;
+mod gemini_sessions;
 mod ghostty_bridge;
 #[cfg(all(target_os = "macos", ghostty_linked))]
 mod ghostty_ffi;
@@ -379,6 +380,8 @@ pub fn run() {
             task_board::delete_task_card,
             task_board::run_planner_cli,
             antigravity_sessions::snapshot_antigravity_sessions,
+            gemini_sessions::snapshot_gemini_sessions,
+            gemini_sessions::get_gemini_usage,
             claude_usage::get_claude_usage,
             codex_usage::get_codex_usage,
             antigravity_usage::get_antigravity_usage,

@@ -123,8 +123,11 @@ export function buildAgentLaunch(
     }
   }
 
-                                                                                  
-                                                                                 
-                                                                       
+  // Gemini `--resume` takes "latest" or a list index, not a session UUID.
+  // Keep the UUID on SavedSession for cost/HUD; do not invent CLI flags.
+  if (agent === 'gemini') {
+    return { args: [...baseArgs], sessionId: undefined, createdSession: false }
+  }
+
   return { args: [...baseArgs], sessionId: undefined, createdSession: false }
 }

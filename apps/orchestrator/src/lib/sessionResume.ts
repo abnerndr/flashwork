@@ -1,6 +1,6 @@
 /**
- * Session Resume — persiste sessions ativas no localStorage para
- * retomar agentes automaticamente ao reabrir o app.
+ * Session Resume — persists active sessions in localStorage so agents can
+ * resume automatically when the app is reopened.
  */
 
 import { normalizeCwd } from './platform'
@@ -11,14 +11,16 @@ const STORAGE_KEY = 'active-sessions'
 
 export type SavedSession = {
   sessionId: string
-  /** Claude conversation ID (nome do JSONL, ex: "abc123-def456"). */
+  /** Claude conversation ID (JSONL filename, e.g. "abc123-def456"). */
   claudeSessionId?: string
-  /** Codex conversation ID (payload.id do session_meta em ~/.codex/sessions). */
+  /** Codex conversation ID (payload.id from session_meta in ~/.codex/sessions). */
   codexSessionId?: string
-  /** OpenCode session ID (ses_... do opencode session list). */
+  /** OpenCode session ID (ses_... from opencode session list). */
   opencodeSessionId?: string
   /** Antigravity conversation ID (conversation_metadata.json). */
   antigravitySessionId?: string
+  /** Gemini CLI session UUID (first JSONL line `sessionId` under ~/.gemini/tmp). */
+  geminiSessionId?: string
   cwd: string
   agent: string
   timestamp: number
@@ -38,6 +40,7 @@ export function savedConversationIdFor(
   if (agent === 'codex') return session.codexSessionId
   if (agent === 'antigravity') return session.antigravitySessionId
   if (agent === 'opencode') return session.opencodeSessionId
+  if (agent === 'gemini') return session.geminiSessionId
   return undefined
 }
 
@@ -73,7 +76,7 @@ export function peekSession(ptyId: string): SavedSession | null {
   return getActiveSessions()[ptyId] ?? null
 }
 
-/** Só retoma se o ID ainda existir no disco e o arquivo não estiver vazio. */
+/** Only resume if the ID still exists on disk and the file is not empty. */
 export function pickUsableSessionId(
   sessions: ReadonlyArray<{ id: string; size_bytes?: number }>,
   candidate: string | undefined | null,

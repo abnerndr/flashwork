@@ -3,10 +3,20 @@ import { useState, type ReactNode } from 'react'
 import { getCachedClaudeUsage } from '../../lib/claudeUsageCache'
 import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { getCachedAntigravityUsage } from '../../lib/antigravityUsageCache'
+import { getCachedGeminiUsage } from '../../lib/geminiUsageCache'
+import { getCachedOpenCodeUsage } from '../../lib/opencodeUsageCache'
+import { fmtTokens, fmtUsd, shortModel } from '../../lib/costFormat'
 import { translate, getLocale, useT } from '../../lib/i18n'
-import type { AntigravityUsage, ClaudeUsage, CodexUsage } from '../../lib/tauri'
+import type {
+  AntigravityUsage,
+  ClaudeUsage,
+  CodexUsage,
+  GeminiUsage,
+  OpenCodeUsageSummary,
+} from '../../lib/tauri'
+import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
-import { AntigravityIcon, ClaudeIcon, CodexIcon } from '../icons/AgentIcons'
+import { AgentIcon, AntigravityIcon, ClaudeIcon, CodexIcon } from '../icons/AgentIcons'
 import { ActivityGraph } from './ActivityGraph'
 import styles from './HomeView.module.css'
 
@@ -494,17 +504,151 @@ function AntigravityCard({ usage }: { usage: AntigravityUsage | null }) {
   )
 }
 
+function hasSpend(sessionCount: number, totalTokens: number): boolean {
+  return sessionCount > 0 || totalTokens > 0
+}
+
+function GeminiCard({ usage }: { usage: GeminiUsage | null }) {
+  const t = useT()
+  const setGeminiUsage = useUiStore((s) => s.setGeminiUsage)
+  const theme = useProjectsStore((s) => s.preferences.uiTheme)
+  const accent = 'var(--agent-gemini)'
+  const hasData = usage != null && hasSpend(usage.session_count, usage.total_tokens)
+
+  const refresh = async () => {
+    try {
+      setGeminiUsage(await getCachedGeminiUsage(true))
+    } catch {
+      setGeminiUsage(null)
+    }
+  }
+
+  const head = (
+    <CardHead
+      badgeClass={styles.badgeGemini}
+      icon={<AgentIcon type="gemini" size={16} theme={theme} />}
+      name="gemini"
+      plan={hasData ? t('widget.geminiTouchedToday') : undefined}
+      accent={accent}
+      hasData={hasData}
+      onRefresh={refresh}
+    />
+  )
+
+  if (!usage || !hasData) {
+    return (
+      <div className={styles.usageCard}>
+        {head}
+        <div className={styles.usageEmpty}>
+          <span className={styles.usageEmptyTitle}>{t('widget.geminiNoUsage')}</span>
+          <span className={styles.usageEmptyHint}>{t('widget.geminiNoUsageHint')}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.usageCard}>
+      {head}
+      <div className={styles.cardBody}>
+        <div className={styles.statGrid}>
+          <StatCell label={t('widget.tokensToday')} value={fmtTokens(usage.total_tokens)} />
+          <StatCell label={t('widget.opencodeSessions')} value={String(usage.session_count)} />
+          <StatCell
+            label={t('widget.costLabel')}
+            value={usage.cost_usd != null ? fmtUsd(usage.cost_usd) : t('hud.noCost')}
+          />
+          <StatCell
+            label={t('widget.opencodeTokens')}
+            value={fmtTokens(usage.input_tokens + usage.output_tokens)}
+          />
+        </div>
+      </div>
+      <CardFoot
+        accent={accent}
+        left={t('widget.geminiTouchedToday')}
+        right={fmtTokens(usage.total_tokens)}
+      />
+    </div>
+  )
+}
+
+function OpenCodeCard({ usage }: { usage: OpenCodeUsageSummary | null }) {
+  const t = useT()
+  const setOpencodeUsage = useUiStore((s) => s.setOpencodeUsage)
+  const theme = useProjectsStore((s) => s.preferences.uiTheme)
+  const accent = 'var(--agent-opencode)'
+  const totalTokens = usage ? usage.input_tokens + usage.output_tokens : 0
+  const hasData = usage != null && hasSpend(usage.session_count, totalTokens)
+  const topModel = usage?.by_model[0]?.model ?? null
+
+  const refresh = async () => {
+    try {
+      setOpencodeUsage(await getCachedOpenCodeUsage(true))
+    } catch {
+      setOpencodeUsage(null)
+    }
+  }
+
+  const head = (
+    <CardHead
+      badgeClass={styles.badgeOpencode}
+      icon={<AgentIcon type="opencode" size={16} theme={theme} />}
+      name="opencode"
+      plan={hasData ? t('widget.opencodeLast24h') : undefined}
+      accent={accent}
+      hasData={hasData}
+      onRefresh={refresh}
+    />
+  )
+
+  if (!usage || !hasData) {
+    return (
+      <div className={styles.usageCard}>
+        {head}
+        <div className={styles.usageEmpty}>
+          <span className={styles.usageEmptyTitle}>{t('widget.opencodeNoUsage')}</span>
+          <span className={styles.usageEmptyHint}>{t('widget.opencodeNoUsageHint')}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.usageCard}>
+      {head}
+      <div className={styles.cardBody}>
+        <div className={styles.statGrid}>
+          <StatCell label={t('widget.costLabel')} value={fmtUsd(usage.cost_usd)} />
+          <StatCell label={t('widget.opencodeTokens')} value={fmtTokens(totalTokens)} />
+          <StatCell label={t('widget.opencodeSessions')} value={String(usage.session_count)} />
+          <StatCell label={t('widget.opencodeTopModel')} value={shortModel(topModel) ?? '—'} />
+        </div>
+      </div>
+      <CardFoot accent={accent} left={t('widget.opencodeLast24h')} right={fmtUsd(usage.cost_usd)} />
+    </div>
+  )
+}
+
 export function UsageStrip({ showActivity = true }: { showActivity?: boolean }) {
   const claudeUsage = useUiStore((s) => s.claudeUsage)
   const codexUsage = useUiStore((s) => s.codexUsage)
   const antigravityUsage = useUiStore((s) => s.antigravityUsage)
+  const geminiUsage = useUiStore((s) => s.geminiUsage)
+  const opencodeUsage = useUiStore((s) => s.opencodeUsage)
 
   return (
     <div className={`${styles.usageStrip} ${showActivity ? '' : styles.usageStripTwo}`}>
       <ClaudeCard usage={claudeUsage} />
       <CodexCard usage={codexUsage} />
       {!showActivity ? <AntigravityCard usage={antigravityUsage} /> : null}
-      {showActivity ? <ActivityGraph /> : null}
+      <GeminiCard usage={geminiUsage} />
+      <OpenCodeCard usage={opencodeUsage} />
+      {showActivity ? (
+        <div className={styles.usageActivity}>
+          <ActivityGraph />
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   Blocks,
   ChevronRight,
   Info,
+  KeyRound,
   Palette,
   ShieldCheck,
   Plug,
@@ -28,6 +29,7 @@ import { FeaturesPage } from './preferences/FeaturesPage'
 import { IntegrationsPage } from './preferences/IntegrationsPage'
 import { MultiagentPage } from './preferences/MultiagentPage'
 import { OrganizationPage } from './preferences/OrganizationPage'
+import { ProvidersPage } from './preferences/ProvidersPage'
 import { TerminalPage } from './preferences/TerminalPage'
 import { RemoteControlPage } from './preferences/RemoteControlPage'
 import { Avatar } from './preferences/primitives'
@@ -41,6 +43,7 @@ type CategoryId =
   | 'integrations'
   | 'multiagent'
   | 'organization'
+  | 'providers'
   | 'about'
   | 'remoteControl'
 
@@ -116,6 +119,12 @@ export function PreferencesModal() {
         label: t('prefs.categoryIntegrations'),
         description: t('prefs.categoryIntegrationsDesc'),
         Icon: Plug,
+      },
+      {
+        id: 'providers',
+        label: t('prefs.categoryProviders'),
+        description: t('prefs.categoryProvidersDesc'),
+        Icon: KeyRound,
       },
       {
         id: 'multiagent',
@@ -275,6 +284,14 @@ export function PreferencesModal() {
         label: t('prefs.dictation'),
         description: t('prefs.dictationDesc'),
         keywords: 'dictation voice mic microphone ditado voz microfone handy speech',
+      },
+      {
+        category: 'providers',
+        target: 'providers',
+        label: t('providers.title'),
+        description: t('providers.description'),
+        keywords:
+          'anthropic openai google gemini api key keyring apikey chave provedor provider llm',
       },
       {
         category: 'about',
@@ -490,6 +507,7 @@ export function PreferencesModal() {
                 {category === 'features' ? <FeaturesPage /> : null}
                 {category === 'terminal' ? <TerminalPage enabledCount={enabledCount} /> : null}
                 {category === 'integrations' ? <IntegrationsPage /> : null}
+                {category === 'providers' ? <ProvidersPage /> : null}
                 {category === 'multiagent' ? <MultiagentPage /> : null}
                 {category === 'organization' ? <OrganizationPage /> : null}
                 {category === 'about' ? <AboutPage /> : null}

@@ -362,6 +362,8 @@ export const en = {
   'prefs.categoryTerminalDesc': 'Configure terminal appearance and available agents.',
   'prefs.categoryIntegrations': 'Integrations',
   'prefs.categoryIntegrationsDesc': 'Connect external services and control what Flashwork shares.',
+  'prefs.categoryProviders': 'Providers',
+  'prefs.categoryProvidersDesc': 'Store API keys for Anthropic, OpenAI, and Google in the OS keyring.',
   'prefs.categoryUpdates': 'Updates',
   'prefs.categoryUpdatesDesc': 'Check your installed version and look for Flashwork updates.',
   'prefs.shortcutsTitle': 'Keyboard shortcuts',
@@ -673,6 +675,20 @@ export const en = {
   'prefs.updateAvailable': 'Version {version} is available.',
   'prefs.updateCheckFailed': 'Could not check for updates. Check your connection and try again.',
   'prefs.viewUpdate': 'View update',
+
+  /* ---- providers ---- */
+  'providers.title': 'Providers',
+  'providers.description':
+    'API keys are stored in the OS keyring (Keychain, Credential Manager, or Secret Service) and never leave your machine in plain text.',
+  'providers.anthropicTitle': 'Anthropic',
+  'providers.openaiTitle': 'OpenAI',
+  'providers.googleTitle': 'Google Gemini',
+  'providers.keyPlaceholder': 'Paste API key',
+  'providers.save': 'Save',
+  'providers.clear': 'Clear',
+  'providers.statusSaved': 'Key saved',
+  'providers.statusEmpty': 'No key saved',
+  'providers.useOnCli': 'Use this key when spawning the matching CLI',
 
   /* ---- theme picker ---- */
   'themePicker.title': 'Pick theme',

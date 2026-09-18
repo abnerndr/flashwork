@@ -1,0 +1,144 @@
+import { useEffect, useState } from 'react'
+
+import { type MessageKey, useT } from '../../../lib/i18n'
+import type { ProviderId } from '../../../lib/providers/modelCatalog'
+import { providerKeyClear, providerKeySet, providerKeyStatus } from '../../../lib/tauri'
+import type { Preferences } from '../../../lib/types'
+import { useProjectsStore } from '../../../stores/projectsStore'
+import controls from '../controls.module.css'
+import styles from '../PreferencesModal.module.css'
+import { SettingsSection } from './primitives'
+
+type CliToggleKey = 'useAnthropicKeyOnCli' | 'useOpenaiKeyOnCli' | 'useGoogleKeyOnCli'
+
+type ProviderRowConfig = {
+  id: ProviderId
+  titleKey: MessageKey
+  cliToggleKey: CliToggleKey
+}
+
+const PROVIDER_ROWS: ProviderRowConfig[] = [
+  { id: 'anthropic', titleKey: 'providers.anthropicTitle', cliToggleKey: 'useAnthropicKeyOnCli' },
+  { id: 'openai', titleKey: 'providers.openaiTitle', cliToggleKey: 'useOpenaiKeyOnCli' },
+  { id: 'google', titleKey: 'providers.googleTitle', cliToggleKey: 'useGoogleKeyOnCli' },
+]
+
+function ProviderRow({ config }: { config: ProviderRowConfig }) {
+  const t = useT()
+  const useKeyOnCli = useProjectsStore((state) => state.preferences[config.cliToggleKey])
+  const setPreferences = useProjectsStore((state) => state.setPreferences)
+  const [key, setKey] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const refreshStatus = () => {
+    void providerKeyStatus(config.id)
+      .then((status) => setSaved(status.saved))
+      .catch(() => setSaved(false))
+  }
+
+  useEffect(() => {
+    refreshStatus()
+    // Only re-check when the provider id changes; refreshStatus is re-created each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.id])
+
+  const handleSave = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      await providerKeySet(config.id, key)
+      setKey('')
+      refreshStatus()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleClear = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      await providerKeyClear(config.id)
+      refreshStatus()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={styles.providerRow}>
+      <div className={styles.providerRowHeader}>
+        <strong>{t(config.titleKey)}</strong>
+        <span className={`${styles.providerStatus} ${saved ? styles.providerStatusSaved : ''}`}>
+          {saved ? t('providers.statusSaved') : t('providers.statusEmpty')}
+        </span>
+      </div>
+
+      <div className={controls.inputActionRow}>
+        <input
+          className={controls.input}
+          type="password"
+          value={key}
+          onChange={(event) => setKey(event.target.value)}
+          placeholder={t('providers.keyPlaceholder')}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button
+          type="button"
+          className={`${controls.btn} ${controls.btnPrimary}`}
+          disabled={busy || key.trim().length === 0}
+          onClick={() => void handleSave()}
+        >
+          {t('providers.save')}
+        </button>
+        <button
+          type="button"
+          className={`${controls.btn} ${controls.btnDanger}`}
+          disabled={busy || !saved}
+          onClick={() => void handleClear()}
+        >
+          {t('providers.clear')}
+        </button>
+      </div>
+
+      <label className={controls.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={useKeyOnCli}
+          onChange={(event) =>
+            setPreferences({
+              [config.cliToggleKey]: event.target.checked,
+            } as Partial<Preferences>)
+          }
+        />
+        <span className={controls.checkboxLabel}>{t('providers.useOnCli')}</span>
+      </label>
+
+      {error ? <p className={styles.providerError}>{error}</p> : null}
+    </div>
+  )
+}
+
+export function ProvidersPage() {
+  const t = useT()
+  return (
+    <SettingsSection
+      id="providers"
+      title={t('providers.title')}
+      description={t('providers.description')}
+    >
+      <div className={styles.providerList}>
+        {PROVIDER_ROWS.map((config) => (
+          <ProviderRow key={config.id} config={config} />
+        ))}
+      </div>
+    </SettingsSection>
+  )
+}

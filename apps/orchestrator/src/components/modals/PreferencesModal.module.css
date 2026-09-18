@@ -1066,3 +1066,62 @@
   color: var(--fg);
   border-color: var(--border-strong);
 }
+
+.providerList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.providerRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+}
+
+.providerRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.providerRowHeader strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.providerStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.providerStatus::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-stopped);
+}
+
+.providerStatusSaved {
+  color: var(--status-working);
+}
+
+.providerStatusSaved::before {
+  background: var(--status-working);
+}
+
+.providerError {
+  margin: 0;
+  color: var(--status-offline);
+  font-size: 11px;
+}

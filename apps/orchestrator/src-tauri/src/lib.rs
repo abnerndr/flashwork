@@ -50,6 +50,7 @@ mod project_detector;
 mod projects;
 mod prompt_run;
 mod provider_common;
+mod providers;
 mod pty;
 mod remote;
 mod resource_manager;
@@ -455,6 +456,9 @@ pub fn run() {
             skills::skills_detail,
             skills::skills_uninstall,
             opencode_sessions::snapshot_opencode_sessions,
+            providers::provider_key_set,
+            providers::provider_key_status,
+            providers::provider_key_clear,
             ping,
         ])
         .build(tauri::generate_context!())

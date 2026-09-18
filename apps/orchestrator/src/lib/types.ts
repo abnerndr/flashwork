@@ -537,6 +537,15 @@ export type Preferences = {
   nodeHeapProfile?: 'conservative' | 'balanced' | 'performance'
 
   gsdSyncModelChain?: string[]
+
+  /**
+   * Whether the CLI spawn env should inject the keyring-stored key for each
+   * provider. The keys themselves never live here — only these booleans.
+   * See ADR 010 and `src-tauri/src/providers.rs`.
+   */
+  useAnthropicKeyOnCli: boolean
+  useOpenaiKeyOnCli: boolean
+  useGoogleKeyOnCli: boolean
 }
 
 export type ResourcePolicyMode = 'smart-lru' | 'manual'
@@ -659,6 +668,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
     spawnGraceSeconds: 120,
   },
   nodeHeapProfile: 'balanced',
+  useAnthropicKeyOnCli: false,
+  useOpenaiKeyOnCli: false,
+  useGoogleKeyOnCli: false,
 }
 
 export const EMPTY_PROJECTS_FILE: ProjectsFile = {

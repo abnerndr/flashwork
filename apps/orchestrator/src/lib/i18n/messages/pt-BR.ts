@@ -362,6 +362,9 @@ export const ptBR: Record<MessageKey, string> = {
   'prefs.categoryIntegrations': 'Integrações',
   'prefs.categoryIntegrationsDesc':
     'Conecte serviços externos e controle o que o Flashwork compartilha.',
+  'prefs.categoryProviders': 'Provedores',
+  'prefs.categoryProvidersDesc':
+    'Guarde as chaves de API da Anthropic, OpenAI e Google no keyring do sistema.',
   'prefs.categoryUpdates': 'Atualizações',
   'prefs.categoryUpdatesDesc': 'Consulte a versão instalada e procure atualizações do Flashwork.',
   'prefs.shortcutsTitle': 'Atalhos de teclado',
@@ -683,6 +686,20 @@ export const ptBR: Record<MessageKey, string> = {
   'prefs.updateCheckFailed':
     'Não foi possível procurar atualizações. Verifique sua conexão e tente novamente.',
   'prefs.viewUpdate': 'Ver atualização',
+
+  /* ---- providers ---- */
+  'providers.title': 'Provedores',
+  'providers.description':
+    'As chaves de API ficam no keyring do sistema (Keychain, Credential Manager ou Secret Service) e nunca saem da sua máquina em texto puro.',
+  'providers.anthropicTitle': 'Anthropic',
+  'providers.openaiTitle': 'OpenAI',
+  'providers.googleTitle': 'Google Gemini',
+  'providers.keyPlaceholder': 'Cole a chave de API',
+  'providers.save': 'Salvar',
+  'providers.clear': 'Limpar',
+  'providers.statusSaved': 'Chave salva',
+  'providers.statusEmpty': 'Nenhuma chave salva',
+  'providers.useOnCli': 'Usar esta chave ao iniciar a CLI correspondente',
 
   /* ---- theme picker ---- */
   'themePicker.title': 'Escolher tema',

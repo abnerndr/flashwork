@@ -24,7 +24,7 @@ import type { AutoLane } from '../promptRun/planAutoLanes'
 import { isPromptRunBlocking } from '../promptRun/isPromptRunBlocking'
 import { isAgentAuthError } from '../promptRun/detectHandoffTrigger'
 import { excludeFailedAgents, markAgentAuthFailed } from '../promptRun/failedAgents'
-import { attachmentsDirFor, joinAttachmentsPath, resolveToolSelection } from './attachments'
+import { attachmentsDirFor, buildToolsJsonPayload, joinAttachmentsPath } from './attachments'
 import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
 import { buildPlannerPrompt, planBoardSlices } from './planner'
 import { boardInvokeError, decideBoardStartFailure } from './boardStart'
@@ -51,13 +51,10 @@ async function prepareCardAttachments(
   const attachmentsDir = attachmentsDirFor(card.attachments)
   if (!attachmentsDir) return {}
   const selection = card.toolSelection ?? DEFAULT_TOOL_SELECTION
-  const resolved = resolveToolSelection(selection, { mcpServerIds: [], skillNames: [] })
+  const payload = buildToolsJsonPayload(selection, { mcpServerIds: [], skillNames: [] })
   const toolsJsonPath = joinAttachmentsPath(attachmentsDir, 'tools.json')
   try {
-    await writeTextFile(
-      toolsJsonPath,
-      JSON.stringify({ mode: selection.mode, ...resolved }, null, 2),
-    )
+    await writeTextFile(toolsJsonPath, JSON.stringify(payload, null, 2))
   } catch (cause) {
     console.warn('[task-board] tools.json write failed:', cause)
     return { attachmentsDir }

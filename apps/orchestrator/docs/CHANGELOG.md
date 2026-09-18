@@ -12,6 +12,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Task board `tools.json` for project-default tool mode now writes `{ "mode": "projectDefault" }`
+  only, so spawned agents do not misread empty allowlists as "no tools allowed."
 - Token HUD lists every live coding-agent pane (Gemini, Copilot, Antigravity, Mimo, Freebuff
   included), labeled as `{agent} · {folder}`. Cost is parsed for Claude, Codex, OpenCode, and Gemini
   when a session file exists; other agents stay listed with no price.

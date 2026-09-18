@@ -4,6 +4,7 @@ import {
   attachmentTitleFromMarkdown,
   attachmentsDirFor,
   buildTaskBootstrap,
+  buildToolsJsonPayload,
   isHandoffPath,
   joinAttachmentsPath,
   resolveToolSelection,
@@ -21,6 +22,34 @@ describe('attachments', () => {
       'Login handoff',
     )
     expect(attachmentTitleFromMarkdown('no heading')).toBe('untitled')
+  })
+
+  it('buildToolsJsonPayload omits empty allowlists for projectDefault', () => {
+    expect(
+      buildToolsJsonPayload(
+        { mode: 'projectDefault', mcpServerIds: ['x'], skillNames: ['y'] },
+        { mcpServerIds: ['a'], skillNames: ['b'] },
+      ),
+    ).toEqual({ mode: 'projectDefault' })
+    expect(
+      buildToolsJsonPayload(
+        { mode: 'projectDefault', mcpServerIds: [], skillNames: [] },
+        { mcpServerIds: ['a'], skillNames: ['b'] },
+      ),
+    ).toEqual({ mode: 'projectDefault' })
+  })
+
+  it('buildToolsJsonPayload writes restrict allowlists from resolveToolSelection', () => {
+    expect(
+      buildToolsJsonPayload(
+        { mode: 'restrict', mcpServerIds: ['figma'], skillNames: ['qa'] },
+        { mcpServerIds: ['a'], skillNames: ['b'] },
+      ),
+    ).toEqual({
+      mode: 'restrict',
+      mcpServerIds: ['figma'],
+      skillNames: ['qa'],
+    })
   })
 
   it('projectDefault ignores ticks; restrict uses the lists', () => {

@@ -23,6 +23,27 @@ export function resolveToolSelection(
   return { mcpServerIds: [...selection.mcpServerIds], skillNames: [...selection.skillNames] }
 }
 
+export type ToolsJsonPayload =
+  | { mode: 'projectDefault' }
+  | { mode: 'restrict'; mcpServerIds: string[]; skillNames: string[] }
+
+/**
+ * Serializes card tool selection for on-disk `tools.json`. Project-default mode
+ * omits empty allowlists so agents do not read "no tools allowed".
+ */
+export function buildToolsJsonPayload(
+  selection: ToolSelection,
+  projectDefaults: { mcpServerIds: string[]; skillNames: string[] },
+): ToolsJsonPayload {
+  if (selection.mode !== 'restrict') return { mode: 'projectDefault' }
+  const resolved = resolveToolSelection(selection, projectDefaults)
+  return {
+    mode: 'restrict',
+    mcpServerIds: resolved.mcpServerIds,
+    skillNames: resolved.skillNames,
+  }
+}
+
 /**
  * Parent directory of a stored attachment path (cross-platform: accepts
  * `/` or `\` separators, since attachments can be spawned on Windows).

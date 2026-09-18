@@ -2,7 +2,13 @@ import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 
 import { deleteTaskCard, listTaskCards, saveTaskCard } from '../lib/tauri'
-import type { TaskBoardColumn, TaskCard, TaskSlicePlan } from '../lib/types'
+import type {
+  TaskAttachment,
+  TaskBoardColumn,
+  TaskCard,
+  TaskSlicePlan,
+  TaskToolSelection,
+} from '../lib/types'
 
 type TaskBoardState = {
   cards: TaskCard[]
@@ -83,6 +89,8 @@ export function createTaskCardDraft(input: {
   allowedFiles: string[]
   priority: number
   verifyCommands?: string[]
+  attachments?: TaskAttachment[]
+  toolSelection?: TaskToolSelection
   now?: () => number
   createId?: () => string
 }): TaskCard {
@@ -98,6 +106,12 @@ export function createTaskCardDraft(input: {
     priority: input.priority,
     column: 'backlog',
     verifyCommands: input.verifyCommands,
+    attachments: input.attachments ?? [],
+    toolSelection: input.toolSelection ?? {
+      mode: 'projectDefault',
+      mcpServerIds: [],
+      skillNames: [],
+    },
     createdAt,
     updatedAt: createdAt,
   }

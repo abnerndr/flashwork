@@ -12,7 +12,7 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | --- | --- | --- |
 | P09 Remove OmniRoute | `9a18cbc` | done |
 | P10 CLI install/update | `b3bdd6f` | done |
-| P12 Token metrics all agents | _(pending commit)_ | done (Task 6 skipped — P11 not shipped) |
+| P12 Token metrics all agents | `89c9746` | done (Task 6 skipped — P11 not shipped) |
 
 ## Current slice
 

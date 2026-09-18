@@ -1,3 +1,4 @@
+import { buildTaskBootstrap } from '../taskBoard/attachments'
 import { AGENT_TYPE_LABELS, type AgentType } from '../types'
 
 export function buildRunBootstrapInput(args: {
@@ -9,14 +10,21 @@ export function buildRunBootstrapInput(args: {
   allowedFiles?: readonly string[]
   boardPath?: string
   contextDir?: string
+  attachmentsDir?: string
+  toolsJsonPath?: string
 }): string {
   const label = AGENT_TYPE_LABELS[args.agent]
+  const promptWithAttachments = buildTaskBootstrap({
+    prompt: args.prompt,
+    attachmentsDir: args.attachmentsDir,
+    toolsJsonPath: args.toolsJsonPath,
+  })
   if (args.role === 'orchestrator') {
     return [
       `[Flashwork Auto] You orchestrate run ${args.runId} as ${label}.`,
       'Do not implement the whole request yourself. Keep workers unblocked and summarize progress.',
       '',
-      args.prompt,
+      promptWithAttachments,
     ].join('\n')
   }
   const skills =
@@ -38,6 +46,6 @@ export function buildRunBootstrapInput(args: {
     lines.push('You may only touch these files:')
     for (const file of args.allowedFiles) lines.push(`- ${file}`)
   }
-  lines.push('', args.prompt)
+  lines.push('', promptWithAttachments)
   return lines.join('\n')
 }

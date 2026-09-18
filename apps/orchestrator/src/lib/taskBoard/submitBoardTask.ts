@@ -12,6 +12,7 @@ import {
   runValidation,
   skillsScan,
   writePromptRunBoard,
+  writeTextFile,
   ensurePromptRunContext,
 } from '../tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -23,6 +24,7 @@ import type { AutoLane } from '../promptRun/planAutoLanes'
 import { isPromptRunBlocking } from '../promptRun/isPromptRunBlocking'
 import { isAgentAuthError } from '../promptRun/detectHandoffTrigger'
 import { excludeFailedAgents, markAgentAuthFailed } from '../promptRun/failedAgents'
+import { attachmentsDirFor, joinAttachmentsPath, resolveToolSelection } from './attachments'
 import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
 import { buildPlannerPrompt, planBoardSlices } from './planner'
 import { boardInvokeError, decideBoardStartFailure } from './boardStart'
@@ -34,6 +36,34 @@ import { getProjectDefaultCwd } from '../terminalFactory'
 const startingCards = new Set<string>()
 let skipGeminiPlanner = false
 const PLANNER_TIMEOUT_MS = 8_000
+
+const DEFAULT_TOOL_SELECTION = { mode: 'projectDefault' as const, mcpServerIds: [], skillNames: [] }
+
+/**
+ * When the card has attachments, resolves the shared attachments directory
+ * and writes `tools.json` (the resolved MCP/skill allowlist) beside them so
+ * workers can read pointers on disk instead of having the prompt paste
+ * attachment markdown or the full tool catalog inline.
+ */
+async function prepareCardAttachments(
+  card: TaskCard,
+): Promise<{ attachmentsDir?: string; toolsJsonPath?: string }> {
+  const attachmentsDir = attachmentsDirFor(card.attachments)
+  if (!attachmentsDir) return {}
+  const selection = card.toolSelection ?? DEFAULT_TOOL_SELECTION
+  const resolved = resolveToolSelection(selection, { mcpServerIds: [], skillNames: [] })
+  const toolsJsonPath = joinAttachmentsPath(attachmentsDir, 'tools.json')
+  try {
+    await writeTextFile(
+      toolsJsonPath,
+      JSON.stringify({ mode: selection.mode, ...resolved }, null, 2),
+    )
+  } catch (cause) {
+    console.warn('[task-board] tools.json write failed:', cause)
+    return { attachmentsDir }
+  }
+  return { attachmentsDir, toolsJsonPath }
+}
 
 function sliceToLane(slice: TaskSlicePlan): AutoLane {
   return {
@@ -166,6 +196,7 @@ export async function startBoardCard(cardId: string): Promise<void> {
     }
     const autoProject = toAutoPromptRunProject(project)
     const existing = usePromptRunStore.getState().byProjectId[card.projectId]
+    const { attachmentsDir, toolsJsonPath } = await prepareCardAttachments(workingCard)
     const result = await startPromptRun({
       project: autoProject,
       cwd,
@@ -186,6 +217,8 @@ export async function startBoardCard(cardId: string): Promise<void> {
       includeOrchestrator: false,
       allowedFiles: card.allowedFiles,
       boardPath,
+      attachmentsDir,
+      toolsJsonPath,
       createId: () => runId,
       ensureContextDir: ensurePromptRunContext,
       createAgentTerminal: (projectId, launch) =>
@@ -249,6 +282,7 @@ export async function continueBoardCard(cardId: string): Promise<void> {
   const project = useProjectsStore.getState().projects.find((item) => item.id === card.projectId)
   if (!project) return
   const run = usePromptRunStore.getState().byProjectId[card.projectId]
+  const { attachmentsDir, toolsJsonPath } = await prepareCardAttachments(card)
   const steps = await launchPromptRunLanes({
     projectId: card.projectId,
     cwd: card.cwd,
@@ -258,6 +292,8 @@ export async function continueBoardCard(cardId: string): Promise<void> {
     allowedFiles: card.allowedFiles,
     boardPath: card.boardPath,
     contextDir: run?.id === card.runId ? run.contextDir : undefined,
+    attachmentsDir,
+    toolsJsonPath,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),
   })

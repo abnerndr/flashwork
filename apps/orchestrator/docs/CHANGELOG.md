@@ -38,7 +38,9 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 - Task board cards can attach one or more markdown handoff files (**Attach handoff**) and, when
   **Restrict tools** is on, pick which MCP servers and skills the spawned agent gets instead of the
-  project defaults.
+  project defaults. When a card has attachments, spawned agents get pointer paths to the
+  attachments folder and a `tools.json` allowlist on disk instead of the markdown bodies being
+  pasted into the prompt.
 - **Preferences → Providers:** paste Anthropic, OpenAI, and Gemini API keys into the OS keyring
   (never `projects.json` or git). Each provider has an optional **use with CLI** toggle — when
   enabled, Flashwork reads the matching stored key from the keyring at spawn time and sets it as an

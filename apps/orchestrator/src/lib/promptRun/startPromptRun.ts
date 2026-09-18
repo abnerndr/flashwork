@@ -63,6 +63,8 @@ export type StartPromptRunInput = {
   includeOrchestrator?: boolean
   allowedFiles?: string[]
   boardPath?: string
+  attachmentsDir?: string
+  toolsJsonPath?: string
   createId?: () => string
   createUuid?: () => string
   now?: () => number
@@ -79,6 +81,8 @@ export type LaunchPromptRunLanesInput = {
   allowedFiles?: string[]
   boardPath?: string
   contextDir?: string
+  attachmentsDir?: string
+  toolsJsonPath?: string
   createUuid?: () => string
   now?: () => number
   createAgentTerminal: CreateAgentTerminal
@@ -127,6 +131,8 @@ export async function launchPromptRunLanes(
           allowedFiles: input.allowedFiles,
           boardPath: input.boardPath,
           contextDir: input.contextDir,
+          attachmentsDir: input.attachmentsDir,
+          toolsJsonPath: input.toolsJsonPath,
         }),
       },
     })
@@ -189,6 +195,8 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     allowedFiles: input.allowedFiles,
     boardPath: input.boardPath,
     contextDir,
+    attachmentsDir: input.attachmentsDir,
+    toolsJsonPath: input.toolsJsonPath,
     createUuid: input.createUuid,
     now,
     createAgentTerminal: input.createAgentTerminal,

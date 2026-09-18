@@ -2,6 +2,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 
+import { providerSpawnFlags } from '../lib/providers/envForCli'
 import {
   agentHooksEndpoint,
   agentHooksSettingsPath,
@@ -16,6 +17,7 @@ import {
   spawnPty,
   writePty,
 } from '../lib/tauri'
+import { useProjectsStore } from './projectsStore'
 
 export type SandboxNodeStatus = 'starting' | 'idle' | 'working' | 'done' | 'error'
 
@@ -277,6 +279,7 @@ export const useAgentSandboxStore = create<AgentSandboxState>((set, get) => ({
                 ...(payload.agent === 'claude' ? ['--settings', settingsPath] : []),
               ],
               env: { FLASHWORK_AGENT_HOOKS_ENDPOINT: endpoint, FLASHWORK_AGENT_HOOKS_TOKEN: token },
+              ...providerSpawnFlags(node.command, useProjectsStore.getState().preferences),
             })
           }
           if (generation !== sandboxGeneration) {
@@ -538,6 +541,7 @@ export const useAgentSandboxStore = create<AgentSandboxState>((set, get) => ({
           command: node.command === 'shell' ? undefined : node.command,
           extraArgs: [...(node.extraArgs ?? []), '--settings', settingsPath],
           env: { FLASHWORK_AGENT_HOOKS_ENDPOINT: endpoint, FLASHWORK_AGENT_HOOKS_TOKEN: token },
+          ...providerSpawnFlags(node.command, useProjectsStore.getState().preferences),
         })
         if (generation !== sandboxGeneration) {
           await killPty(ptyId).catch(() => {})

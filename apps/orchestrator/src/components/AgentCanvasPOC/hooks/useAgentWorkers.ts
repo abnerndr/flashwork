@@ -4,8 +4,10 @@ import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 
 import { MAX_LIVE_WORKERS } from '../../../lib/agentCanvasConfig'
 import { type CodexWorker, execArgsFor, tailSummary } from '../../../lib/agentCanvasUtils'
 import { useT } from '../../../lib/i18n'
+import { providerSpawnFlags } from '../../../lib/providers/envForCli'
 import { attachPty, killPty, listenPtyExit, spawnPty } from '../../../lib/tauri'
 import { agentCliCommand, type AgentType } from '../../../lib/types'
+import { useProjectsStore } from '../../../stores/projectsStore'
 import { useUiStore } from '../../../stores/uiStore'
 
 type Session = { folder: string; ptyId: string }
@@ -60,6 +62,7 @@ export function useAgentWorkers(sessionRef: MutableRefObject<Session | null>) {
         command: agentCliCommand(agent),
         cwd: folder,
         extraArgs: args,
+        ...providerSpawnFlags(agent, useProjectsStore.getState().preferences),
       })
         .then(() => {
                                                                                 

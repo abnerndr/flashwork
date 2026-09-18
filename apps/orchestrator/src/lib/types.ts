@@ -114,6 +114,20 @@ export type TaskSlicePlan = {
   status: TaskSliceStatus
 }
 
+export type TaskAttachment = {
+  id: string
+  sourcePath: string
+  storedPath: string
+  kind: 'handoff' | 'markdown' | 'spec'
+  title: string
+}
+
+export type TaskToolSelection = {
+  mode: 'projectDefault' | 'restrict'
+  mcpServerIds: string[]
+  skillNames: string[]
+}
+
 export type TaskCard = {
   id: string
   projectId: string
@@ -127,6 +141,8 @@ export type TaskCard = {
   runId?: string
   boardPath?: string
   slicePlan?: TaskSlicePlan[]
+  attachments?: TaskAttachment[]
+  toolSelection?: TaskToolSelection
   error?: string
   createdAt: number
   updatedAt: number

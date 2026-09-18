@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 
 import { type MessageKey, useT } from '../../../lib/i18n'
-import { applyCatalogRefresh } from '../../../lib/providers/catalogOverlay'
+import {
+  applyCatalogRefresh,
+  getCatalogRefreshedAt,
+  markCatalogRefreshed,
+} from '../../../lib/providers/catalogOverlay'
 import type { ProviderId } from '../../../lib/providers/modelCatalog'
 import {
   providerCatalogRefresh,
@@ -135,8 +139,7 @@ function ProviderRow({ config }: { config: ProviderRowConfig }) {
 function CatalogRefreshRow() {
   const t = useT()
   const locale = useProjectsStore((state) => state.preferences.language)
-  const refreshedAt = useProjectsStore((state) => state.preferences.providersCatalogRefreshedAt)
-  const setPreferences = useProjectsStore((state) => state.setPreferences)
+  const [refreshedAt, setRefreshedAt] = useState<number | null>(() => getCatalogRefreshedAt())
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<'success' | 'error' | null>(null)
 
@@ -146,7 +149,8 @@ function CatalogRefreshRow() {
     try {
       const refreshed = await providerCatalogRefresh()
       applyCatalogRefresh(refreshed)
-      setPreferences({ providersCatalogRefreshedAt: Date.now() })
+      markCatalogRefreshed()
+      setRefreshedAt(getCatalogRefreshedAt())
       setResult('success')
     } catch {
       // Total failure: keep the existing snapshot untouched, per the locked contract.

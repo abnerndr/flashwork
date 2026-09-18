@@ -546,8 +546,6 @@ export type Preferences = {
   useAnthropicKeyOnCli: boolean
   useOpenaiKeyOnCli: boolean
   useGoogleKeyOnCli: boolean
-  /** Epoch ms of the last successful (even if partial) `provider_catalog_refresh`. */
-  providersCatalogRefreshedAt: number | null
 }
 
 export type ResourcePolicyMode = 'smart-lru' | 'manual'
@@ -673,7 +671,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   useAnthropicKeyOnCli: false,
   useOpenaiKeyOnCli: false,
   useGoogleKeyOnCli: false,
-  providersCatalogRefreshedAt: null,
 }
 
 export const EMPTY_PROJECTS_FILE: ProjectsFile = {

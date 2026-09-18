@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { MODEL_CATALOG } from './modelCatalog'
 import {
   applyCatalogRefresh,
+  getCatalogRefreshedAt,
   getModelCatalog,
   hasCatalogOverlay,
+  markCatalogRefreshed,
   resetCatalogOverlay,
 } from './catalogOverlay'
 
@@ -66,5 +68,21 @@ describe('catalogOverlay', () => {
   it('ignores an empty models array for a provider (kept as per-provider failure)', () => {
     applyCatalogRefresh({ anthropic: [] })
     expect(getModelCatalog('anthropic')).toBe(MODEL_CATALOG.anthropic)
+  })
+
+  it('keeps overlay and refreshed-at timestamp in sync across reset', () => {
+    expect(getCatalogRefreshedAt()).toBeNull()
+    expect(hasCatalogOverlay()).toBe(false)
+
+    applyCatalogRefresh({ openai: [{ id: 'gpt-5', label: 'GPT-5' }] })
+    markCatalogRefreshed(1_700_000_000_000)
+
+    expect(hasCatalogOverlay()).toBe(true)
+    expect(getCatalogRefreshedAt()).toBe(1_700_000_000_000)
+
+    resetCatalogOverlay()
+
+    expect(hasCatalogOverlay()).toBe(false)
+    expect(getCatalogRefreshedAt()).toBeNull()
   })
 })

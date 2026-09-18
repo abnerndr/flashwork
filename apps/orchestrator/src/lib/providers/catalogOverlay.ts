@@ -10,6 +10,8 @@ import { MODEL_CATALOG, type ModelEntry, type ProviderId } from './modelCatalog'
 import type { CatalogModel, CatalogRefreshResult } from '../tauri/providers'
 
 let overlay: Partial<Record<ProviderId, ModelEntry[]>> = {}
+/** Session-only; cleared with the overlay on process restart or reset. */
+let catalogRefreshedAt: number | null = null
 
 /**
  * Refreshed vendor models don't carry a `role`. When an id already exists in
@@ -43,7 +45,18 @@ export function hasCatalogOverlay(): boolean {
   return Object.keys(overlay).length > 0
 }
 
+/** Epoch ms of the last successful catalog refresh in this process, or null if none yet. */
+export function getCatalogRefreshedAt(): number | null {
+  return catalogRefreshedAt
+}
+
+/** Records a successful refresh timestamp for the current session overlay. */
+export function markCatalogRefreshed(at: number = Date.now()): void {
+  catalogRefreshedAt = at
+}
+
 /** Test-only: clears the overlay so tests don't leak state across cases. */
 export function resetCatalogOverlay(): void {
   overlay = {}
+  catalogRefreshedAt = null
 }

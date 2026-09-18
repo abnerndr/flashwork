@@ -1125,3 +1125,9 @@
   color: var(--status-offline);
   font-size: 11px;
 }
+
+.providerSuccess {
+  margin: 0;
+  color: var(--status-working);
+  font-size: 11px;
+}

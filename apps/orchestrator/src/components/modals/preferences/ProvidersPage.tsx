@@ -62,7 +62,7 @@ function ProviderRow({ config }: { config: ProviderRowConfig }) {
       setKey('')
       refreshStatus()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(t('common.errorPrefix', { message: cause instanceof Error ? cause.message : String(cause) }))
     } finally {
       setBusy(false)
     }
@@ -73,9 +73,10 @@ function ProviderRow({ config }: { config: ProviderRowConfig }) {
     setBusy(true)
     try {
       await providerKeyClear(config.id)
+      setKey('')
       refreshStatus()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(t('common.errorPrefix', { message: cause instanceof Error ? cause.message : String(cause) }))
     } finally {
       setBusy(false)
     }
@@ -186,7 +187,7 @@ function CatalogRefreshRow() {
         </button>
         <span className={styles.providerStatus}>{refreshedLabel}</span>
       </div>
-      {result === 'success' ? <p className={styles.providerRowHeader}>{t('providers.refreshSuccess')}</p> : null}
+      {result === 'success' ? <p className={styles.providerSuccess}>{t('providers.refreshSuccess')}</p> : null}
       {result === 'error' ? <p className={styles.providerError}>{t('providers.refreshError')}</p> : null}
     </div>
   )

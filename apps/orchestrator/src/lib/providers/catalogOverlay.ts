@@ -14,23 +14,38 @@ let overlay: Partial<Record<ProviderId, ModelEntry[]>> = {}
 let catalogRefreshedAt: number | null = null
 
 /**
- * Refreshed vendor models don't carry a `role`. When an id already exists in
- * the fallback snapshot, its role is preserved (router/coding pins matter
- * for auto-selection); brand-new ids default to `'coding'`.
+ * Merges a vendor's models-list response into the checked-in Task 1 snapshot for one provider.
+ * Every snapshot entry is kept (even if the vendor response omits it — e.g. a router pin the
+ * vendor's `/v1/models` didn't return), so the snapshot's `router`/`coding` pins survive a
+ * refresh. Vendor ids that already exist in the snapshot only get their `label` refreshed, never
+ * their `role`. Brand-new vendor ids (including non-chat ones like embeddings/tts — vendor
+ * models-list endpoints aren't filtered by capability) are appended with a default `'coding'`
+ * role, which is safe precisely because the snapshot's `router` entry is never dropped.
  */
-function toModelEntries(models: CatalogModel[], fallback: ModelEntry[]): ModelEntry[] {
-  return models.map((model) => {
-    const known = fallback.find((entry) => entry.id === model.id)
-    return { id: model.id, label: model.label, role: known?.role ?? 'coding' }
-  })
+function mergeModels(vendorModels: CatalogModel[], snapshot: ModelEntry[]): ModelEntry[] {
+  const merged = snapshot.map((entry) => ({ ...entry }))
+  for (const vendorModel of vendorModels) {
+    const known = merged.find((entry) => entry.id === vendorModel.id)
+    if (known) {
+      known.label = vendorModel.label
+    } else {
+      merged.push({ id: vendorModel.id, label: vendorModel.label, role: 'coding' })
+    }
+  }
+  return merged
 }
 
-/** Merges a `provider_catalog_refresh` result into the overlay. Providers absent from `result` (per-provider failure) are left untouched. */
+/**
+ * Merges a `provider_catalog_refresh` result into the overlay, one provider at a time. Providers
+ * absent from `result` (per-provider failure) — or the whole call failing before this is even
+ * called — are left untouched, so `getModelCatalog` keeps serving the last-known-good overlay or
+ * the Task 1 snapshot for them.
+ */
 export function applyCatalogRefresh(result: CatalogRefreshResult): void {
   for (const providerId of Object.keys(result) as ProviderId[]) {
     const models = result[providerId]
     if (models && models.length > 0) {
-      overlay = { ...overlay, [providerId]: toModelEntries(models, MODEL_CATALOG[providerId]) }
+      overlay = { ...overlay, [providerId]: mergeModels(models, MODEL_CATALOG[providerId]) }
     }
   }
 }

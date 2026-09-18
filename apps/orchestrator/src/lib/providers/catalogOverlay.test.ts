@@ -34,9 +34,31 @@ describe('catalogOverlay', () => {
     expect(hasCatalogOverlay()).toBe(true)
     expect(MODEL_CATALOG.openai).toEqual(before)
 
+    // Merge, not replace: both snapshot entries (gpt-5-mini router, gpt-5 coding) survive, plus
+    // the brand-new gpt-6-preview id.
     const overlaid = getModelCatalog('openai')
-    expect(overlaid).toHaveLength(2)
+    expect(overlaid).toHaveLength(3)
     expect(overlaid.find((m) => m.id === 'gpt-6-preview')?.label).toBe('GPT-6 preview')
+    expect(overlaid.find((m) => m.id === 'gpt-5')?.label).toBe('GPT-5 (refreshed)')
+  })
+
+  it('merges vendor models into the snapshot instead of replacing it, keeping the router pin when the vendor list omits it', () => {
+    const staticRouterId = MODEL_CATALOG.openai.find((m) => m.role === 'router')?.id as string
+
+    // Simulates OpenAI's /v1/models response: no router id at all, plus unrelated non-chat
+    // models (embeddings/tts) that a naive "replace" would have promoted to 'coding' router-less.
+    applyCatalogRefresh({
+      openai: [
+        { id: 'text-embedding-3-small', label: 'text-embedding-3-small' },
+        { id: 'gpt-4o-mini-tts', label: 'gpt-4o-mini-tts' },
+      ],
+    })
+
+    const merged = getModelCatalog('openai')
+    expect(merged.find((m) => m.id === staticRouterId)).toBeTruthy()
+    expect(pickEffectiveRouterModel('openai')).toBe(staticRouterId)
+    expect(merged.find((m) => m.id === 'text-embedding-3-small')?.role).toBe('coding')
+    expect(merged.find((m) => m.id === 'gpt-4o-mini-tts')?.role).toBe('coding')
   })
 
   it('preserves the known role for an id that already existed in the fallback', () => {
@@ -120,13 +142,14 @@ describe('pickEffectiveRouterModel', () => {
     )
   })
 
-  it('diverges from the static snapshot when the overlay drops the old router id entirely', () => {
+  it('keeps the snapshot router pin even when the vendor response omits the router id entirely', () => {
     const staticRouterId = MODEL_CATALOG.google.find((m) => m.role === 'router')?.id as string
 
-    // Refresh returns only a brand-new id (defaults to 'coding'); the old router id is gone.
+    // Refresh returns only a brand-new id (defaults to 'coding'); the merge must not drop the
+    // snapshot's router entry — a pure "replace" would have picked 'gemini-3-preview' here.
     applyCatalogRefresh({ google: [{ id: 'gemini-3-preview', label: 'Gemini 3 preview' }] })
 
-    expect(pickEffectiveRouterModel('google')).not.toBe(staticRouterId)
-    expect(pickEffectiveRouterModel('google')).toBe('gemini-3-preview')
+    expect(pickEffectiveRouterModel('google')).toBe(staticRouterId)
+    expect(getModelCatalog('google').find((m) => m.id === 'gemini-3-preview')?.role).toBe('coding')
   })
 })

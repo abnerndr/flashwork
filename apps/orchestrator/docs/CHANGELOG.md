@@ -37,16 +37,15 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 ### Added
 
 - **Preferences → Providers:** paste Anthropic, OpenAI, and Gemini API keys into the OS keyring
-  (never `projects.json` or git). Each provider has an optional **use with CLI** toggle; **Refresh
-  model list** pulls the latest catalog from each vendor's official HTTPS endpoint and keeps the
-  current snapshot when a refresh fails. Replaces the OmniRoute key path removed in P09 — no
-  OpenRouter or third-party gateway.
-- The "use API key with CLI" preference toggle now takes effect: when enabled, Flashwork reads the
-  matching stored API key from the OS keyring at spawn time and sets it as an environment variable
-  for the coding-agent CLI (Anthropic → `ANTHROPIC_API_KEY` for Claude Code; OpenAI →
-  `OPENAI_API_KEY` for Codex; Google → `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Gemini CLI and
-  Antigravity). The key never travels through the frontend — only a provider id crosses the IPC
-  boundary, and the toggle being on with nothing stored still spawns normally.
+  (never `projects.json` or git). Each provider has an optional **use with CLI** toggle — when
+  enabled, Flashwork reads the matching stored key from the keyring at spawn time and sets it as an
+  environment variable for the coding-agent CLI (Anthropic → `ANTHROPIC_API_KEY` for Claude Code;
+  OpenAI → `OPENAI_API_KEY` for Codex; Google → `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Gemini CLI
+  and Antigravity), with the key never traveling through the frontend and the toggle being on with
+  nothing stored still spawning normally. **Refresh model list** pulls the latest catalog from each
+  vendor's official HTTPS endpoint, merges it into the current snapshot, and keeps that snapshot
+  untouched when a refresh fails. Replaces the OmniRoute key path removed in P09 — no OpenRouter or
+  third-party gateway.
 - Home quick launch gained **Auto**: Flashwork picks an installed coding CLI for the prompt, starts it in the selected existing project, and can hand off between Claude Code and Codex when quota or a rate-limit error hits. A project bar shows the active agent and a timeline; you can review the handoff capsule without blocking the switch. Auto never creates a project.
 - Claude Code and Codex conversations can now be continued in the other agent from the terminal
   toolbar or Recent chats. Flashwork builds an editable, locally redacted context packet, opens the

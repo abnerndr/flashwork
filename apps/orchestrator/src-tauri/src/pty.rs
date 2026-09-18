@@ -243,6 +243,13 @@ pub async fn spawn_pty(
 
     // canvas) — nunca polui o ambiente global nem outros terminais.
     env: Option<std::collections::HashMap<String, String>>,
+
+    // `use_provider_key`/`provider`: opt-in flag from the "use API key with
+    // CLI" preference toggle (ADR 010). Never carries the secret itself —
+    // only which keyring entry to read. Reading happens here, at spawn time,
+    // never returning the value to the WebView.
+    use_provider_key: Option<bool>,
+    provider: Option<String>,
 ) -> Result<SpawnPtyResponse, String> {
     // OUTRO comando IPC (spawn de outro terminal, poll do GSD Sync, leitura de
 
@@ -310,6 +317,17 @@ pub async fn spawn_pty(
         if let Some(extra_env) = env.as_ref() {
             for (key, value) in extra_env {
                 command.env(key, value);
+            }
+        }
+        // Keyring-backed provider env (ADR 010) is applied last so it wins
+        // over any same-named key already in `env`. Never logged — see
+        // `provider_cli_env`'s doc comment and the spawn log line below,
+        // which only prints keys/counts, never values.
+        if use_provider_key == Some(true) {
+            if let Some(provider_id) = provider.as_deref() {
+                for (key, value) in crate::providers::provider_cli_env(provider_id) {
+                    command.env(key, value);
+                }
             }
         }
         let resolve_ms = resolve_started.elapsed().as_millis();
@@ -753,6 +771,8 @@ pub async fn restart_pty(
     extra_args: Option<Vec<String>>,
     launcher_override: Option<String>,
     env: Option<HashMap<String, String>>,
+    use_provider_key: Option<bool>,
+    provider: Option<String>,
 ) -> Result<SpawnPtyResponse, String> {
     // apagar o scrollback antigo rodava direto no corpo async, fora de
 
@@ -795,6 +815,8 @@ pub async fn restart_pty(
         extra_args,
         launcher_override,
         env,
+        use_provider_key,
+        provider,
     )
     .await
 }

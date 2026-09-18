@@ -13,13 +13,13 @@ import {
   TerminalSquare,
   Trash2,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { type ReactNode,useMemo, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
+import { useT } from '../../lib/i18n'
+import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { resolveClaudeResumeId } from '../../lib/sessionResume'
-import { useT } from '../../lib/i18n'
-import { agentCliCommand, type SubTab, type Terminal } from '../../lib/types'
 import {
   getPtyCwd,
   openInBrowser,
@@ -27,6 +27,7 @@ import {
   openInVscode,
   restartPty,
 } from '../../lib/tauri'
+import { agentCliCommand, type SubTab, type Terminal } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -146,6 +147,7 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
         cwd: activeTab.cwd || undefined,
         extraArgs: launch.args,
         env: preparedRuntime.env,
+        ...providerSpawnFlags(activeTab.type, useProjectsStore.getState().preferences),
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: activeTab.ptyId } }),

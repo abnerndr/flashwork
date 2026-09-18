@@ -12,6 +12,10 @@ export type SpawnPtyArgs = {
   launcherOverride?: string
                                                                 
   env?: Record<string, string>
+  /** Set together via `providerSpawnFlags` (ADR 010). Never carries the
+   * secret — Rust reads the OS keyring for `provider` at spawn time. */
+  useProviderKey?: boolean
+  provider?: string
 }
 
 export async function spawnPty(args: SpawnPtyArgs): Promise<{ id: string }> {
@@ -24,6 +28,8 @@ export async function spawnPty(args: SpawnPtyArgs): Promise<{ id: string }> {
     extraArgs: args.extraArgs,
     launcherOverride: args.launcherOverride,
     env: args.env,
+    useProviderKey: args.useProviderKey,
+    provider: args.provider,
   })
 }
 
@@ -91,6 +97,8 @@ export async function restartPty(args: SpawnPtyArgs & { id: string }): Promise<{
     extraArgs: args.extraArgs,
     launcherOverride: args.launcherOverride,
     env: args.env,
+    useProviderKey: args.useProviderKey,
+    provider: args.provider,
   })
 }
 

@@ -9,7 +9,10 @@
                                                               
    
 
+import { useProjectsStore } from '../stores/projectsStore'
+import { useTerminalsStore } from '../stores/terminalsStore'
 import { preparePtyRuntimeLaunch } from './agentRuntimeAdapter'
+import { providerSpawnFlags } from './providers/envForCli'
 import { getActiveSessions, saveSession } from './sessionResume'
 import { acquireSpawnSlot, releaseSpawnSlot } from './spawnQueue'
 import {
@@ -21,8 +24,6 @@ import {
   snapshotOpenCodeSessions,
 } from './tauri'
 import type { AgentRuntimeProfile, AgentType } from './types'
-import { useProjectsStore } from '../stores/projectsStore'
-import { useTerminalsStore } from '../stores/terminalsStore'
 
 const RESUMABLE: AgentType[] = ['claude', 'codex', 'opencode', 'antigravity']
 
@@ -227,6 +228,7 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
         cwd: cwd || undefined,
         extraArgs: preparedRuntime.args,
         env: preparedRuntime.env,
+        ...providerSpawnFlags(target.agent, useProjectsStore.getState().preferences),
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: target.ptyId } }),

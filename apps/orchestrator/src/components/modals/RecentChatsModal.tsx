@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { intlLocale, type Locale, type TFunction,useT } from '../../lib/i18n'
+import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import {
   type ClaudeSessionMeta,
@@ -184,6 +185,7 @@ export function RecentChatsModal() {
         cwd: tab.cwd || cwd || undefined,
         extraArgs: launch.args,
         env: preparedRuntime.env,
+        ...providerSpawnFlags(agent, useProjectsStore.getState().preferences),
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: tab.ptyId } }),

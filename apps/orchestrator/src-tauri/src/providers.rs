@@ -10,12 +10,25 @@
 //! without touching a live OS Secret Service / Keychain.
 
 use keyring::Entry;
+use std::collections::HashMap;
 
 /// v1 provider ids. Keep in sync with `ProviderId` in
 /// `src/lib/providers/modelCatalog.ts`.
 const PROVIDER_IDS: [&str; 3] = ["anthropic", "openai", "google"];
 
 const KEYRING_USERNAME: &str = "api-key";
+
+/// Locked mapping (ADR 010): provider id -> CLI env var name(s) it feeds.
+/// Keep in sync with `PROVIDER_CLI_ENV` in
+/// `src/lib/providers/envForCli.ts`.
+fn cli_env_names(id: &str) -> &'static [&'static str] {
+    match id {
+        "anthropic" => &["ANTHROPIC_API_KEY"],
+        "openai" => &["OPENAI_API_KEY"],
+        "google" => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+        _ => &[],
+    }
+}
 
 fn is_known_provider(id: &str) -> bool {
     PROVIDER_IDS.contains(&id)
@@ -84,6 +97,44 @@ pub fn provider_key_clear(id: String) -> Result<(), String> {
     }
 }
 
+/// Pure builder: given a provider id and an already-read secret, returns the
+/// env var map for that provider (ADR 010's `PROVIDER_CLI_ENV`), or empty for
+/// an unknown id or blank secret. Kept separate from keyring I/O so the
+/// key-name mapping is testable with a fake secret, without a live OS Secret
+/// Service / Keychain.
+fn build_cli_env(id: &str, secret: &str) -> HashMap<String, String> {
+    let mut env = HashMap::new();
+    let secret = secret.trim();
+    if secret.is_empty() {
+        return env;
+    }
+    for name in cli_env_names(id) {
+        env.insert(name.to_string(), secret.to_string());
+    }
+    env
+}
+
+/// Reads the keyring for `id` and returns the env vars a matching CLI spawn
+/// should get, or an empty map if the id is unknown or nothing is stored yet.
+/// Never logs the secret — callers must not print this map's values either
+/// (see `pty.rs` spawn logging).
+///
+/// Used at spawn time when the frontend sends `{ useProviderKey: true,
+/// provider: <id> }`; the toggle being on with no stored key is not an
+/// error — the spawn proceeds and injects nothing.
+pub(crate) fn provider_cli_env(id: &str) -> HashMap<String, String> {
+    if cli_env_names(id).is_empty() {
+        return HashMap::new();
+    }
+    let Ok(entry) = open_entry(id) else {
+        return HashMap::new();
+    };
+    let Ok(secret) = entry.get_password() else {
+        return HashMap::new();
+    };
+    build_cli_env(id, &secret)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,5 +175,51 @@ mod tests {
         assert_eq!(keyring_service("anthropic"), "flashwork.provider.anthropic");
         assert_eq!(keyring_service("openai"), "flashwork.provider.openai");
         assert_eq!(keyring_service("google"), "flashwork.provider.google");
+    }
+
+    #[test]
+    fn cli_env_names_match_the_locked_provider_cli_env_mapping() {
+        assert_eq!(cli_env_names("anthropic"), &["ANTHROPIC_API_KEY"]);
+        assert_eq!(cli_env_names("openai"), &["OPENAI_API_KEY"]);
+        assert_eq!(cli_env_names("google"), &["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
+    }
+
+    #[test]
+    fn cli_env_names_are_empty_for_unknown_providers() {
+        assert!(cli_env_names("mistral").is_empty());
+        assert!(cli_env_names("").is_empty());
+    }
+
+    #[test]
+    fn provider_cli_env_is_empty_for_unknown_provider_id_without_touching_keyring() {
+        // Unknown ids short-circuit on `cli_env_names` before any keyring I/O,
+        // so this is safe to run without a live OS Secret Service / Keychain.
+        assert!(provider_cli_env("mistral").is_empty());
+        assert!(provider_cli_env("").is_empty());
+    }
+
+    #[test]
+    fn build_cli_env_maps_a_fake_secret_onto_the_right_env_names() {
+        let fake_secret = "sk-fake-test-secret";
+
+        let anthropic_env = build_cli_env("anthropic", fake_secret);
+        assert_eq!(anthropic_env.len(), 1);
+        assert_eq!(anthropic_env.get("ANTHROPIC_API_KEY"), Some(&fake_secret.to_string()));
+
+        let openai_env = build_cli_env("openai", fake_secret);
+        assert_eq!(openai_env.len(), 1);
+        assert_eq!(openai_env.get("OPENAI_API_KEY"), Some(&fake_secret.to_string()));
+
+        let google_env = build_cli_env("google", fake_secret);
+        assert_eq!(google_env.len(), 2);
+        assert_eq!(google_env.get("GEMINI_API_KEY"), Some(&fake_secret.to_string()));
+        assert_eq!(google_env.get("GOOGLE_API_KEY"), Some(&fake_secret.to_string()));
+    }
+
+    #[test]
+    fn build_cli_env_is_empty_for_blank_secret_or_unknown_provider() {
+        assert!(build_cli_env("anthropic", "").is_empty());
+        assert!(build_cli_env("anthropic", "   \t  ").is_empty());
+        assert!(build_cli_env("mistral", "sk-fake-test-secret").is_empty());
     }
 }

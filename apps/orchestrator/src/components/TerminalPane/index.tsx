@@ -16,10 +16,11 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { buildGhosttyCommand } from '../../lib/ghosttyCommand'
 import { useT } from '../../lib/i18n'
-import { noteBoardTerminalComplete } from '../../lib/taskBoard/submitBoardTask'
 import { shouldUseNativeBackend } from '../../lib/platform'
+import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { getActiveSessions, resolveClaudeResumeId, savedConversationIdFor, saveSession } from '../../lib/sessionResume'
+import { noteBoardTerminalComplete } from '../../lib/taskBoard/submitBoardTask'
 import {
   completeAgentHandoff,
   getPtyCwd,
@@ -230,6 +231,7 @@ export const TerminalPane = memo(function TerminalPane({
         cwd: restartCwd || undefined,
         extraArgs: launch.args,
         env: preparedRuntime.env,
+        ...providerSpawnFlags(activeTab.type, useProjectsStore.getState().preferences),
       })
       if (launch.sessionId) {
         saveSession(activeTab.id, {

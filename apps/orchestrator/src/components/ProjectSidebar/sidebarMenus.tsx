@@ -16,6 +16,7 @@ import {
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { useT } from '../../lib/i18n'
+import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { resolveClaudeResumeId } from '../../lib/sessionResume'
 import { getPtyCwd, openInFileExplorer, openInVscode, restartPty } from '../../lib/tauri'
@@ -404,6 +405,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
         cwd: activeTab.cwd || undefined,
         extraArgs: launch.args,
         env: runtime.env,
+        ...providerSpawnFlags(activeTab.type, useProjectsStore.getState().preferences),
       })
       window.dispatchEvent(
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: activeTab.ptyId } }),

@@ -12,6 +12,12 @@ import { AgentCompletionMonitor, isCompletionMonitoredAgent } from '../../lib/ag
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { getLocale, translate } from '../../lib/i18n'
 import { isWindows } from '../../lib/platform'
+import {
+  findRunIdByCanonicalSession,
+  releaseClaudeWriter,
+  tryAcquireClaudeWriter,
+} from '../../lib/promptRun/claudeWriterLock'
+import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { usePtyPanelVisible } from '../../lib/ptyVisibility'
 import {
   claimDiscoveredSession,
@@ -20,12 +26,6 @@ import {
   registerSessionClaim,
 } from '../../lib/sessionDiscovery'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
-import {
-  findRunIdByCanonicalSession,
-  releaseClaudeWriter,
-  tryAcquireClaudeWriter,
-} from '../../lib/promptRun/claudeWriterLock'
-import { usePromptRunStore } from '../../stores/promptRunStore'
 import {
   peekSession,
   pickUsableSessionId,
@@ -73,8 +73,10 @@ import {
   type Theme,
 } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
+import { usePromptRunStore } from '../../stores/promptRunStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
 import { useUiStore } from '../../stores/uiStore'
+import { shouldFlushInitialPtyInput, shouldSendInitialPtyInput } from './cliReadyForInput'
 import {
   formatDroppedPaths,
   getTerminalScrollbackRows,
@@ -88,10 +90,9 @@ import {
   getLogicalTerminalLine,
   makeXtermLink,
 } from './terminalLinks'
-import { shouldFlushInitialPtyInput, shouldSendInitialPtyInput } from './cliReadyForInput'
 import {
-  TERMINAL_WRITE_FRAME_BUDGET,
   flattenInitialPtyInput,
+  TERMINAL_WRITE_FRAME_BUDGET,
   writePtyChunked,
   writePtyWithTimeout,
 } from './terminalWrite'
@@ -1151,6 +1152,9 @@ export function useXtermSession(params: {
             extraArgs: spawnArgs,
             launcherOverride,
             env: preparedRuntime.env,
+            ...(command
+              ? providerSpawnFlags(command, useProjectsStore.getState().preferences)
+              : {}),
           })
         } finally {
           releaseSpawnSlot()

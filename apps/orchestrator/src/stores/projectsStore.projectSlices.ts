@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid'
 
 import { preparePtyRuntimeLaunch } from '../lib/agentRuntimeAdapter'
 import { getLocale, translate } from '../lib/i18n'
+import { providerSpawnFlags } from '../lib/providers/envForCli'
 import { buildAgentLaunch } from '../lib/sessionLaunch'
 import {
   clearTerminalPtyIds,
@@ -596,6 +597,7 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
                   cwd: info.path,
                   extraArgs: launch.args,
                   env: runtime.env,
+                  ...providerSpawnFlags(tab.type, get().preferences),
                 })
                 window.dispatchEvent(
                   new CustomEvent('flashwork:terminal-resize-request', {

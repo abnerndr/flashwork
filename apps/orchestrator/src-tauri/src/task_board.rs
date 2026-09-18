@@ -153,6 +153,11 @@ fn attachment_destination_path(
     Ok(destination)
 }
 
+fn stored_attachment_file_name(attachment_id: &str, source_path: &Path) -> Result<String, String> {
+    let safe_file_name = sanitize_attachment_file_name(source_path)?;
+    Ok(format!("{attachment_id}-{safe_file_name}"))
+}
+
 fn task_attach_markdown_inner(
     attachments_root: PathBuf,
     card_id: String,
@@ -162,8 +167,10 @@ fn task_attach_markdown_inner(
     if !is_handoff_path(&source_path) {
         return Err("only .md, .markdown, and .mdx files can be attached".to_string());
     }
-    let file_name = sanitize_attachment_file_name(&source_path)?;
-    let destination = attachment_destination_path(&attachments_root, &card_id, &file_name)?;
+    let attachment_id = nanoid::nanoid!();
+    let stored_file_name = stored_attachment_file_name(&attachment_id, &source_path)?;
+    let destination =
+        attachment_destination_path(&attachments_root, &card_id, &stored_file_name)?;
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
@@ -171,7 +178,7 @@ fn task_attach_markdown_inner(
     let body = fs::read_to_string(&destination).unwrap_or_default();
     let title = attachment_title(&body, &source_path);
     Ok(TaskAttachment {
-        id: nanoid::nanoid!(),
+        id: attachment_id,
         source_path: source_path.to_string_lossy().to_string(),
         stored_path: destination.to_string_lossy().to_string(),
         kind: "handoff".to_string(),
@@ -417,6 +424,11 @@ mod tests {
         let stored_path = PathBuf::from(&attachment.stored_path);
         assert!(stored_path.starts_with(&root));
         assert!(stored_path.exists());
+        let expected_file_name = format!("{}-handoff.md", attachment.id);
+        assert_eq!(
+            stored_path.file_name().and_then(|name| name.to_str()),
+            Some(expected_file_name.as_str())
+        );
         assert_eq!(
             fs::read_to_string(&stored_path).unwrap(),
             "# Login handoff\n\nDo the thing"
@@ -440,6 +452,44 @@ mod tests {
             task_attach_markdown_inner(root.clone(), "draft_card".to_string(), source_path)
                 .expect("copy should succeed without a saved card");
         assert_eq!(attachment.title, "draft");
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&source_dir);
+    }
+
+    #[test]
+    fn task_attach_markdown_inner_unique_paths_for_same_basename() {
+        let root = unique_temp_dir("duplicate-basename");
+        let source_dir = unique_temp_dir("duplicate-basename-source");
+        fs::create_dir_all(&source_dir).unwrap();
+
+        let source_a = source_dir.join("handoff.md");
+        fs::write(&source_a, "# First\n").unwrap();
+
+        let nested = source_dir.join("nested");
+        fs::create_dir_all(&nested).unwrap();
+        let source_b = nested.join("handoff.md");
+        fs::write(&source_b, "# Second\n").unwrap();
+
+        let attachment_a =
+            task_attach_markdown_inner(root.clone(), "card_1".to_string(), source_a)
+                .expect("first copy should succeed");
+        let attachment_b =
+            task_attach_markdown_inner(root.clone(), "card_1".to_string(), source_b)
+                .expect("second copy should succeed");
+
+        assert_ne!(attachment_a.id, attachment_b.id);
+        assert_ne!(attachment_a.stored_path, attachment_b.stored_path);
+        assert!(PathBuf::from(&attachment_a.stored_path).exists());
+        assert!(PathBuf::from(&attachment_b.stored_path).exists());
+        assert_eq!(
+            fs::read_to_string(&attachment_a.stored_path).unwrap(),
+            "# First\n"
+        );
+        assert_eq!(
+            fs::read_to_string(&attachment_b.stored_path).unwrap(),
+            "# Second\n"
+        );
 
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&source_dir);

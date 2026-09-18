@@ -34,11 +34,13 @@ pub fn task_board_file(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// Root directory for Task Board attachments (e.g. markdown handoffs), living
-/// next to `task-board.json` under the same profile parent. Layout:
-/// `{parent_of_task_board_json}/attachments/{cardId}/{safeFileName}`.
+/// under the same profile parent as `task-board.json`. Layout:
+/// `{profile}/task-board/attachments/{cardId}/{attachmentId}-{safeFileName}`.
 /// TODO: migrate under `.flashwork/` once P04 ships.
 pub fn task_board_attachments_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(profile_data_dir(app)?.join("attachments"))
+    Ok(profile_data_dir(app)?
+        .join("task-board")
+        .join("attachments"))
 }
 
 pub fn scrollback_path(app: &AppHandle, id: &str) -> Result<PathBuf, String> {

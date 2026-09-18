@@ -36,6 +36,11 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- **Preferences → Providers:** paste Anthropic, OpenAI, and Gemini API keys into the OS keyring
+  (never `projects.json` or git). Each provider has an optional **use with CLI** toggle; **Refresh
+  model list** pulls the latest catalog from each vendor's official HTTPS endpoint and keeps the
+  current snapshot when a refresh fails. Replaces the OmniRoute key path removed in P09 — no
+  OpenRouter or third-party gateway.
 - The "use API key with CLI" preference toggle now takes effect: when enabled, Flashwork reads the
   matching stored API key from the OS keyring at spawn time and sets it as an environment variable
   for the coding-agent CLI (Anthropic → `ANTHROPIC_API_KEY` for Claude Code; OpenAI →

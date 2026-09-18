@@ -1,6 +1,6 @@
 # ADR 010 — First-party provider APIs
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: anthropic, openai, gemini, api-keys
 

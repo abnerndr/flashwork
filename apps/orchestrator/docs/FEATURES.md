@@ -54,6 +54,16 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
   - Codex: `--dangerously-bypass-approvals-and-sandbox`
   - OpenCode: `--dangerously-skip-permissions`
 
+## Providers
+
+- **Preferences → Providers** stores Anthropic, OpenAI, and Google Gemini API keys in the OS keyring
+  (`Keychain`, Windows Credential Manager, or Linux Secret Service) — never in `projects.json` or git.
+- Optional **use with CLI** toggles inject the matching env var when spawning Claude Code, Codex, or
+  Gemini CLI; the key is resolved in Rust at spawn time and never crosses the frontend IPC boundary.
+- **Refresh model list** updates a dated model catalog from each vendor's official HTTPS API; on
+  failure the previous snapshot is kept.
+- Direct HTTP to Anthropic, OpenAI, and Gemini only — no OpenRouter.com or other LLM gateway.
+
 ## Local Accounts
 
 - Multiple local accounts/profiles in one app installation.

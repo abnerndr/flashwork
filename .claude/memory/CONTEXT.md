@@ -18,6 +18,8 @@ Auto launch classifies a prompt (`classifyTask.ts`) and picks an agent (`selectA
 
 OmniRoute/9router **was removed** (P09 / ADR 009). Agents spawn with vendor CLIs only; Flashwork does not set `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL`. There is no OpenRouter.com integration in the tree.
 
+**P11 shipped (first-party provider APIs, ADR 010).** Preferences → Providers: Anthropic, OpenAI, and Gemini keys in the OS keyring; optional CLI env injection; model catalog snapshot + refresh. Backend `provider_chat` calls official vendor HTTPS endpoints only.
+
 CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Windows-first: native scripts, npm, WinGet, and Homebrew cover Windows, Linux, and macOS. Update uses the same method that installed when known, else npm `@latest`, else the native installer. P10 shipped.
 
 ## Token metrics (identity shipped; Gemini/OpenCode usage on Home)
@@ -27,7 +29,7 @@ CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Wind
 - Gemini sessions: `gemini_sessions.rs` snapshots `~/.gemini/tmp/*/chats/*.jsonl` (skips antigravity slugs). Resume includes Gemini.
 - Pricing table covers Claude families, GPT, and Gemini 2.5/2.0 flash + 2.5 pro.
 
-**P12 shipped.** Remaining API-path metering for Auto-without-CLI waits on P11.
+**P12 shipped.** P11 adds `provider_chat` for direct Anthropic/OpenAI/Gemini HTTP; API-path token metering for Auto-without-CLI still waits on later router work (P07 not shipped).
 
 ## Task Board (shipped, incomplete for the program)
 
@@ -113,5 +115,4 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 | 7 | No IDE editor behind the orchestrator |
 | 8 | Model/token/agent choice still leaks to the developer |
 | 9 | No N8N-like flow canvas (beta) |
-| 12 | No first-party Anthropic / OpenAI / Gemini API key path |
-| 13 | API-path token metering for Auto-without-CLI waits on P11 `provider_chat` |
+| 13 | API-path token metering for Auto-without-CLI — `provider_chat` exists (P11); metering waits on later router work |

@@ -380,6 +380,7 @@ pub fn run() {
             task_board::list_task_cards,
             task_board::delete_task_card,
             task_board::run_planner_cli,
+            task_board::task_attach_markdown,
             antigravity_sessions::snapshot_antigravity_sessions,
             gemini_sessions::snapshot_gemini_sessions,
             gemini_sessions::get_gemini_usage,

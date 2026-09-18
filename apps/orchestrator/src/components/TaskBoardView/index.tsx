@@ -215,7 +215,7 @@ export function TaskBoardView() {
     if (!project || !trimmedTitle || (!trimmedPrompt && attachments.length === 0)) return
     const finalPrompt =
       trimmedPrompt ||
-      t('taskBoard.attachOnlyPrompt', { title: attachments[0]?.title ?? trimmedTitle })
+      t('taskBoard.attachOnlyPrompt', { title: trimmedTitle })
     upsertCard(
       createTaskCardDraft({
         projectId: project.id,

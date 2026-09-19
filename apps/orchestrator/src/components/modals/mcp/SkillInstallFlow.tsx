@@ -113,7 +113,7 @@ export function SkillInstallFlow({ onClose, onDone }: Props) {
             <span>{t('skills.installFolder')}</span>
             <div className={styles.folderRow}>
               <button type="button" className={controls.btn} onClick={() => void chooseFolder()}>
-                <Folder size={13} />
+                <Folder size={16} />
                 {t('skills.pickFolder')}
               </button>
               {folder ? (

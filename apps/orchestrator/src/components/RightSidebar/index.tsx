@@ -91,7 +91,7 @@ export function RightSidebar() {
             onClick={setMode}
             title={t('todo.title')}
           >
-            <ListTodo size={14} />
+            <ListTodo size={16} />
             <span>{t('rightSidebar.todoTab')}</span>
           </button>
         ) : null}
@@ -103,7 +103,7 @@ export function RightSidebar() {
           onClick={openMarkdown}
           title={t('rightSidebar.markdownTab')}
         >
-          <FileText size={14} />
+          <FileText size={16} />
           <span>{t('rightSidebar.markdownTab')}</span>
         </button>
         {gitEnabled ? (
@@ -115,7 +115,7 @@ export function RightSidebar() {
             onClick={showGit}
             title={t('ui.sidebar.git')}
           >
-            <GitBranch size={14} />
+            <GitBranch size={16} />
             <span>{t('ui.sidebar.git')}</span>
           </button>
         ) : null}
@@ -128,7 +128,7 @@ export function RightSidebar() {
             onClick={showMcp}
             title={t('mcp.tab')}
           >
-            <Plug size={14} />
+            <Plug size={16} />
             <span>{t('mcp.tab')}</span>
           </button>
         ) : null}
@@ -141,7 +141,7 @@ export function RightSidebar() {
             title={t('todo.openSettings')}
             aria-label={t('todo.openSettings')}
           >
-            <Settings size={14} />
+            <Settings size={16} />
           </button>
         ) : null}
         {mode === 'mcp' && mcpEnabled ? (
@@ -152,7 +152,7 @@ export function RightSidebar() {
             title={t('mcp.expand')}
             aria-label={t('mcp.expand')}
           >
-            <Maximize2 size={14} />
+            <Maximize2 size={16} />
           </button>
         ) : null}
         <span className={styles.toolbarDivider} />
@@ -163,7 +163,7 @@ export function RightSidebar() {
           title={t('todo.closeSidebar')}
           aria-label={t('todo.closeSidebar')}
         >
-          <PanelRightClose size={14} />
+          <PanelRightClose size={16} />
         </button>
       </div>
       <div className={styles.tabContent}>
@@ -471,7 +471,7 @@ function MarkdownSidebarViewer() {
                   openMarkdownSidebar(tab.path, tab.title)
                 }}
               >
-                <FileText size={11} />
+                <FileText size={16} />
                 <span>{tab.title}</span>
               </button>
               {tab.closable ? (
@@ -482,7 +482,7 @@ function MarkdownSidebarViewer() {
                   title={t('rightSidebar.closeMarkdownTab')}
                   aria-label={t('rightSidebar.closeMarkdownTab')}
                 >
-                  <X size={10} />
+                  <X size={16} />
                 </button>
               ) : null}
             </div>

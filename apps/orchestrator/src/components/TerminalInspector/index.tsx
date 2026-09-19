@@ -198,41 +198,41 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
 
       <div className={styles.actionsGrid}>
         <InspectorAction
-          icon={isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          icon={isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           label={isFocusMode ? t('ui.terminal.exitFocusMode') : t('ui.terminal.focusMode')}
           onClick={() => setFocusedTerminal(isFocusMode ? null : terminal.id)}
         />
         <InspectorAction
-          icon={<TerminalSquare size={14} />}
+          icon={<TerminalSquare size={16} />}
           label={t('terminalInspector.reveal')}
           onClick={() => requestPaneFocus(terminal.id)}
         />
         {isTerminalPane ? (
           <>
             <InspectorAction
-              icon={<FolderOpen size={14} />}
+              icon={<FolderOpen size={16} />}
               label={t('ui.terminal.openInExplorer')}
               onClick={() => void openWithCwd(openInFileExplorer, 'Explorer')}
             />
             <InspectorAction
-              icon={<VSCodeIcon size={14} />}
+              icon={<VSCodeIcon size={16} />}
               label={t('ui.terminal.openInVscode')}
               onClick={() => void openWithCwd(openInVscode, 'VS Code')}
             />
             <InspectorAction
-              icon={<RefreshCw size={14} />}
+              icon={<RefreshCw size={16} />}
               label={t('ui.terminal.restart')}
               onClick={() => void onRestart()}
               disabled={!activeTab?.ptyId || terminal.disabled}
             />
             <InspectorAction
-              icon={terminal.disabled ? <Eye size={14} /> : <EyeOff size={14} />}
+              icon={terminal.disabled ? <Eye size={16} /> : <EyeOff size={16} />}
               label={terminal.disabled ? t('ui.sidebar.reactivate') : t('ui.terminal.disable')}
               onClick={() => setTerminalDisabled(projectId, terminal.id, !terminal.disabled)}
             />
             <InspectorAction
               icon={
-                effectiveLaneVisible ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />
+                effectiveLaneVisible ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />
               }
               label={
                 effectiveLaneVisible ? t('ui.terminal.hideTabsLane') : t('ui.terminal.showTabsLane')
@@ -244,13 +244,13 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
             />
             {isAgentWithHistory ? (
               <InspectorAction
-                icon={<History size={14} />}
+                icon={<History size={16} />}
                 label={t('ui.terminal.history')}
                 onClick={() => setHistoryOpen(true)}
               />
             ) : null}
             <InspectorAction
-              icon={<Power size={14} />}
+              icon={<Power size={16} />}
               label={t('ui.terminal.kill')}
               onClick={onKill}
               danger
@@ -260,13 +260,13 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
         {isFilePane ? (
           <>
             <InspectorAction
-              icon={<FolderOpen size={14} />}
+              icon={<FolderOpen size={16} />}
               label={t('ui.terminal.openInExplorer')}
               onClick={() => void openInFileExplorer(parentDir(terminal.filePath ?? ''))}
               disabled={!terminal.filePath}
             />
             <InspectorAction
-              icon={<Trash2 size={14} />}
+              icon={<Trash2 size={16} />}
               label={t('ui.markdown.close')}
               onClick={onDeletePane}
               danger
@@ -276,13 +276,13 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
         {isWebPane ? (
           <>
             <InspectorAction
-              icon={<ExternalLink size={14} />}
+              icon={<ExternalLink size={16} />}
               label={t('xterm.openInBrowser')}
               onClick={() => void openInBrowser(terminal.url ?? '')}
               disabled={!terminal.url}
             />
             <InspectorAction
-              icon={<Trash2 size={14} />}
+              icon={<Trash2 size={16} />}
               label={t('webPane.close')}
               onClick={onDeletePane}
               danger

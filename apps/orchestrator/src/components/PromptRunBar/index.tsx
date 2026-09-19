@@ -216,7 +216,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
         </>
       ) : (
         <form className={styles.composer} onSubmit={(event) => void submit(event)}>
-          <Route size={13} className={styles.composerIcon} aria-hidden="true" />
+          <Route size={16} className={styles.composerIcon} aria-hidden="true" />
           <input
             ref={promptRef}
             className={styles.composerInput}
@@ -232,7 +232,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
             title={t('promptRun.composerSend')}
             aria-label={t('promptRun.composerSend')}
           >
-            <Send size={12} />
+            <Send size={16} />
             {t('promptRun.composerSend')}
           </button>
         </form>

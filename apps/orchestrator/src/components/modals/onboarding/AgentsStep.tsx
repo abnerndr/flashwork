@@ -114,7 +114,7 @@ export function AgentsStep({
 
       <div className={styles.toolbar}>
         <div className={styles.field}>
-          <Search size={14} />
+          <Search size={16} />
           <input
             value={term}
             onChange={(event) => setTerm(event.target.value)}
@@ -172,7 +172,7 @@ export function AgentsStep({
                           if (selectable) onToggle(row.agent.id, !active)
                         }}
                       >
-                        {active ? <Check size={11} /> : null}
+                        {active ? <Check size={16} /> : null}
                       </span>
                     ) : null}
                   </td>

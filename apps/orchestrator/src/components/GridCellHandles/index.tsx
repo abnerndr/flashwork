@@ -64,7 +64,7 @@ export function GridCellHandles({
           title={t('ws.fillFreeSpace')}
           aria-label={t('ws.fillFreeSpace')}
         >
-          <Expand size={11} />
+          <Expand size={16} />
         </button>
       ) : null}
     </>

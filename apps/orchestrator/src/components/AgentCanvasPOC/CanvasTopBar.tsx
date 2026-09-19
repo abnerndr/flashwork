@@ -92,7 +92,7 @@ export function CanvasTopBar({
   return (
     <header className={styles.topBar}>
       <button type="button" className={styles.backButton} onClick={onBack}>
-        <ArrowLeft size={14} />
+        <ArrowLeft size={16} />
         {t('ws.back')}
       </button>
       <span className={styles.title}>{t('ws.agentCanvasPoc')}</span>
@@ -105,7 +105,7 @@ export function CanvasTopBar({
             disabled={zoom <= ZOOM_MIN}
             title={t('ws.zoomOut')}
           >
-            <ZoomOut size={14} />
+            <ZoomOut size={16} />
           </button>
           <span className={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
           <button
@@ -115,7 +115,7 @@ export function CanvasTopBar({
             disabled={zoom >= ZOOM_MAX}
             title={t('ws.zoomIn')}
           >
-            <ZoomIn size={14} />
+            <ZoomIn size={16} />
           </button>
           <button
             type="button"
@@ -123,7 +123,7 @@ export function CanvasTopBar({
             onClick={fitZoom}
             title={t('ws.zoomFit')}
           >
-            <Frame size={14} />
+            <Frame size={16} />
           </button>
         </div>
         {usage || codexUsage ? (
@@ -160,18 +160,18 @@ export function CanvasTopBar({
             className={styles.costPill}
             title={t('ws.sessionCostTitle', { tokens: fmtTokens(sessionTokens) })}
           >
-            <Coins size={12} />
+            <Coins size={16} />
             <span className={costClassFor(sessionCostUsd, styles)}>{fmtUsd(sessionCostUsd)}</span>
           </span>
         ) : null}
         {routingSavings > 0 ? (
           <span className={styles.savingsPill} title={t('ws.savingsTitle')}>
-            <PiggyBank size={12} />
+            <PiggyBank size={16} />
             {t('ws.savedRouting', { usd: fmtUsd(routingSavings) })}
           </span>
         ) : null}
         <label className={styles.budgetControl} title={t('ws.budgetTitle')}>
-          <Wallet size={12} />
+          <Wallet size={16} />
           <input
             type="number"
             min={0}
@@ -198,8 +198,8 @@ export function CanvasTopBar({
           onClick={onOpenCodexWorker}
           title={t('ws.openNewCodexTerminal')}
         >
-          <Plus size={13} />
-          <CodexIcon size={14} />
+          <Plus size={16} />
+          <CodexIcon size={16} />
         </button>
         <button
           type="button"
@@ -208,7 +208,7 @@ export function CanvasTopBar({
           disabled={clearDisabled}
           title={t('ws.clearCanvas')}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
         </button>
       </div>
     </header>

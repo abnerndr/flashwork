@@ -221,7 +221,7 @@ export function RecentChatsModal() {
               onClick={() => setAgent(option.type)}
               aria-pressed={agent === option.type}
             >
-              {option.type === 'claude' ? <ClaudeIcon size={12} /> : <CodexIcon size={12} />}
+              {option.type === 'claude' ? <ClaudeIcon size={16} /> : <CodexIcon size={16} />}
               {t(option.labelKey)}
             </button>
           ))}

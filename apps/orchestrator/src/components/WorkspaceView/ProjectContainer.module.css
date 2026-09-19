@@ -21,8 +21,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  flex: 0 0 32px;
+  height: var(--workbench-tab-height);
+  flex: 0 0 var(--workbench-tab-height);
   padding: 0 8px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
@@ -94,8 +94,10 @@
 }
 
 .tagBtn {
-  width: 16px;
-  height: 16px;
+  min-width: 28px;
+  min-height: 28px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   color: var(--fg-muted);

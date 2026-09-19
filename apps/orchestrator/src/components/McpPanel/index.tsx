@@ -143,7 +143,7 @@ export function McpPanel() {
           title={t('mcp.refresh')}
           aria-label={t('mcp.refresh')}
         >
-          <RefreshCw size={13} className={loading ? styles.spinning : undefined} />
+          <RefreshCw size={16} className={loading ? styles.spinning : undefined} />
         </button>
       </div>
 
@@ -156,7 +156,7 @@ export function McpPanel() {
             className={styles.cta}
             onClick={() => openModal('mcpManager', { tab: 'servers', add: true })}
           >
-            <Plus size={13} />
+            <Plus size={16} />
             {t('mcp.addMcpServer')}
           </button>
           <button
@@ -164,14 +164,14 @@ export function McpPanel() {
             className={styles.cta}
             onClick={() => openModal('mcpManager', { tab: 'skills', addSkill: true })}
           >
-            <Plus size={13} />
+            <Plus size={16} />
             {t('skills.install')}
           </button>
         </div>
       </div>
 
       <div className={styles.search}>
-        <Search size={13} />
+        <Search size={16} />
         <input
           value={term}
           onChange={(event) => setTerm(event.target.value)}
@@ -194,7 +194,7 @@ export function McpPanel() {
                 title={AGENT_TYPE_LABELS[agent]}
                 aria-label={AGENT_TYPE_LABELS[agent]}
               >
-                <AgentIcon type={agent} size={13} theme={theme} />
+                <AgentIcon type={agent} size={16} theme={theme} />
               </button>
             )
           })}
@@ -256,7 +256,7 @@ export function McpPanel() {
                     <span className={styles.agentIcons} title={group.agents.join(', ')}>
                       {group.agents.map((agent) => (
                         <i key={agent} className={styles.agentOn}>
-                          <AgentIcon type={agent as AgentType} size={13} theme={theme} />
+                          <AgentIcon type={agent as AgentType} size={16} theme={theme} />
                         </i>
                       ))}
                     </span>

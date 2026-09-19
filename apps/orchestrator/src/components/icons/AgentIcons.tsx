@@ -6,14 +6,15 @@ import { iconMap } from '../../assets/icons'
 import type { AgentType, Theme } from '../../lib/types'
 
 export function ShellIcon({ size = 16 }: { size?: number }) {
+  const edge = Math.max(size, 16)
   return (
     <svg
-      width={size}
-      height={size}
+      width={edge}
+      height={edge}
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.75"
     >
       <path d="M3 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8 11h5" strokeLinecap="round" />
@@ -21,27 +22,38 @@ export function ShellIcon({ size = 16 }: { size?: number }) {
   )
 }
 
+function brandImageProps(size: number) {
+  const edge = Math.max(size, 16)
+  return {
+    width: edge,
+    height: edge,
+    draggable: false as const,
+    style: { imageRendering: 'auto' as const, minWidth: 16, minHeight: 16 },
+  }
+}
+
 export function ClaudeIcon({ size = 16 }: { size?: number }) {
-  return <img src={claudeLogo} alt="" width={size} height={size} draggable={false} />
+  return <img src={claudeLogo} alt="" {...brandImageProps(size)} />
 }
 
 export function CodexIcon({ size = 16 }: { size?: number }) {
-  return <img src={codexLogo} alt="" width={size} height={size} draggable={false} />
+  return <img src={codexLogo} alt="" {...brandImageProps(size)} />
 }
 
 export function FreebuffIcon({ size = 16 }: { size?: number }) {
-  return <img src={freebuffLogo} alt="" width={size} height={size} draggable={false} />
+  return <img src={freebuffLogo} alt="" {...brandImageProps(size)} />
 }
 
 export function MimoIcon({ size = 16 }: { size?: number }) {
+  const edge = Math.max(size, 16)
   return (
     <svg
-      width={size}
-      height={size}
+      width={edge}
+      height={edge}
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.75"
     >
       <rect x="2" y="2" width="12" height="12" rx="3" />
       <path d="M5 11V6l3 3 3-3v5" strokeLinecap="round" strokeLinejoin="round" />
@@ -59,23 +71,15 @@ export function GeminiIcon({ size = 16 }: { size?: number }) {
 
 export function OpenCodeIcon({ size = 16, theme }: { size?: number; theme: Theme }) {
   const lightIcon = theme === 'light' || theme === 'min-light'
-  return (
-    <img
-      src={lightIcon ? iconMap.open : iconMap.openDark}
-      alt=""
-      width={size}
-      height={size}
-      draggable={false}
-    />
-  )
+  return <img src={lightIcon ? iconMap.open : iconMap.openDark} alt="" {...brandImageProps(size)} />
 }
 
-export function VSCodeIcon({ size = 14 }: { size?: number }) {
-  return <img src={iconMap.vscode} alt="" width={size} height={size} draggable={false} />
+export function VSCodeIcon({ size = 16 }: { size?: number }) {
+  return <img src={iconMap.vscode} alt="" {...brandImageProps(size)} />
 }
 
 export function AntigravityIcon({ size = 16 }: { size?: number }) {
-  return <img src={antigravityLogo} alt="" width={size} height={size} draggable={false} />
+  return <img src={antigravityLogo} alt="" {...brandImageProps(size)} />
 }
 
 // GitHub Copilot mark from primer/octicons (MIT).

@@ -382,7 +382,7 @@ export function NewProjectModal() {
               cursor: 'pointer',
             }}
           >
-            <Palette size={13} />
+            <Palette size={16} />
           </button>
         </div>
       </div>

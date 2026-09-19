@@ -16,6 +16,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-sans);
+  font-feature-settings: 'ss01' 0;
   color: var(--fg);
   background: var(--bg);
   overflow: hidden;

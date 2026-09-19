@@ -177,9 +177,9 @@ export function SyncModal() {
                   onClick={onPush}
                 >
                   {busy === 'push' ? (
-                    <Loader2 size={14} className={styles.spin} />
+                    <Loader2 size={16} className={styles.spin} />
                   ) : (
-                    <Upload size={14} />
+                    <Upload size={16} />
                   )}
                   {busy === 'push' ? t('sync.github.pushing') : t('sync.github.push')}
                 </button>
@@ -190,9 +190,9 @@ export function SyncModal() {
                   onClick={() => setConfirmPull(true)}
                 >
                   {busy === 'pull' ? (
-                    <Loader2 size={14} className={styles.spin} />
+                    <Loader2 size={16} className={styles.spin} />
                   ) : (
-                    <Download size={14} />
+                    <Download size={16} />
                   )}
                   {busy === 'pull' ? t('sync.github.pulling') : t('sync.github.pull')}
                 </button>
@@ -237,7 +237,7 @@ export function SyncModal() {
                   disabled={busy !== null}
                   onClick={onLogout}
                 >
-                  <LogOut size={12} />
+                  <LogOut size={16} />
                   {t('sync.github.disconnect')}
                 </button>
               </div>
@@ -262,7 +262,7 @@ export function SyncModal() {
                 disabled={busy !== null || !token.trim()}
                 onClick={onConnect}
               >
-                {busy === 'connect' ? <Loader2 size={14} className={styles.spin} /> : null}
+                {busy === 'connect' ? <Loader2 size={16} className={styles.spin} /> : null}
                 {busy === 'connect' ? t('sync.github.connecting') : t('sync.github.connect')}
               </button>
               <p className={styles.hint}>

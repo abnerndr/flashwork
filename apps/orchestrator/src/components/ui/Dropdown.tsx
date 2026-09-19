@@ -117,7 +117,7 @@ export function Dropdown({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <span className={styles.triggerLabel}>{selectedLabel}</span>
-        <ChevronDown className={styles.chevron} size={14} aria-hidden="true" />
+        <ChevronDown className={styles.chevron} size={16} aria-hidden="true" />
       </button>
       {open && !disabled
         ? createPortal(

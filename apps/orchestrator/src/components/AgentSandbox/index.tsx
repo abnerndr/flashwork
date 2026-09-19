@@ -224,16 +224,16 @@ export function AgentSandbox() {
         </div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.secondaryButton} onClick={() => setActiveView('workspace')}>
-            <X size={14} /> {t('sandbox.close')}
+            <X size={16} /> {t('sandbox.close')}
           </button>
           <button type="button" className={styles.secondaryButton} onClick={() => groupNodes(selectedNodeIds)} disabled={selectedNodeIds.length < 2}>
-            <Plus size={14} /> {t('sandbox.groupSelected')}
+            <Plus size={16} /> {t('sandbox.groupSelected')}
           </button>
           <button type="button" className={styles.secondaryButton} onClick={toggleFocus} disabled={!active}>
-            <Focus size={14} /> {focused ? t('sandbox.exitFocus') : t('sandbox.focus')}
+            <Focus size={16} /> {focused ? t('sandbox.exitFocus') : t('sandbox.focus')}
           </button>
           <button type="button" className={styles.primaryButton} onClick={start} disabled={!project || runningDemo}>
-            <Play size={14} /> {active ? t('sandbox.restart') : t('sandbox.start')}
+            <Play size={16} /> {active ? t('sandbox.restart') : t('sandbox.start')}
           </button>
         </div>
       </header>
@@ -246,7 +246,7 @@ export function AgentSandbox() {
             <strong>{t('sandbox.emptyTitle')}</strong>
             <span>{project ? t('sandbox.emptyBody') : t('sandbox.noProject')}</span>
             <button type="button" className={styles.primaryButton} onClick={start} disabled={!project}>
-              <Play size={14} /> {t('sandbox.startDemo')}
+              <Play size={16} /> {t('sandbox.startDemo')}
             </button>
           </div>
         ) : (
@@ -272,7 +272,7 @@ export function AgentSandbox() {
                 }}
               >
                 <div className={styles.nodeHeader}>
-                  <Terminal size={13} className={styles.terminalIcon} />
+                  <Terminal size={16} className={styles.terminalIcon} />
                   <span className={styles.statusDot} style={{ background: node.color }} />
                   <strong>{node.label}</strong>
                   <span className={styles.nodeRole}>{node.role}</span>
@@ -314,7 +314,7 @@ export function AgentSandbox() {
                     setResize({ id: node.id, width: node.width, height: node.height, x: event.clientX, y: event.clientY })
                   }}
                 >
-                  <Maximize2 size={11} />
+                  <Maximize2 size={16} />
                 </button>
               </article>
             ))}
@@ -348,13 +348,13 @@ export function AgentSandbox() {
           disabled={!active || !to || from === to}
         />
         <button type="button" className={styles.iconButton} onClick={send} disabled={!active || !to || from === to || !text.trim()} title={t('sandbox.send')}>
-          <Send size={14} />
+          <Send size={16} />
         </button>
         <button type="button" className={styles.iconButton} onClick={() => void startDemo(project?.defaultCwd ?? '')} disabled={!project} title={t('sandbox.reset')}>
-          <RotateCcw size={14} />
+          <RotateCcw size={16} />
         </button>
         <button type="button" className={`${styles.iconButton} ${styles.dangerButton}`} onClick={stop} disabled={!active} title={t('sandbox.stop')}>
-          <Square size={13} />
+          <Square size={16} />
         </button>
       </footer>
     </section>

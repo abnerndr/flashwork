@@ -112,7 +112,7 @@ export function TimeAnalytics() {
             title={t('time.refresh')}
             aria-label={t('time.refresh')}
           >
-            <RefreshCw size={12} className={loading ? styles.iconBtnSpin : undefined} />
+            <RefreshCw size={16} className={loading ? styles.iconBtnSpin : undefined} />
           </button>
         </div>
       </div>
@@ -151,7 +151,7 @@ export function TimeAnalytics() {
               agentRows.map(([agent, value]) => (
                 <div className={styles.timeRow} key={agent}>
                   <span className={styles.timeRowName}>
-                    <AgentIcon type={agent as AgentType} size={13} theme={theme} />
+                    <AgentIcon type={agent as AgentType} size={16} theme={theme} />
                     {agent}
                   </span>
                   <span>{duration(value.workingMs)}</span>

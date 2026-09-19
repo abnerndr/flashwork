@@ -105,7 +105,7 @@ export function ImageInput({
           title={t('image.pickLocal')}
           aria-label={t('image.pickLocal')}
         >
-          <Upload size={14} />
+          <Upload size={16} />
         </button>
         {value ? (
           <button
@@ -115,7 +115,7 @@ export function ImageInput({
             title={t('image.remove')}
             aria-label={t('image.remove')}
           >
-            <X size={14} />
+            <X size={16} />
           </button>
         ) : null}
       </div>

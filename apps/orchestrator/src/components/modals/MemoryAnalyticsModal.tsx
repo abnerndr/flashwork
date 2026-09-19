@@ -321,7 +321,7 @@ export function MemoryAnalyticsModal() {
           onClick={clearMemoryHistory}
           disabled={history.length === 0}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
           {t('mod.clearHistory')}
         </button>
       }
@@ -352,7 +352,7 @@ export function MemoryAnalyticsModal() {
                 className={controls.btn}
                 onClick={() => void openLogsFolder().catch(() => {})}
               >
-                <FolderOpen size={14} />
+                <FolderOpen size={16} />
                 {t('mod.openLogs')}
               </button>
             </div>

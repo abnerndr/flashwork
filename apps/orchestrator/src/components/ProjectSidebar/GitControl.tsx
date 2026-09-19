@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { UiIcon } from '../ui/UiIcon'
+
 import { readableError } from '../../lib/errors'
 import { type MessageKey,useT } from '../../lib/i18n'
 import {
@@ -215,7 +217,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
                 disabled={busy}
                 onClick={() => void handleInitGit()}
               >
-                <GitBranch size={13} />
+                <UiIcon icon={GitBranch} />
                 {busy ? t('git.initOffer.busy') : t('git.initOffer.button')}
               </button>
             ) : null}
@@ -225,7 +227,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
               style={{ width: '100%' }}
               onClick={() => void refresh()}
             >
-              <RefreshCw size={13} />
+              <UiIcon icon={RefreshCw} />
               {t('git.refresh')}
             </button>
           </div>
@@ -253,7 +255,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           title={t('files.revealFolder')}
           aria-label={t('files.revealFolder')}
         >
-          <FolderSearch size={13} />
+          <UiIcon icon={FolderSearch} />
         </button>
         <button
           type="button"
@@ -263,12 +265,12 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           title={t('git.refresh')}
           aria-label={t('git.refresh')}
         >
-          <RefreshCw size={13} className={loading ? styles.spinning : undefined} />
+          <UiIcon icon={RefreshCw} className={loading ? styles.spinning : undefined} />
         </button>
       </div>
 
       <div className={styles.branchRow}>
-        <GitBranch size={13} />
+        <UiIcon icon={GitBranch} />
         <span>{status.branch}</span>
         {status.detached ? <small>{t('git.detached')}</small> : null}
         <button
@@ -279,14 +281,14 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           title={syncTitle}
           aria-label={syncTitle}
         >
-          <RefreshCw size={12} className={busy ? styles.spinning : undefined} />
+          <UiIcon icon={RefreshCw} className={busy ? styles.spinning : undefined} />
           <span className={styles.syncCounts}>
             <span>
-              <ArrowDown size={11} />
+              <UiIcon icon={ArrowDown} />
               {status.behind}
             </span>
             <span>
-              <ArrowUp size={11} />
+              <UiIcon icon={ArrowUp} />
               {status.ahead}
             </span>
           </span>
@@ -311,7 +313,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
             disabled={!message.trim() || busy || total === 0}
             onClick={() => void commit()}
           >
-            <Check size={14} />
+            <UiIcon icon={Check} />
             {busy ? t('git.commit.busy') : t('git.commit.action')}
           </button>
           <button
@@ -321,7 +323,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
             onClick={() => void sync()}
             title={syncTitle}
           >
-            <RefreshCw size={13} className={busy ? styles.spinning : undefined} />
+            <UiIcon icon={RefreshCw} className={busy ? styles.spinning : undefined} />
             {t('git.sync.action')}
           </button>
         </div>
@@ -415,7 +417,7 @@ function ChangeGroup({
           className={styles.groupToggle}
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          {open ? <UiIcon icon={ChevronDown} /> : <UiIcon icon={ChevronRight} />}
           <strong>{label}</strong>
           <span>{items.length}</span>
         </button>
@@ -428,7 +430,7 @@ function ChangeGroup({
               aria-label={t('git.discardAll')}
               onClick={() => confirmDiscard(paths)}
             >
-              <RotateCcw size={13} />
+              <UiIcon icon={RotateCcw} />
             </button>
           ) : null}
           <button
@@ -438,7 +440,7 @@ function ChangeGroup({
             aria-label={primaryTitle}
             onClick={() => onPrimary(paths)}
           >
-            {kind === 'staged' ? <Minus size={14} /> : <Plus size={14} />}
+            {kind === 'staged' ? <UiIcon icon={Minus} /> : <UiIcon icon={Plus} />}
           </button>
         </div>
       </div>
@@ -529,7 +531,7 @@ function TreeNodeView({
             aria-label={t('files.reveal')}
             onClick={() => void openInFileExplorer(absoluteRepoPath(repoRoot, change.path))}
           >
-            <FolderSearch size={12} />
+            <UiIcon icon={FolderSearch} />
           </button>
           <button
             type="button"
@@ -537,7 +539,7 @@ function TreeNodeView({
             aria-label={t('files.addToGrid')}
             onClick={() => openFile(change.path)}
           >
-            <LayoutGrid size={12} />
+            <UiIcon icon={LayoutGrid} />
           </button>
           {onDiscard ? (
             <button
@@ -547,7 +549,7 @@ function TreeNodeView({
               aria-label={t('git.discard')}
               onClick={() => onDiscard([change.path])}
             >
-              <RotateCcw size={12} />
+              <UiIcon icon={RotateCcw} />
             </button>
           ) : null}
           <button
@@ -557,7 +559,7 @@ function TreeNodeView({
             aria-label={isStaged ? t('git.unstage') : t('git.stage')}
             onClick={() => onPrimary([change.path])}
           >
-            {isStaged ? <Minus size={13} /> : <Plus size={13} />}
+            {isStaged ? <UiIcon icon={Minus} /> : <UiIcon icon={Plus} />}
           </button>
         </div>
       </div>
@@ -574,8 +576,8 @@ function TreeNodeView({
           className={styles.dirToggle}
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          <Folder size={13} className={styles.dirIcon} />
+          {open ? <UiIcon icon={ChevronDown} /> : <UiIcon icon={ChevronRight} />}
+          <UiIcon icon={Folder} className={styles.dirIcon} />
           <span className={styles.dirName}>{node.name}</span>
         </button>
         <div className={styles.fileActions}>
@@ -587,7 +589,7 @@ function TreeNodeView({
               aria-label={t('git.discardAll')}
               onClick={() => onDiscard(descendants)}
             >
-              <RotateCcw size={12} />
+              <UiIcon icon={RotateCcw} />
             </button>
           ) : null}
           <button
@@ -597,7 +599,7 @@ function TreeNodeView({
             aria-label={isStaged ? t('git.unstageAll') : t('git.stageAll')}
             onClick={() => onPrimary(descendants)}
           >
-            {isStaged ? <Minus size={13} /> : <Plus size={13} />}
+            {isStaged ? <UiIcon icon={Minus} /> : <UiIcon icon={Plus} />}
           </button>
         </div>
       </div>

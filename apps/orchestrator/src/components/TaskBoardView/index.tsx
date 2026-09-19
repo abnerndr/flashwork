@@ -12,6 +12,8 @@ import { FolderKanban, Paperclip, Plus, Square, Trash2, X } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { type ReactNode, useMemo, useState } from 'react'
 
+import { UiIcon } from '../ui/UiIcon'
+
 import { pickFiles } from '../../lib/dialog'
 import { type MessageKey, useT } from '../../lib/i18n'
 import {
@@ -114,7 +116,7 @@ function BoardCard({
           onClick={() => onRemove(card.id)}
           aria-label={t('common.remove')}
         >
-          <Trash2 size={12} />
+          <UiIcon icon={Trash2} />
         </button>
       </div>
       <p>{card.prompt}</p>
@@ -153,7 +155,7 @@ function BoardCard({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => stopBoardCard(card.id)}
             >
-              <Square size={10} />
+              <UiIcon icon={Square} />
               {t('taskBoard.stop')}
             </button>
           ) : null}
@@ -322,7 +324,7 @@ export function TaskBoardView() {
           <div className={styles.filesHead}>
             <span>{t('taskBoard.attachmentsHint')}</span>
             <button type="button" onClick={attachHandoff}>
-              <Paperclip size={12} />
+              <UiIcon icon={Paperclip} />
               {t('taskBoard.attachHandoff')}
             </button>
           </div>
@@ -336,7 +338,7 @@ export function TaskBoardView() {
                     onClick={() => removeAttachment(attachment.id)}
                     aria-label={t('common.remove')}
                   >
-                    <X size={12} />
+                    <UiIcon icon={X} />
                   </button>
                 </li>
               ))}
@@ -362,7 +364,7 @@ export function TaskBoardView() {
                 })
               }}
             >
-              <Plus size={12} />
+              <UiIcon icon={Plus} />
               {t('taskBoard.addFiles')}
             </button>
           </div>
@@ -377,7 +379,7 @@ export function TaskBoardView() {
                     type="button"
                     onClick={() => setFiles((current) => current.filter((item) => item !== file))}
                   >
-                    <X size={12} />
+                    <UiIcon icon={X} />
                   </button>
                 </li>
               ))}

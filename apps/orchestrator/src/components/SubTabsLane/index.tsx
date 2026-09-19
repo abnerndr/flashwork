@@ -43,7 +43,7 @@ export function SubTabsLane({
               title={tab.name || tab.type}
               aria-label={tab.name || tab.type}
             >
-              <AgentIcon type={tab.type} size={14} theme={terminalTheme} />
+              <AgentIcon type={tab.type} size={16} theme={terminalTheme} />
               {tab.completionUnread ? (
                 <span className={styles.doneBadge} aria-label={t('ui.terminal.responseReady')}>
                   !
@@ -77,7 +77,7 @@ export function SubTabsLane({
         title={t('ui.subtabs.newTab')}
         aria-label={t('ui.subtabs.newTab')}
       >
-        <Plus size={12} />
+        <Plus size={16} />
       </button>
     </div>
   )

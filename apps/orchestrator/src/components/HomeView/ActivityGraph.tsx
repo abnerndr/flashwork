@@ -162,7 +162,7 @@ export function ActivityGraph() {
             disabled={refreshing}
             title={t('widget.refreshUsage')}
           >
-            <RefreshCw size={12} className={refreshing ? styles.iconBtnSpin : undefined} />
+            <RefreshCw size={16} className={refreshing ? styles.iconBtnSpin : undefined} />
           </button>
         </div>
       </div>

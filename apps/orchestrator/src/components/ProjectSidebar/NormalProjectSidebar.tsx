@@ -482,7 +482,7 @@ export function NormalProjectSidebar() {
           title={t('ui.sidebar.homeTitle', { shortcut: formatShortcut('Ctrl+Shift+H') })}
           aria-label={t('ui.sidebar.home')}
         >
-          <Home size={14} />
+          <Home size={16} />
           <span>{t('ui.sidebar.home')}</span>
         </button>
         {preferences.enabledFeatures.taskBoard ? (
@@ -495,7 +495,7 @@ export function NormalProjectSidebar() {
             title={t('ui.sidebar.tasksTitle')}
             aria-label={t('ui.sidebar.tasks')}
           >
-            <FolderKanban size={14} />
+            <FolderKanban size={16} />
             <span>{t('ui.sidebar.tasks')}</span>
           </button>
         ) : null}
@@ -511,7 +511,7 @@ export function NormalProjectSidebar() {
             if (!keepHome) setActiveView('workspace')
           }}
         >
-          <Grid3x3 size={14} />
+          <Grid3x3 size={16} />
           <span>{t('ui.sidebar.projects')}</span>
         </button>
         <button
@@ -526,7 +526,7 @@ export function NormalProjectSidebar() {
             if (!keepHome) setActiveView('workspace')
           }}
         >
-          <Folder size={14} />
+          <Folder size={16} />
           <span>{t('ui.sidebar.files')}</span>
         </button>
         {showGitControl && preferences.gitControlPlacement === 'left' ? (
@@ -542,7 +542,7 @@ export function NormalProjectSidebar() {
               if (!keepHome) setActiveView('workspace')
             }}
           >
-            <GitBranch size={14} />
+            <GitBranch size={16} />
             <span>{t('ui.sidebar.git')}</span>
           </button>
         ) : null}
@@ -571,7 +571,7 @@ export function NormalProjectSidebar() {
               title={t('ui.sidebar.newGroupTitle', { shortcut: formatShortcut('Ctrl+Shift+G') })}
               aria-label={t('ui.sidebar.newGroup')}
             >
-              <FolderPlus size={14} />
+              <FolderPlus size={16} />
             </button>
             <button
               type="button"
@@ -580,7 +580,7 @@ export function NormalProjectSidebar() {
               title={t('ui.sidebar.newProjectTitle', { shortcut: formatShortcut('Ctrl+Shift+P') })}
               aria-label={t('ui.sidebar.newProject')}
             >
-              <Plus size={14} />
+              <Plus size={16} />
             </button>
           </div>
         </header>
@@ -590,7 +590,7 @@ export function NormalProjectSidebar() {
         <section className={styles.explorerPanel}>
           <div className={styles.explorerHeader}>
             <span className={styles.explorerLabel}>{t('ui.sidebar.explorer')}</span>
-            <MoreHorizontal size={14} />
+            <MoreHorizontal size={16} />
           </div>
           {sidebarTerminal && sidebarSubTab && activeProject ? (
             <FileExplorer
@@ -688,7 +688,7 @@ export function NormalProjectSidebar() {
           <DragOverlay dropAnimation={null}>
             {draggingId && draggingLabel ? (
               <div className={styles.dragOverlay}>
-                <Folder size={14} />
+                <Folder size={16} />
                 <span>{draggingLabel}</span>
               </div>
             ) : null}
@@ -713,7 +713,7 @@ export function NormalProjectSidebar() {
                 title={t('sync.title')}
                 aria-label={t('sync.title')}
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={16} />
               </button>
             ) : null}
             {preferences.topbarShowProfile ? (
@@ -724,7 +724,7 @@ export function NormalProjectSidebar() {
                 title={t('profile.manageAccounts')}
                 aria-label={t('profile.manageAccounts')}
               >
-                <Users size={13} />
+                <Users size={16} />
               </button>
             ) : null}
           </div>

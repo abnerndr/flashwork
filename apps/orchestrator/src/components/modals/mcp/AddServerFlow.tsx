@@ -454,7 +454,7 @@ export function AddServerFlow({
                       }
                       aria-label={t('common.remove')}
                     >
-                      <X size={12} />
+                      <X size={16} />
                     </button>
                   </div>
                 ))}
@@ -463,7 +463,7 @@ export function AddServerFlow({
                   className={controls.btnLink}
                   onClick={() => setRows((current) => [...current, { ...EMPTY_ROW }])}
                 >
-                  <Plus size={12} />
+                  <Plus size={16} />
                   {t('mcp.addEnvRow')}
                 </button>
               </div>

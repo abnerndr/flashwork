@@ -100,7 +100,7 @@ function GsdSyncRow({
         {session.hasError ? (
           <span className={styles.gsdErrorDot} />
         ) : session.busy ? (
-          <DotmCircular2 size={13} dotSize={2} cellPadding={1} speed={1.2} bloom ariaLabel={statusLabel} />
+          <DotmCircular2 size={16} dotSize={2} cellPadding={1} speed={1.2} bloom ariaLabel={statusLabel} />
         ) : (
           <span className={styles.gsdIdleDot} />
         )}
@@ -231,7 +231,7 @@ export function TodoSidebar() {
           aria-expanded={!collapsed}
         >
           <ChevronDown
-            size={13}
+            size={16}
             className={`${styles.sectionChevron} ${collapsed ? styles.sectionChevronClosed : ''}`}
           />
           {iconUrl ? <img src={iconUrl} alt="" className={styles.sectionIcon} /> : null}
@@ -247,7 +247,7 @@ export function TodoSidebar() {
             title={t('todo.add')}
             aria-label={t('todo.add')}
           >
-            <Plus size={13} />
+            <Plus size={16} />
           </button>
         ) : null}
       </div>
@@ -302,7 +302,7 @@ export function TodoSidebar() {
                   aria-label={t('todo.drag')}
                   tabIndex={-1}
                 >
-                  <GripVertical size={13} />
+                  <GripVertical size={16} />
                 </button>
                 <button
                   type="button"
@@ -311,7 +311,7 @@ export function TodoSidebar() {
                   title={todo.completed ? t('todo.reopen') : t('todo.complete')}
                   aria-label={todo.completed ? t('todo.reopen') : t('todo.complete')}
                 >
-                  {todo.completed ? <Check size={12} /> : null}
+                  {todo.completed ? <Check size={16} /> : null}
                 </button>
 
                 {editing ? (
@@ -374,7 +374,7 @@ export function TodoSidebar() {
                         title={t('todo.editTags')}
                         aria-label={t('todo.editTags')}
                       >
-                        <Tag size={12} />
+                        <Tag size={16} />
                       </button>
                       <button
                         type="button"
@@ -384,7 +384,7 @@ export function TodoSidebar() {
                         title={t('todo.saveEdit')}
                         aria-label={t('todo.saveEdit')}
                       >
-                        <Check size={13} />
+                        <Check size={16} />
                       </button>
                       <button
                         type="button"
@@ -397,7 +397,7 @@ export function TodoSidebar() {
                         title={t('common.cancel')}
                         aria-label={t('common.cancel')}
                       >
-                        <X size={13} />
+                        <X size={16} />
                       </button>
                     </>
                   ) : (
@@ -409,7 +409,7 @@ export function TodoSidebar() {
                         title={t('todo.edit')}
                         aria-label={t('todo.edit')}
                       >
-                        <Pencil size={12} />
+                        <Pencil size={16} />
                       </button>
                       <button
                         type="button"
@@ -418,7 +418,7 @@ export function TodoSidebar() {
                         title={t('todo.delete')}
                         aria-label={t('todo.delete')}
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={16} />
                       </button>
                     </>
                   )}
@@ -523,7 +523,7 @@ export function TodoSidebar() {
         {composerExpanded ? (
           <div className={styles.composerDetails}>
             <div className={styles.tagInputWrap}>
-              <Tag size={13} aria-hidden="true" />
+              <Tag size={16} aria-hidden="true" />
               <input
                 className={`${styles.addInput} ${styles.addTagInput}`}
                 value={tagDraft}

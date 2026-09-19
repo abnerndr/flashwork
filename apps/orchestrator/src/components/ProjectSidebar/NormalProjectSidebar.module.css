@@ -102,7 +102,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--fg-muted);
+  color: var(--text-secondary);
 }
 
 .explorerEmpty {
@@ -118,12 +118,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--fg-muted);
+  color: var(--text-secondary);
 }
 
 .iconBtn {
-  width: 20px;
-  height: 20px;
+  min-width: 28px;
+  min-height: 28px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
@@ -536,7 +538,7 @@
 .terminalHidden .agentIcon,
 .terminalDisabled .agentIcon {
   filter: grayscale(1);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 .terminalHidden .terminalName {
   color: var(--text-tertiary);
@@ -552,8 +554,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  min-width: 15px;
-  height: 15px;
+  min-width: var(--workbench-icon);
+  height: var(--workbench-icon);
   flex: none;
 }
 
@@ -561,8 +563,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
+  width: var(--workbench-icon);
+  height: var(--workbench-icon);
   position: relative;
 }
 

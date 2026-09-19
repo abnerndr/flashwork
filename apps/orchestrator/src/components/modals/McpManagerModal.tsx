@@ -251,7 +251,7 @@ export function McpManagerModal() {
       <div className={styles.layout} hidden={tab !== 'servers'}>
         <aside className={styles.sidebar}>
           <div className={styles.search}>
-            <Search size={13} />
+            <Search size={16} />
             <input
               value={term}
               onChange={(event) => setTerm(event.target.value)}
@@ -265,7 +265,7 @@ export function McpManagerModal() {
             onClick={() => setAdding(true)}
             disabled={writableAgents.length === 0}
           >
-            <Plus size={13} />
+            <Plus size={16} />
             {t('mcp.addMcpServer')}
           </button>
           <div className={styles.serverList}>
@@ -364,7 +364,7 @@ export function McpManagerModal() {
           ))}
           {confirmTarget.some((record) => record.managedByImport) ? (
             <p className={styles.warning}>
-              <AlertTriangle size={14} />
+              <AlertTriangle size={16} />
               {t('mcp.managedByImportHint', {
                 plugin:
                   confirmTarget.find((record) => record.managedByImport)?.managedByImport ?? '',
@@ -421,7 +421,7 @@ function ServerDetail({
             disabled={pending !== null}
             onClick={() => onRemove(group.records)}
           >
-            <Trash2 size={11} />
+            <Trash2 size={16} />
             {group.records.length > 1
               ? t('mcp.removeAllAction', { count: group.records.length })
               : t('mcp.removeAction')}
@@ -434,7 +434,7 @@ function ServerDetail({
 
       {importedFrom ? (
         <div className={styles.warning}>
-          <AlertTriangle size={14} />
+          <AlertTriangle size={16} />
           <span>{t('mcp.managedByImportHint', { plugin: importedFrom })}</span>
         </div>
       ) : null}
@@ -449,7 +449,7 @@ function ServerDetail({
               disabled={pending !== null}
               onClick={() => onSync(primary.agent, group.missingAgents, group.name)}
             >
-              <Copy size={11} />
+              <Copy size={16} />
               {t('mcp.copyToAll', { count: group.missingAgents.length })}
             </button>
           ) : null}
@@ -473,7 +473,7 @@ function ServerDetail({
                         disabled={pending !== null}
                         onClick={() => onSync(primary.agent, [agent], group.name)}
                       >
-                        <Copy size={11} />
+                        <Copy size={16} />
                         {t('mcp.copyHere')}
                       </button>
                     </span>
@@ -535,7 +535,7 @@ function ServerDetail({
                     title={t('mcp.removeAction')}
                     aria-label={t('mcp.removeAction')}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={16} />
                   </button>
                 </span>
               </div>
@@ -607,7 +607,7 @@ function EnvTable({ record, entries, header, revealed, onReveal }: EnvTableProps
                 className={`${controls.btn} ${controls.btnSm}`}
                 onClick={() => onReveal(record, key, header)}
               >
-                <Eye size={11} />
+                <Eye size={16} />
                 {t('mcp.reveal')}
               </button>
             ) : null}

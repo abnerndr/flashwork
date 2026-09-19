@@ -96,7 +96,7 @@ function PaneGroupView({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => ungroupPanes(projectId, group.id)}
         >
-          <Ungroup size={14} />
+          <Ungroup size={16} />
         </button>
       </header>
       <div className={styles.paneGroupBody}>

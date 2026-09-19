@@ -95,7 +95,7 @@ export function ColorPalettePopover({
             onClick={onClose}
             aria-label={t('crud.cancel')}
           >
-            <X size={14} />
+            <X size={16} />
           </button>
         </div>
 
@@ -160,7 +160,7 @@ export function ColorPalettePopover({
               }}
               onClick={() => colorInputRef.current?.click()}
             >
-              <Pipette size={14} />
+              <Pipette size={16} />
               <span>{t('crud.pickColor')}</span>
             </button>
             <input

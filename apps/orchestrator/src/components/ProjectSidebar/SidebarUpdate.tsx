@@ -20,7 +20,7 @@ export function SidebarUpdate() {
         onClick={() => openModal('updateAvailable')}
         title={t('update.chipTitle', { version: info.version })}
       >
-        <ArrowUpCircle size={13} className={styles.icon} />
+        <ArrowUpCircle size={16} className={styles.icon} />
         <span className={styles.label}>{t('update.chipLabel')}</span>
         <span className={styles.version}>{info.version}</span>
       </button>

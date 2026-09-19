@@ -71,7 +71,7 @@ export function TopbarSettingsModal() {
               <span className={styles.icon}>{item.icon}</span>
               <span className={styles.label}>{item.label}</span>
               <span className={`${styles.check} ${enabled ? styles.checkActive : ''}`}>
-                {enabled ? <Check size={14} /> : null}
+                {enabled ? <Check size={16} /> : null}
               </span>
             </button>
           )

@@ -88,7 +88,7 @@ export function TodoSettingsModal() {
             title={t('todo.choosePath')}
             aria-label={t('todo.choosePath')}
           >
-            <Folder size={14} />
+            <Folder size={16} />
           </button>
           <button
             type="button"
@@ -97,7 +97,7 @@ export function TodoSettingsModal() {
             title={t('todo.clearPath')}
             aria-label={t('todo.clearPath')}
           >
-            <RotateCcw size={14} />
+            <RotateCcw size={16} />
           </button>
         </div>
       </div>

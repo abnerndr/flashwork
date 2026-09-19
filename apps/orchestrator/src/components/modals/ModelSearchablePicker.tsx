@@ -101,7 +101,7 @@ export function ModelSearchablePicker({
         onClick={() => setOpen((prev) => !prev)}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <Sparkles size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+          <Sparkles size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
           <span className={styles.triggerText}>
             {loading
               ? 'Carregando modelos do CLI...'
@@ -110,7 +110,7 @@ export function ModelSearchablePicker({
               : `Selecione um modelo (${providerName})`}
           </span>
         </span>
-        <ChevronDown size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <ChevronDown size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
       </button>
 
       {/* Popover Rolável com Barra de Pesquisa */}
@@ -118,7 +118,7 @@ export function ModelSearchablePicker({
         <div className={styles.dropdown}>
           {/* Caixa de Busca */}
           <div className={styles.searchBox}>
-            <Search size={13} color="var(--fg-muted)" />
+            <Search size={16} color="var(--fg-muted)" />
             <input
               type="text"
               placeholder={`Pesquisar entre ${options.length} modelos de ${providerName}...`}
@@ -148,7 +148,7 @@ export function ModelSearchablePicker({
                         <span style={{ fontWeight: isSelected ? 600 : 400 }}>{opt.label}</span>
                         <span className={styles.modelId}>{opt.id}</span>
                       </div>
-                      {isSelected ? <Check size={14} color="var(--accent)" /> : null}
+                      {isSelected ? <Check size={16} color="var(--accent)" /> : null}
                     </button>
                   )
                 })}

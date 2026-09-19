@@ -80,7 +80,7 @@ export const VideoPane = memo(function VideoPane({
               title={t('ui.terminal.dragToReorder')}
               aria-label={t('ui.terminal.dragToReorder')}
             >
-              <GripVertical size={12} />
+              <GripVertical size={16} />
             </button>
           ) : null}
           <strong title={terminal.name}>{terminal.name}</strong>
@@ -95,7 +95,7 @@ export const VideoPane = memo(function VideoPane({
               title={t('ui.terminal.openInExplorer')}
               aria-label={t('ui.terminal.openInExplorer')}
             >
-              <FolderOpen size={12} />
+              <FolderOpen size={16} />
             </button>
             <button
               type="button"
@@ -108,7 +108,7 @@ export const VideoPane = memo(function VideoPane({
               }
               aria-label={isFocusMode ? t('ui.terminal.exitFocusMode') : t('ui.terminal.focusMode')}
             >
-              {isFocusMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
             <button
               type="button"
@@ -117,7 +117,7 @@ export const VideoPane = memo(function VideoPane({
               title={t('ui.markdown.close')}
               aria-label={t('ui.markdown.close')}
             >
-              <Trash2 size={12} />
+              <Trash2 size={16} />
             </button>
           </div>
         ) : null}

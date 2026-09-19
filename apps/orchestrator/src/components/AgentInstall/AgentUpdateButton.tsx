@@ -73,7 +73,7 @@ export function AgentUpdateButton({ agent, label, onUpdated }: Props) {
           void install(method)
         }}
       >
-        <ArrowUpCircle size={13} />
+        <ArrowUpCircle size={16} />
         {running ? t('agentInstall.installing') : t('onboarding.agentUpdateAction')}
       </button>
       {shadowConflict ? (

@@ -12,6 +12,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Interface type uses a VS Code–like stack (Segoe UI Variable / Cascadia Code, Inter as fallback).
+  Sidebar and toolbar icons are 16 px with a thicker stroke. Pane headers and the title bar are 35 px.
 - Task Board cards for folder-backed projects live under that project's `.flashwork/history`.
 
 - New projects now require a destination folder and initialize their local `.flashwork/` metadata

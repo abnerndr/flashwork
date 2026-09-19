@@ -298,9 +298,9 @@ export function ProfilesModal() {
               disabled={busy !== null}
             >
               {busy === 'create' ? (
-                <Loader2 size={14} className={styles.spin} />
+                <Loader2 size={16} className={styles.spin} />
               ) : (
-                <Plus size={14} />
+                <Plus size={16} />
               )}
               {t('profiles.createButton')}
             </button>
@@ -343,7 +343,7 @@ export function ProfilesModal() {
                         <strong>{profile.name}</strong>
                         {profile.is_active ? (
                           <span className={styles.currentBadge}>
-                            <Check size={11} />
+                            <Check size={16} />
                             {t('profiles.current')}
                           </span>
                         ) : null}
@@ -380,7 +380,7 @@ export function ProfilesModal() {
                           onClick={() => void saveRename()}
                           disabled={isBusy}
                         >
-                          <Check size={14} />
+                          <Check size={16} />
                           {t('common.save')}
                         </button>
                         <button
@@ -389,7 +389,7 @@ export function ProfilesModal() {
                           onClick={() => setEditingId(null)}
                           disabled={isBusy}
                         >
-                          <X size={14} />
+                          <X size={16} />
                           {t('common.cancel')}
                         </button>
                       </div>
@@ -403,9 +403,9 @@ export function ProfilesModal() {
                             disabled={isBusy}
                           >
                             {busy === 'switch' ? (
-                              <Loader2 size={14} className={styles.spin} />
+                              <Loader2 size={16} className={styles.spin} />
                             ) : (
-                              <ArrowLeftRight size={14} />
+                              <ArrowLeftRight size={16} />
                             )}
                             {t('profiles.switchButton')}
                           </button>
@@ -420,7 +420,7 @@ export function ProfilesModal() {
                           }}
                           disabled={isBusy}
                         >
-                          <PencilLine size={14} />
+                          <PencilLine size={16} />
                           {t('profiles.renameButton')}
                         </button>
                         <button
@@ -429,7 +429,7 @@ export function ProfilesModal() {
                           onClick={() => startDelete(profile)}
                           disabled={isBusy || items.length <= 1}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                           {t('profiles.deleteButton')}
                         </button>
                       </div>
@@ -475,9 +475,9 @@ export function ProfilesModal() {
               disabled={busy !== null || backupReady}
             >
               {busy === 'backup' ? (
-                <Loader2 size={14} className={styles.spin} />
+                <Loader2 size={16} className={styles.spin} />
               ) : (
-                <Download size={14} />
+                <Download size={16} />
               )}
               {backupReady ? t('profiles.backupDone') : t('profiles.exportBackup')}
             </button>
@@ -509,9 +509,9 @@ export function ProfilesModal() {
                 }
               >
                 {busy === 'delete' ? (
-                  <Loader2 size={14} className={styles.spin} />
+                  <Loader2 size={16} className={styles.spin} />
                 ) : (
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 )}
                 {t('profiles.confirmDeleteButton')}
               </button>

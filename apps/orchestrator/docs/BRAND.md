@@ -30,10 +30,13 @@ npx tauri icon ./logo.png
 
 | Token | Value |
 |---|---|
-| `--font-sans` | `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif` |
-| `--font-mono` | `"Cascadia Mono", Consolas, "Courier New", monospace` |
+| `--font-sans` | `"Segoe UI Variable", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif` |
+| `--font-mono` | `"Cascadia Code", "Cascadia Mono", "Sarasa Mono", Consolas, ui-monospace, monospace` |
+| `--icon-stroke` | `1.75` |
+| `--workbench-tab-height` | `35px` |
+| `--workbench-icon` | `16px` |
 
-The sans font is used for the product UI. The mono font is used for cwd labels, terminal-adjacent metadata, badges, and code-like values.
+The sans stack follows the VS Code / Windows workbench face, with Inter as the already-bundled fallback. Fonts load from the OS only — no Google Fonts CDN. The mono stack is used for cwd labels, terminal-adjacent metadata, badges, and code-like values. Sidebar and toolbar icons default to `--workbench-icon` with `--icon-stroke`.
 
 ## Global Surfaces
 

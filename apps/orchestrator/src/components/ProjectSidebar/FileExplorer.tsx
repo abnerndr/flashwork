@@ -165,7 +165,7 @@ export function FileExplorer({ projectId, cwd, ptyId, terminalName }: FileExplor
           title={t('files.revealFolder')}
           aria-label={t('files.revealFolder')}
         >
-          <FolderSearch size={13} />
+          <FolderSearch size={16} />
         </button>
         <button
           type="button"
@@ -174,7 +174,7 @@ export function FileExplorer({ projectId, cwd, ptyId, terminalName }: FileExplor
           title={t('files.refresh')}
           aria-label={t('files.refresh')}
         >
-          <RefreshCw size={13} />
+          <RefreshCw size={16} />
         </button>
       </div>
       <DirectoryNode
@@ -203,20 +203,20 @@ export function FileExplorer({ projectId, cwd, ptyId, terminalName }: FileExplor
         >
           {!menu.entry.is_dir ? (
             <>
-              <MenuAction icon={<LayoutGrid size={13} />} label={t('files.addToGrid')} onClick={() => addToGrid(menu.entry)} />
-              <MenuAction icon={<Eye size={13} />} label={t('files.preview')} onClick={() => void showPreview(menu.entry)} />
+              <MenuAction icon={<LayoutGrid size={16} />} label={t('files.addToGrid')} onClick={() => addToGrid(menu.entry)} />
+              <MenuAction icon={<Eye size={16} />} label={t('files.preview')} onClick={() => void showPreview(menu.entry)} />
               {MARKDOWN_PATTERN.test(menu.entry.path) ? (
                 <MenuAction
-                  icon={<PanelRightOpen size={13} />}
+                  icon={<PanelRightOpen size={16} />}
                   label={t('files.openMarkdownSidebar')}
                   onClick={() => openMarkdownInSidebar(menu.entry)}
                 />
               ) : null}
             </>
           ) : null}
-          <MenuAction icon={<FolderSearch size={13} />} label={t('files.reveal')} onClick={() => { setMenu(null); void openInFileExplorer(menu.entry.path) }} />
-          <MenuAction icon={<Pencil size={13} />} label={t('files.rename')} onClick={() => void renameEntry(menu.entry)} />
-          <MenuAction danger icon={<Trash2 size={13} />} label={t('files.delete')} onClick={() => void deleteEntry(menu.entry)} />
+          <MenuAction icon={<FolderSearch size={16} />} label={t('files.reveal')} onClick={() => { setMenu(null); void openInFileExplorer(menu.entry.path) }} />
+          <MenuAction icon={<Pencil size={16} />} label={t('files.rename')} onClick={() => void renameEntry(menu.entry)} />
+          <MenuAction danger icon={<Trash2 size={16} />} label={t('files.delete')} onClick={() => void deleteEntry(menu.entry)} />
         </div>
       ) : null}
 
@@ -293,8 +293,8 @@ function DirectoryNode({
         }
         title={path}
       >
-        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        {open ? <FolderOpen size={14} /> : <Folder size={14} />}
+        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        {open ? <FolderOpen size={16} /> : <Folder size={16} />}
         <span>{name}</span>
       </button>
       {open ? (
@@ -330,11 +330,11 @@ function DirectoryNode({
                     onDoubleClick={() => onOpen(entry)}
                     onContextMenu={(event) => onContextMenu(event, entry)}
                   >
-                    <File size={13} />
+                    <File size={16} />
                     <span>{entry.name}</span>
                     <span className={styles.rowActions}>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(entry) }} title={t('files.addToGrid')} aria-label={t('files.addToGrid')}><LayoutGrid size={12} /></button>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); void onPreview(entry) }} title={t('files.preview')} aria-label={t('files.preview')}><Eye size={12} /></button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(entry) }} title={t('files.addToGrid')} aria-label={t('files.addToGrid')}><LayoutGrid size={16} /></button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); void onPreview(entry) }} title={t('files.preview')} aria-label={t('files.preview')}><Eye size={16} /></button>
                       {MARKDOWN_PATTERN.test(entry.path) ? (
                         <button
                           type="button"
@@ -345,7 +345,7 @@ function DirectoryNode({
                           title={t('files.openMarkdownSidebar')}
                           aria-label={t('files.openMarkdownSidebar')}
                         >
-                          <PanelRightOpen size={12} />
+                          <PanelRightOpen size={16} />
                         </button>
                       ) : null}
                     </span>
@@ -386,7 +386,7 @@ function FilePreviewModal({
         preview ? (
           <>
             <button type="button" className={styles.modalAction} onClick={onAdd}>
-              <LayoutGrid size={14} />
+              <LayoutGrid size={16} />
               {t('files.addToGrid')}
             </button>
             {MARKDOWN_PATTERN.test(preview.path) ? (
@@ -395,7 +395,7 @@ function FilePreviewModal({
                 className={styles.modalAction}
                 onClick={onOpenMarkdownSidebar}
               >
-                <PanelRightOpen size={14} />
+                <PanelRightOpen size={16} />
                 {t('files.openMarkdownSidebar')}
               </button>
             ) : null}

@@ -29,7 +29,7 @@ function ProjectVisual({ project }: { project: Project }) {
   return project.iconUrl ? (
     <img className={styles.projectLogo} src={project.iconUrl} alt="" />
   ) : (
-    <Folder size={13} className={styles.projectFolderIcon} aria-hidden />
+    <Folder size={16} className={styles.projectFolderIcon} aria-hidden />
   )
 }
 
@@ -115,12 +115,12 @@ export function ProjectNode({
           title={t('ui.sidebar.newTerminalHere')}
           aria-label={t('ui.sidebar.newTerminalHere')}
         >
-          <Plus size={12} />
+          <Plus size={16} />
         </button>
         <span className={`${styles.rowEndSlot} ${runningCount > 0 ? styles.rowEndSlotActive : ''}`}>
           {runningCount > 0 ? (
             <DotmCircular2
-              size={13}
+              size={16}
               dotSize={2}
               cellPadding={1}
               speed={1.2}
@@ -140,7 +140,7 @@ export function ProjectNode({
             title={t('ui.sidebar.moreActions')}
             aria-label={t('ui.sidebar.moreActions')}
           >
-            <MoreHorizontal size={13} />
+            <MoreHorizontal size={16} />
           </button>
         </span>
         {!isEmpty ? (
@@ -158,7 +158,7 @@ export function ProjectNode({
             aria-expanded={expanded}
           >
             <ChevronDown
-              size={13}
+              size={16}
               className={`${styles.disclosureChevron} ${expanded ? '' : styles.disclosureClosed}`}
             />
           </button>

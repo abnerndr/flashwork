@@ -91,7 +91,7 @@ export const WebPane = memo(function WebPane({
               title={t('ui.terminal.dragToReorder')}
               aria-label={t('ui.terminal.dragToReorder')}
             >
-              <GripVertical size={12} />
+              <GripVertical size={16} />
             </button>
           ) : null}
           <span className={styles.iconWrap}>
@@ -117,7 +117,7 @@ export const WebPane = memo(function WebPane({
               title={t('webPane.reload')}
               aria-label={t('webPane.reload')}
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={16} />
             </button>
             <button
               type="button"
@@ -127,7 +127,7 @@ export const WebPane = memo(function WebPane({
               title={t('xterm.openInBrowser')}
               aria-label={t('xterm.openInBrowser')}
             >
-              <ExternalLink size={12} />
+              <ExternalLink size={16} />
             </button>
             {isFocusMode ? (
               <button
@@ -137,7 +137,7 @@ export const WebPane = memo(function WebPane({
                 title={t('ui.terminal.exitFocusModeEsc')}
                 aria-label={t('ui.terminal.exitFocusMode')}
               >
-                <Minimize2 size={12} />
+                <Minimize2 size={16} />
               </button>
             ) : (
               <button
@@ -147,7 +147,7 @@ export const WebPane = memo(function WebPane({
                 title={t('ui.terminal.focusModeFullscreen')}
                 aria-label={t('ui.terminal.focusMode')}
               >
-                <Maximize2 size={12} />
+                <Maximize2 size={16} />
               </button>
             )}
             <button
@@ -157,7 +157,7 @@ export const WebPane = memo(function WebPane({
               title={t('webPane.close')}
               aria-label={t('webPane.close')}
             >
-              <Trash2 size={12} />
+              <Trash2 size={16} />
             </button>
           </div>
         ) : null}

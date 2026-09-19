@@ -39,7 +39,7 @@ export function AgentLibraryPalette({
         <>
           <div className={styles.paletteHeader} onPointerDown={onDragStart}>
             <span className={styles.libraryTitle}>
-              <Grip size={13} /> {t('ws.library')}
+              <Grip size={16} /> {t('ws.library')}
             </span>
             <span className={styles.paletteCount}>{AGENT_LIBRARY.length}</span>
             <button
@@ -49,7 +49,7 @@ export function AgentLibraryPalette({
               title={t('ws.collapseLibrary')}
               aria-label={t('ws.collapseLibrary')}
             >
-              <X size={13} />
+              <X size={16} />
             </button>
           </div>
           <div className={styles.libraryHint}>{t('ws.libraryHint')}</div>
@@ -72,7 +72,7 @@ export function AgentLibraryPalette({
           onPointerDown={onDragStart}
           title={t('ws.openAgentLibrary')}
         >
-          <Library size={14} />
+          <Library size={16} />
           {t('ws.library')}
           <span className={styles.paletteCount}>{AGENT_LIBRARY.length}</span>
         </button>

@@ -45,7 +45,7 @@ export function AgentModal() {
           ) : null}
           <span className={styles.modalId}>{node.id}</span>
           <button type="button" className={styles.clearButton} onClick={() => select(null)}>
-            <X size={14} />
+            <X size={16} />
           </button>
         </header>
 

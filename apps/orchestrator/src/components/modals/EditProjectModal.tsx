@@ -334,7 +334,7 @@ export function EditProjectModal() {
                   cursor: 'pointer',
                 }}
               >
-                <Palette size={14} />
+                <Palette size={16} />
               </button>
             </div>
           </div>

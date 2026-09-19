@@ -39,7 +39,7 @@ export function LayoutFooter() {
               title={opt.label}
               aria-label={opt.label}
             >
-              <Icon size={14} />
+              <Icon size={16} />
             </button>
           )
         })}
@@ -65,7 +65,7 @@ export function WorkspaceLayoutFooter({ forceVisible = false }: { forceVisible?:
         aria-label={t('ui.sidebar.designLayoutShort')}
         style={{ width: 'auto', padding: '0 10px', fontSize: 11, gap: 6 }}
       >
-        <Grid3x3 size={12} />
+        <Grid3x3 size={16} />
         <span>{hasCustom ? t('ui.sidebar.editGrid') : t('ui.sidebar.drawGrid')}</span>
       </button>
     </div>

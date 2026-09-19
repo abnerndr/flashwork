@@ -71,14 +71,14 @@ export function UsageDropdown({
           className={tab === 'claude' ? styles.usageTabActive : styles.usageTab}
           onClick={() => onTab('claude')}
         >
-          <ClaudeIcon size={13} /> claude code
+          <ClaudeIcon size={16} /> claude code
         </button>
         <button
           type="button"
           className={tab === 'codex' ? styles.usageTabActive : styles.usageTab}
           onClick={() => onTab('codex')}
         >
-          <CodexIcon size={13} /> codex
+          <CodexIcon size={16} /> codex
         </button>
         <button
           type="button"
@@ -86,7 +86,7 @@ export function UsageDropdown({
           onClick={onClose}
           aria-label={t('common.close')}
         >
-          <X size={13} />
+          <X size={16} />
         </button>
       </div>
 

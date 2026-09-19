@@ -91,6 +91,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 28px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 6px);
   background: var(--bg-sunken);
@@ -98,6 +99,11 @@
   cursor: pointer;
   font: 11px var(--font-mono);
   padding: 5px 8px;
+}
+
+.cardTop button {
+  min-width: 28px;
+  justify-content: center;
 }
 
 .submit {

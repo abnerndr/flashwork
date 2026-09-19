@@ -337,7 +337,7 @@ export const TerminalPane = memo(function TerminalPane({
                 title={t('ui.terminal.dragToReorder')}
                 aria-label={t('ui.terminal.dragToReorder')}
               >
-                <GripVertical size={12} />
+                <GripVertical size={16} />
               </button>
             ) : null}
             {showFloatingIdentity && activeTab ? (
@@ -367,7 +367,7 @@ export const TerminalPane = memo(function TerminalPane({
                   title={t('ui.terminal.dragToReorder')}
                   aria-label={t('ui.terminal.dragToReorder')}
                 >
-                  <GripVertical size={12} />
+                  <GripVertical size={16} />
                 </button>
               ) : null}
               <button
@@ -383,7 +383,7 @@ export const TerminalPane = memo(function TerminalPane({
                 aria-pressed={effectiveLaneVisible}
                 disabled={terminal.tabs.length > 1}
               >
-                {effectiveLaneVisible ? <PanelLeftClose size={12} /> : <PanelLeftOpen size={12} />}
+                {effectiveLaneVisible ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
               </button>
               {activeTab && activeTab.type !== 'shell' ? (
                 <button
@@ -399,7 +399,7 @@ export const TerminalPane = memo(function TerminalPane({
                   title={t('ui.terminal.recentChats')}
                   aria-label={t('ui.terminal.recentChats')}
                 >
-                  <Clock size={12} />
+                  <Clock size={16} />
                 </button>
               ) : null}
               {canHandoff ? (
@@ -421,7 +421,7 @@ export const TerminalPane = memo(function TerminalPane({
                   }
                   aria-label={t('ui.terminal.handoff')}
                 >
-                  <ArrowRightLeft size={12} />
+                  <ArrowRightLeft size={16} />
                 </button>
               ) : null}
               <button
@@ -432,7 +432,7 @@ export const TerminalPane = memo(function TerminalPane({
                 aria-label={t('ui.terminal.openInVscode')}
                 disabled={!activeTab}
               >
-                <VSCodeIcon size={12} />
+                <VSCodeIcon size={16} />
               </button>
               <button
                 type="button"
@@ -447,7 +447,7 @@ export const TerminalPane = memo(function TerminalPane({
                   isFocusMode ? t('ui.terminal.exitFocusMode') : t('ui.terminal.focusMode')
                 }
               >
-                {isFocusMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
               {activeTab?.ptyId ? (
                 <button
@@ -458,7 +458,7 @@ export const TerminalPane = memo(function TerminalPane({
                   aria-label={ptyParked ? t('ui.terminal.resume') : t('ui.terminal.restart')}
                   disabled={terminal.disabled}
                 >
-                  <RefreshCw size={12} />
+                  <RefreshCw size={16} />
                 </button>
               ) : null}
               <button
@@ -468,7 +468,7 @@ export const TerminalPane = memo(function TerminalPane({
                 title={t('ui.sidebar.deleteTerminal')}
                 aria-label={t('ui.sidebar.deleteTerminal')}
               >
-                <Trash2 size={12} />
+                <Trash2 size={16} />
               </button>
             </div>
           </div>
@@ -493,7 +493,7 @@ export const TerminalPane = memo(function TerminalPane({
                   title={t('ui.terminal.dragToReorder')}
                   aria-label={t('ui.terminal.dragToReorder')}
                 >
-                  <GripVertical size={12} />
+                  <GripVertical size={16} />
                 </button>
               ) : null
             }

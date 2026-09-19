@@ -31,6 +31,20 @@ rules with `[data-visual-style='clean']`, but should consume the shared tokens f
 - Project, terminal, and branch text must use flex-safe ellipsis and never overlap actions or badges.
 - Interactive labels remain available through visible text, tooltips, or accessible names.
 
+### Workbench chrome (shared)
+
+These tokens apply in both Normal and Clean. They follow VS Code workbench density as a reference,
+not a pixel clone.
+
+| Token | Value | Purpose |
+|---|---|---|
+| `--workbench-tab-height` | `35px` | Title bar and pane header height |
+| `--workbench-icon` | `16px` | Default lucide and agent-brand size in trees and toolbars |
+| `--icon-stroke` | `1.75` | Lucide stroke width |
+
+Focused panes use a 1 px `--accent` border in Normal. Clean keeps `--clean-focus-border`.
+Icon-only buttons are at least 28 px. Inactive agent brand images stay at opacity 0.7 or above.
+
 ### Shared tokens
 
 | Token | Purpose |

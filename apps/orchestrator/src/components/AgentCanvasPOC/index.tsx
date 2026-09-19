@@ -542,7 +542,7 @@ function AgentCanvasInner() {
                 className={styles.bannerButton}
                 onClick={() => spawnCodexWorker(t('ws.workerFallbackManual'), { open: true })}
               >
-                <Plus size={12} /> codex
+                <Plus size={16} /> codex
               </button>
             </div>
           ) : null}
@@ -634,7 +634,7 @@ function AgentCanvasInner() {
                         onClick={() => uninstallAgent(agent)}
                         aria-label={t('ws.removeAgent', { name: agent.name })}
                       >
-                        <X size={13} />
+                        <X size={16} />
                       </button>
                     }
                   />
@@ -677,7 +677,7 @@ function AgentCanvasInner() {
                   <div className={styles.testPrompt}>
                     <code>{TEST_PROMPT}</code>
                     <button type="button" className={styles.clearButton} onClick={copyTestPrompt}>
-                      <ClipboardCopy size={13} />
+                      <ClipboardCopy size={16} />
                       {copied ? t('ws.copied') : t('ws.copy')}
                     </button>
                   </div>
@@ -698,7 +698,7 @@ function AgentCanvasInner() {
                           else cardRefs.current.delete(`group:${type}`)
                         }}
                       >
-                        <Icon size={13} />
+                        <Icon size={16} />
                         <span className={styles.agentGroupName}>{type}</span>
                         <span className={styles.agentGroupCount}>{cards.length}</span>
                       </div>

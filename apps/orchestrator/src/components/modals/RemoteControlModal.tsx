@@ -69,7 +69,7 @@ export function RemoteControlModal() {
               onClick={() => setPreferences({ remoteEnabled: false })}
               disabled={busy}
             >
-              <WifiOff size={14} />
+              <WifiOff size={16} />
               {t('remote.disable')}
             </button>
           ) : (
@@ -79,7 +79,7 @@ export function RemoteControlModal() {
               onClick={() => setPreferences({ remoteEnabled: true })}
               disabled={busy}
             >
-              <Wifi size={14} />
+              <Wifi size={16} />
               {t('remote.enable')}
             </button>
           )}

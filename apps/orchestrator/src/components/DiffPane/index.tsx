@@ -100,7 +100,7 @@ export const DiffPane = memo(function DiffPane({ projectId, terminal }: DiffPane
           onClick={() => closePane(projectId, terminal.id)}
           title={t('diff.close')}
         >
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
       <div className={styles.content}>

@@ -255,7 +255,7 @@ export function NewTerminalModal() {
       </section>
 
       <div className={styles.autoNameHint}>
-        <Info size={13} />
+        <Info size={16} />
         <span>{t('term.autoNameHint')}</span>
       </div>
 

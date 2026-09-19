@@ -301,7 +301,7 @@ export function TitleBar() {
           title={t('ui.titlebar.menu')}
           aria-label={t('ui.titlebar.menu')}
         >
-          <Menu size={14} />
+          <Menu size={16} />
         </button>
         <button
           type="button"
@@ -320,9 +320,9 @@ export function TitleBar() {
           aria-pressed={preferences.leftSidebarVisible}
         >
           {preferences.leftSidebarVisible ? (
-            <PanelLeftClose size={14} />
+            <PanelLeftClose size={16} />
           ) : (
-            <PanelLeftOpen size={14} />
+            <PanelLeftOpen size={16} />
           )}
         </button>
         {threeAreas ? (
@@ -333,7 +333,7 @@ export function TitleBar() {
             title={t('whatsNew.button')}
             aria-label={t('whatsNew.button')}
           >
-            <Newspaper size={13} />
+            <Newspaper size={16} />
             {updateInfo ? <span className={styles.whatsNewDot} /> : null}
           </button>
         ) : null}
@@ -357,7 +357,7 @@ export function TitleBar() {
               title={t('ui.titlebar.back')}
               aria-label={t('ui.titlebar.back')}
             >
-              <ArrowLeft size={13} />
+              <ArrowLeft size={16} />
             </button>
             <button
               type="button"
@@ -370,7 +370,7 @@ export function TitleBar() {
               title={t('ui.titlebar.forward')}
               aria-label={t('ui.titlebar.forward')}
             >
-              <ArrowRight size={13} />
+              <ArrowRight size={16} />
             </button>
           </div>
           {workspaceTabs.map((tab) => {
@@ -437,7 +437,7 @@ export function TitleBar() {
                   {tab.iconUrl ? (
                     <img src={tab.iconUrl} alt="" className={styles.groupTabIcon} />
                   ) : tab.kind === 'composition' ? (
-                    <Workflow size={14} className={styles.groupTabIconSvg} />
+                    <Workflow size={16} className={styles.groupTabIconSvg} />
                   ) : (
                     <span
                       className={styles.groupTabDot}
@@ -457,7 +457,7 @@ export function TitleBar() {
                   title={t('ui.titlebar.removeFromTopbar')}
                   aria-label={t('ui.titlebar.removeNameFromTopbar', { name: tab.label })}
                 >
-                  <X size={11} />
+                  <X size={16} />
                 </button>
               </div>
             )
@@ -475,7 +475,7 @@ export function TitleBar() {
               title={t('whatsNew.button')}
               aria-label={t('whatsNew.button')}
             >
-              <Newspaper size={13} />
+              <Newspaper size={16} />
               {updateInfo ? <span className={styles.whatsNewDot} /> : null}
             </button> : null}
             {!threeAreas && preferences.topbarShowSync ? (
@@ -486,7 +486,7 @@ export function TitleBar() {
                 aria-label={t('sync.title')}
                 onClick={() => openModal('sync')}
               >
-                <RefreshCw size={12} />
+                <RefreshCw size={16} />
               </button>
             ) : null}
             {!threeAreas && preferences.topbarShowProfile ? (
@@ -496,7 +496,7 @@ export function TitleBar() {
                 title={t('profile.manageAccounts')}
                 onClick={() => openModal('profiles')}
               >
-                <Users size={12} />
+                <Users size={16} />
                 <span className={styles.profilePillLabel}>
                   {activeProfile?.name ?? t('profile.localAccount')}
                 </span>
@@ -512,7 +512,7 @@ export function TitleBar() {
                 title={remoteConnectedLabel}
                 aria-label={remoteConnectedLabel}
               >
-                <Smartphone size={12} />
+                <Smartphone size={16} />
                 <span>{remoteConnectedLabel}</span>
               </button>
             ) : null}
@@ -530,7 +530,7 @@ export function TitleBar() {
                   title={t('ui.titlebar.openUsageDetails')}
                   aria-label={t('ui.titlebar.openUsageDetails')}
                 >
-                  <ClaudeIcon size={13} />
+                  <ClaudeIcon size={16} />
                   <span>{claudeUsage.five_hour.utilization.toFixed(0)}%</span>
                 </button>
                 <div
@@ -572,7 +572,7 @@ export function TitleBar() {
                   title={t('ui.titlebar.openUsageDetails')}
                   aria-label={t('ui.titlebar.openUsageDetails')}
                 >
-                  <CodexIcon size={13} />
+                  <CodexIcon size={16} />
                   <span>{codexUsage.primary.used_percent.toFixed(0)}%</span>
                 </button>
                 <div
@@ -617,7 +617,7 @@ export function TitleBar() {
                   title={t('ui.titlebar.openUsageDetails')}
                   aria-label={t('ui.titlebar.openUsageDetails')}
                 >
-                  <AntigravityIcon size={13} />
+                  <AntigravityIcon size={16} />
                   <span>{antigravityReady ? formatPct(antigravityUsage.used_percent) : '—'}</span>
                 </button>
                 <div
@@ -674,7 +674,7 @@ export function TitleBar() {
               aria-label={t('ui.titlebar.customize')}
               onClick={() => openModal('topbarSettings')}
             >
-              <Pencil size={12} />
+              <Pencil size={16} />
             </button>
           </div>
         </div>
@@ -698,9 +698,9 @@ export function TitleBar() {
             aria-pressed={preferences.rightSidebarVisible}
           >
             {preferences.rightSidebarVisible ? (
-              <PanelRightClose size={14} />
+              <PanelRightClose size={16} />
             ) : (
-              <PanelRightOpen size={14} />
+              <PanelRightOpen size={16} />
             )}
           </button>
         ) : null}
@@ -711,7 +711,7 @@ export function TitleBar() {
           title={t('ui.titlebar.minimize')}
           aria-label={t('ui.titlebar.minimize')}
         >
-          <Minus size={14} />
+          <Minus size={16} />
         </button>
         <button
           type="button"
@@ -720,7 +720,7 @@ export function TitleBar() {
           title={t('ui.titlebar.maximize')}
           aria-label={t('ui.titlebar.maximize')}
         >
-          <Maximize2 size={12} />
+          <Maximize2 size={16} />
         </button>
         <button
           type="button"
@@ -729,7 +729,7 @@ export function TitleBar() {
           title={t('ui.titlebar.close')}
           aria-label={t('ui.titlebar.close')}
         >
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
       {tabMenu ? (

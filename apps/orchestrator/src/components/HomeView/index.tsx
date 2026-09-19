@@ -411,7 +411,7 @@ export function HomeView() {
               }
             >
               <span className={styles.streakFlame} aria-hidden="true">
-                <Flame size={11} />
+                <Flame size={16} />
               </span>
               <strong>{activityStreak ?? '–'}</strong>
             </div>
@@ -467,7 +467,7 @@ export function HomeView() {
                 )}
                 <span className={styles.quickControlLabel}>{t('home.quickAgentChoose')}:</span>
                 <span>{quickAgentLabel}</span>
-                <ChevronDown size={10} />
+                <ChevronDown size={16} />
               </summary>
               <div className={styles.quickAgentOptions}>
                 <button
@@ -483,7 +483,7 @@ export function HomeView() {
                 >
                   <Route size={19} />
                   <span>{t('home.quickAgentAuto')}</span>
-                  {isAutoPick ? <CheckCircle2 size={13} /> : null}
+                  {isAutoPick ? <CheckCircle2 size={16} /> : null}
                 </button>
                 {quickAgents.map((agent) => (
                   <button
@@ -501,7 +501,7 @@ export function HomeView() {
                   >
                     <AgentIcon type={agent.type} size={19} theme={preferences.uiTheme} />
                     <span>{agent.label}</span>
-                    {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={13} /> : null}
+                    {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={16} /> : null}
                   </button>
                 ))}
               </div>
@@ -513,12 +513,12 @@ export function HomeView() {
               title={quickCwd || t('term.chooseFolder')}
               aria-label={t('term.chooseFolder')}
             >
-              <FolderOpen size={13} />
+              <FolderOpen size={16} />
               <span className={styles.quickControlLabel}>{t('home.quickPath')}:</span>
               <span className={styles.quickPathValue}>
                 {compactWorkspacePath(quickCwd || t('home.quickFolderPlaceholder'))}
               </span>
-              <ChevronDown size={10} />
+              <ChevronDown size={16} />
             </button>
             <details
               ref={quickModeMenuRef}
@@ -534,7 +534,7 @@ export function HomeView() {
                 <span>
                   {quickUnrestricted ? t('home.quickUnrestricted') : t('home.quickRestricted')}
                 </span>
-                <ChevronDown size={10} />
+                <ChevronDown size={16} />
               </summary>
               <div className={`${styles.quickSelectOptions} ${styles.quickModeOptions}`}>
                 {(['restricted', 'unrestricted'] as const).map((mode) => (
@@ -568,7 +568,7 @@ export function HomeView() {
               title={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
               aria-label={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
             >
-              <Send size={14} />
+              <Send size={16} />
             </button>
           </div>
         </form>
@@ -580,7 +580,7 @@ export function HomeView() {
               className={styles.heroSecondaryAction}
               onClick={handleNewTerminal}
             >
-              <TerminalSquare size={14} />
+              <TerminalSquare size={16} />
               {t('home.newTerminal')}
             </button>
             <button
@@ -588,7 +588,7 @@ export function HomeView() {
               className={styles.heroSecondaryAction}
               onClick={() => openModal('newProject')}
             >
-              <FolderPlus size={14} />
+              <FolderPlus size={16} />
               {t('home.newProject')}
             </button>
           </div>
@@ -642,19 +642,19 @@ export function HomeView() {
           <div className={styles.sectionHeader}>{t('home.startSomething')}</div>
           <div className={styles.actionList}>
             <ActionCard
-              icon={<TerminalSquare size={14} />}
+              icon={<TerminalSquare size={16} />}
               label={t('home.newTerminal')}
               shortcut={formatShortcut('Ctrl+T')}
               onClick={handleNewTerminal}
             />
             <ActionCard
-              icon={<FolderPlus size={14} />}
+              icon={<FolderPlus size={16} />}
               label={t('home.newProject')}
               shortcut={formatShortcut('Ctrl+Shift+P')}
               onClick={() => openModal('newProject')}
             />
             <ActionCard
-              icon={<Layers size={14} />}
+              icon={<Layers size={16} />}
               label={t('home.newGroup')}
               shortcut={formatShortcut('Ctrl+Shift+G')}
               onClick={() => openModal('newGroup')}
@@ -707,9 +707,9 @@ export function HomeView() {
                     }`}
                   >
                     {n.agent ? (
-                      <AgentIcon type={n.agent} size={14} theme={preferences.uiTheme} />
+                      <AgentIcon type={n.agent} size={16} theme={preferences.uiTheme} />
                     ) : (
-                      <Bell size={13} />
+                      <Bell size={16} />
                     )}
                   </span>
                   <span className={styles.notifBody}>

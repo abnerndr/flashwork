@@ -45,7 +45,7 @@ export function AgentNodeCard({ node, cost, onSelect, cardRefs }: AgentNodeCardP
     >
       <div className={styles.cardHeader}>
         <span className={styles.cardType}>
-          {node.kind === 'teammate' ? <Users size={12} /> : null}
+          {node.kind === 'teammate' ? <Users size={16} /> : null}
           {node.agentType}
         </span>
         <span className={statusBadgeClass(node.status, styles)}>

@@ -48,7 +48,7 @@ export function CodexTerminalOverlay({
             onClick={() => onKill(w.ptyId)}
             title={t('ws.killCodexWorker')}
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} />
           </button>
           <button
             type="button"
@@ -56,7 +56,7 @@ export function CodexTerminalOverlay({
             onClick={onClose}
             title={t('ws.closeKeepCodexRunning')}
           >
-            <X size={14} />
+            <X size={16} />
           </button>
         </div>
         <div className={styles.terminalHost}>

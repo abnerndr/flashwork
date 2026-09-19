@@ -1,5 +1,5 @@
 .bar {
-  height: 32px;
+  height: var(--workbench-tab-height);
   display: flex;
   align-items: center;
   background: var(--bg-elevated);

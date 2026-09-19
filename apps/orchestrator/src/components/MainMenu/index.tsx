@@ -96,7 +96,7 @@ export function MainMenu() {
           closeMainMenu()
         }}
       >
-        <Settings size={14} /> <span>{t('menu.preferences')}</span>
+        <Settings size={16} /> <span>{t('menu.preferences')}</span>
       </button>
       {browserEnabled && activeProjectId ? (
         <button
@@ -107,7 +107,7 @@ export function MainMenu() {
             closeMainMenu()
           }}
         >
-          <Globe2 size={14} /> <span>{t('menu.addBrowser')}</span>
+          <Globe2 size={16} /> <span>{t('menu.addBrowser')}</span>
         </button>
       ) : null}
       {AGENT_SANDBOX_ENABLED ? (
@@ -119,7 +119,7 @@ export function MainMenu() {
             closeMainMenu()
           }}
         >
-          <Network size={14} /> <span>{t('menu.agentSandbox')}</span>
+          <Network size={16} /> <span>{t('menu.agentSandbox')}</span>
         </button>
       ) : null}
       <button
@@ -130,7 +130,7 @@ export function MainMenu() {
           closeMainMenu()
         }}
       >
-        <Network size={14} /> <span>{t('menu.remoteControl')}</span>
+        <Network size={16} /> <span>{t('menu.remoteControl')}</span>
       </button>
       {import.meta.env.DEV ? (
         <>
@@ -142,7 +142,7 @@ export function MainMenu() {
               closeMainMenu()
             }}
           >
-            <Sparkles size={14} /> <span>{t('menu.welcome')}</span>
+            <Sparkles size={16} /> <span>{t('menu.welcome')}</span>
           </button>
           <button
             type="button"
@@ -152,7 +152,7 @@ export function MainMenu() {
               closeMainMenu()
             }}
           >
-            <Sun size={14} />
+            <Sun size={16} />
             <span>{t('menu.pickTheme')}</span>
           </button>
           <button
@@ -163,23 +163,23 @@ export function MainMenu() {
               closeMainMenu()
             }}
           >
-            <RefreshCw size={14} /> <span>{t('menu.redoOnboarding')}</span>
+            <RefreshCw size={16} /> <span>{t('menu.redoOnboarding')}</span>
           </button>
         </>
       ) : null}
       <button type="button" className={styles.item} onClick={() => setFlat(!flat)}>
-        <Layers size={14} />
+        <Layers size={16} />
         <span>{flat ? t('menu.groupByProject') : t('menu.flatMode')}</span>
       </button>
       <div className={styles.separator} />
       <button type="button" className={styles.item} onClick={() => void action(openDataFolder)}>
-        <FolderOpen size={14} /> <span>{t('menu.openDataFolder')}</span>
+        <FolderOpen size={16} /> <span>{t('menu.openDataFolder')}</span>
       </button>
       <button type="button" className={styles.item} onClick={() => void action(openSpawnLog)}>
-        <FileText size={14} /> <span>{t('menu.openSpawnLog')}</span>
+        <FileText size={16} /> <span>{t('menu.openSpawnLog')}</span>
       </button>
       <button type="button" className={styles.item} onClick={() => void action(openLogsFolder)}>
-        <ScrollText size={14} /> <span>{t('menu.openLogs')}</span>
+        <ScrollText size={16} /> <span>{t('menu.openLogs')}</span>
       </button>
       <button
         type="button"
@@ -195,7 +195,7 @@ export function MainMenu() {
           })
         }
       >
-        <FileArchive size={14} /> <span>{t('menu.exportLogs')}</span>
+        <FileArchive size={16} /> <span>{t('menu.exportLogs')}</span>
       </button>
       <div className={styles.separator} />
       <button
@@ -212,7 +212,7 @@ export function MainMenu() {
           })
         }
       >
-        <Download size={14} /> <span>{t('menu.exportBackup')}</span>
+        <Download size={16} /> <span>{t('menu.exportBackup')}</span>
       </button>
       <button
         type="button"
@@ -240,7 +240,7 @@ export function MainMenu() {
           })
         }
       >
-        <Upload size={14} /> <span>{t('menu.importBackup')}</span>
+        <Upload size={16} /> <span>{t('menu.importBackup')}</span>
       </button>
       <div className={styles.separator} />
       <button
@@ -248,14 +248,14 @@ export function MainMenu() {
         className={`${styles.item} ${styles.danger}`}
         onClick={() => void reset()}
       >
-        <Trash2 size={14} /> <span>{t('menu.resetAppData')}</span>
+        <Trash2 size={16} /> <span>{t('menu.resetAppData')}</span>
       </button>
       <button
         type="button"
         className={`${styles.item} ${styles.danger}`}
         onClick={() => void factoryReset()}
       >
-        <Trash2 size={14} /> <span>{t('menu.factoryReset')}</span>
+        <Trash2 size={16} /> <span>{t('menu.factoryReset')}</span>
       </button>
     </div>
   )

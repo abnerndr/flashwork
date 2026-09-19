@@ -212,7 +212,7 @@ export const MarkdownPane = memo(function MarkdownPane({
               title={t('ui.terminal.dragToReorder')}
               aria-label={t('ui.terminal.dragToReorder')}
             >
-              <GripVertical size={12} />
+              <GripVertical size={16} />
             </button>
           ) : null}
           <span className={styles.iconWrap}>
@@ -240,7 +240,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                 title={t('ui.markdown.refresh')}
                 aria-label={t('ui.markdown.refresh')}
               >
-                <RefreshCw size={12} />
+                <RefreshCw size={16} />
               </button>
               <button
                 type="button"
@@ -250,7 +250,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                 title={copied ? t('ui.markdown.copied') : t('ui.markdown.copySource')}
                 aria-label={copied ? t('ui.markdown.copied') : t('ui.markdown.copySource')}
               >
-                <ClipboardCopy size={12} />
+                <ClipboardCopy size={16} />
               </button>
               {editing ? (
                 <>
@@ -262,7 +262,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                     title={saving ? t('ui.markdown.saving') : t('ui.markdown.save')}
                     aria-label={saving ? t('ui.markdown.saving') : t('ui.markdown.save')}
                   >
-                    <Save size={12} />
+                    <Save size={16} />
                   </button>
                   <button
                     type="button"
@@ -272,7 +272,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                     title={t('ui.markdown.cancelEdit')}
                     aria-label={t('ui.markdown.cancelEdit')}
                   >
-                    <X size={12} />
+                    <X size={16} />
                   </button>
                 </>
               ) : (
@@ -284,7 +284,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                   title={t('ui.markdown.edit')}
                   aria-label={t('ui.markdown.edit')}
                 >
-                  <Pencil size={12} />
+                  <Pencil size={16} />
                 </button>
               )}
               <button
@@ -295,7 +295,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                 title={t('ui.terminal.openInExplorer')}
                 aria-label={t('ui.terminal.openInExplorer')}
               >
-                <FolderOpen size={12} />
+                <FolderOpen size={16} />
               </button>
               {isFocusMode ? (
                 <button
@@ -305,7 +305,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                   title={t('ui.terminal.exitFocusModeEsc')}
                   aria-label={t('ui.terminal.exitFocusMode')}
                 >
-                  <Minimize2 size={12} />
+                  <Minimize2 size={16} />
                 </button>
               ) : (
                 <button
@@ -315,7 +315,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                   title={t('ui.terminal.focusModeFullscreen')}
                   aria-label={t('ui.terminal.focusMode')}
                 >
-                  <Maximize2 size={12} />
+                  <Maximize2 size={16} />
                 </button>
               )}
               <button
@@ -325,7 +325,7 @@ export const MarkdownPane = memo(function MarkdownPane({
                 title={t('ui.markdown.close')}
                 aria-label={t('ui.markdown.close')}
               >
-                <Trash2 size={12} />
+                <Trash2 size={16} />
               </button>
             </div>
           </div>

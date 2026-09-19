@@ -59,7 +59,7 @@ export function TokenHud() {
         aria-label={t('hud.expand')}
         title={t('hud.expand')}
       >
-        <Coins size={13} aria-hidden />
+        <Coins size={16} aria-hidden />
         <span className={`${styles.pillCost} ${costClass(totals.costUsd)}`}>
           {fmtUsd(totals.costUsd)}
         </span>
@@ -72,7 +72,7 @@ export function TokenHud() {
     <section className={styles.panel} aria-label={t('hud.title')}>
       <header className={styles.head}>
         <span className={styles.headTitle}>
-          <Coins size={13} aria-hidden /> {t('hud.title')}
+          <Coins size={16} aria-hidden /> {t('hud.title')}
         </span>
         <button
           type="button"
@@ -81,7 +81,7 @@ export function TokenHud() {
           aria-label={t('hud.collapse')}
           title={t('hud.collapse')}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={16} />
         </button>
       </header>
 
@@ -92,7 +92,7 @@ export function TokenHud() {
           return (
             <li key={e.ptyId} className={styles.row}>
               <span className={styles.rowIcon} aria-hidden>
-                <AgentIcon type={e.agent} size={14} theme={uiTheme} />
+                <AgentIcon type={e.agent} size={16} theme={uiTheme} />
               </span>
               <span className={styles.rowLabel}>
                 <strong>

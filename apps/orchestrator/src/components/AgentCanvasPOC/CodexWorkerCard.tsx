@@ -43,7 +43,7 @@ export function CodexWorkerCard({ worker: w, onOpen, cardRefs }: CodexWorkerCard
       <div className={styles.codexCardFooter}>
         <span className={styles.cardId}>{w.ptyId}</span>
         <span className={styles.codexExpandHint}>
-          <Maximize2 size={11} /> {t('ws.openTerminal')}
+          <Maximize2 size={16} /> {t('ws.openTerminal')}
         </span>
       </div>
     </div>

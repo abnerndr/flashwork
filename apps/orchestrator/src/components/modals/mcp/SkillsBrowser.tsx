@@ -157,7 +157,7 @@ export function SkillsBrowser({
           className={styles.installButton}
           onClick={() => setInstalling(true)}
         >
-          <Plus size={13} />
+          <Plus size={16} />
           {t('skills.install')}
         </button>
         {groups.map((group) => (
@@ -274,7 +274,7 @@ function SkillDetailView({
               disabled={busy}
               onClick={() => onRemove(group.removable)}
             >
-              <Trash2 size={11} />
+              <Trash2 size={16} />
               {group.removable.length > 1
                 ? t('skills.removeAllAction', { count: group.removable.length })
                 : t('skills.removeAction')}
@@ -312,7 +312,7 @@ function SkillDetailView({
                   title={t('skills.removeAction')}
                   aria-label={t('skills.removeAction')}
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={16} />
                 </button>
               )}
             </div>
@@ -386,7 +386,7 @@ function TreeNode({ node, depth }: { node: SkillNode; depth: number }) {
   if (!node.isDir) {
     return (
       <span className={styles.treeRow} style={style}>
-        <FileText size={11} />
+        <FileText size={16} />
         {node.name}
       </span>
     )
@@ -400,8 +400,8 @@ function TreeNode({ node, depth }: { node: SkillNode; depth: number }) {
         style={style}
         onClick={() => setOpen((current) => !current)}
       >
-        {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        <Folder size={11} />
+        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        <Folder size={16} />
         {node.name}
       </button>
       {open

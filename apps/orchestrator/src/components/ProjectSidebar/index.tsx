@@ -490,7 +490,7 @@ function CleanProjectSidebar() {
           title={t('ui.sidebar.homeTitle', { shortcut: formatShortcut('Ctrl+Shift+H') })}
           aria-label={t('ui.sidebar.home')}
         >
-          <Home size={14} />
+          <Home size={16} />
         </button>
         {preferences.enabledFeatures.taskBoard ? (
           <button
@@ -500,7 +500,7 @@ function CleanProjectSidebar() {
             title={t('ui.sidebar.tasksTitle')}
             aria-label={t('ui.sidebar.tasks')}
           >
-            <FolderKanban size={14} />
+            <FolderKanban size={16} />
           </button>
         ) : null}
         <span className={styles.toolbarDivider} />
@@ -514,7 +514,7 @@ function CleanProjectSidebar() {
             setActiveView('workspace')
           }}
         >
-          <Folder size={14} />
+          <Folder size={16} />
         </button>
         <button
           type="button"
@@ -526,7 +526,7 @@ function CleanProjectSidebar() {
             setActiveView('workspace')
           }}
         >
-          <Files size={14} />
+          <Files size={16} />
         </button>
         {showGitControl && preferences.gitControlPlacement === 'left' ? (
           <button
@@ -539,7 +539,7 @@ function CleanProjectSidebar() {
               setActiveView('workspace')
             }}
           >
-            <GitBranch size={14} />
+            <GitBranch size={16} />
           </button>
         ) : null}
         <span className={styles.toolbarSpacer} />
@@ -550,7 +550,7 @@ function CleanProjectSidebar() {
           title={t('ui.sidebar.search')}
           aria-label={t('ui.sidebar.search')}
         >
-          <Search size={14} />
+          <Search size={16} />
         </button>
         <button
           type="button"
@@ -568,7 +568,7 @@ function CleanProjectSidebar() {
           title={t('profile.preferences')}
           aria-label={t('profile.preferences')}
         >
-          <Settings size={14} />
+          <Settings size={16} />
         </button>
       </div>
       <button
@@ -583,7 +583,7 @@ function CleanProjectSidebar() {
         }}
         title={`${t('ui.sidebar.newAgent')}  ${formatShortcut('Ctrl+T')}`}
       >
-        <SquareTerminal size={14} className={styles.newAgentIcon} />
+        <SquareTerminal size={16} className={styles.newAgentIcon} />
         <span>{t('ui.sidebar.newAgent')}</span>
         <kbd>{formatShortcut('Ctrl+T')}</kbd>
       </button>
@@ -592,7 +592,7 @@ function CleanProjectSidebar() {
         <section className={styles.explorerPanel}>
           <div className={styles.explorerHeader}>
             <span className={styles.explorerLabel}>{t('ui.sidebar.explorer')}</span>
-            <MoreHorizontal size={14} />
+            <MoreHorizontal size={16} />
           </div>
           {sidebarTerminal && sidebarSubTab && activeProject ? (
             <FileExplorer
@@ -690,7 +690,7 @@ function CleanProjectSidebar() {
           <DragOverlay dropAnimation={null}>
             {draggingId && draggingLabel ? (
               <div className={styles.dragOverlay}>
-                <Folder size={14} />
+                <Folder size={16} />
                 <span>{draggingLabel}</span>
               </div>
             ) : null}
@@ -715,7 +715,7 @@ function CleanProjectSidebar() {
                 title={t('sync.title')}
                 aria-label={t('sync.title')}
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={16} />
               </button>
             ) : null}
             {preferences.topbarShowProfile ? (
@@ -726,7 +726,7 @@ function CleanProjectSidebar() {
                 title={t('profile.manageAccounts')}
                 aria-label={t('profile.manageAccounts')}
               >
-                <Users size={13} />
+                <Users size={16} />
               </button>
             ) : null}
           </div>

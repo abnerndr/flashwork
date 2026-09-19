@@ -67,7 +67,7 @@ export function AgentUninstallButton({ agent, label, onUninstalled, nested }: Pr
           setOpen(true)
         }}
       >
-        <Trash2 size={13} /> {t('agentInstall.uninstall')}
+        <Trash2 size={16} /> {t('agentInstall.uninstall')}
       </button>
 
       <Modal

@@ -155,7 +155,7 @@ export function NewSubTabModal() {
                       }
                       aria-label={t('term.unrestricted')}
                     >
-                      <Zap size={14} className={unrestricted[a.type] ? picker.bolt : ''} />
+                      <Zap size={16} className={unrestricted[a.type] ? picker.bolt : ''} />
                     </button>
                   ) : null}
                   <button
@@ -172,9 +172,9 @@ export function NewSubTabModal() {
                     aria-label={t('term.chooseFolder')}
                   >
                     {active && (cwd || inheritedCwd) ? (
-                      <FolderCheck size={14} />
+                      <FolderCheck size={16} />
                     ) : (
-                      <Folder size={14} />
+                      <Folder size={16} />
                     )}
                   </button>
                 </span>
@@ -222,7 +222,7 @@ export function NewSubTabModal() {
             aria-label={t('term.chooseFolder')}
             title={t('term.chooseFolder')}
           >
-            <Folder size={14} />
+            <Folder size={16} />
           </button>
         </div>
       </div>

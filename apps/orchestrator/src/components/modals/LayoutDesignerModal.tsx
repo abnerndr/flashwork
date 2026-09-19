@@ -258,7 +258,7 @@ function DesignerInner({ context, onClose }: { context: Context; onClose: () => 
           <div className={styles.designerBody}>
             <aside className={styles.library} aria-label={t('mod.layoutLibrary')}>
               <div className={styles.libraryHeading}>
-                <LayoutGrid size={13} />
+                <LayoutGrid size={16} />
                 <span>{t('mod.layoutPresets')}</span>
               </div>
               <div className={styles.libraryList}>
@@ -277,7 +277,7 @@ function DesignerInner({ context, onClose }: { context: Context; onClose: () => 
                 ))}
               </div>
               <div className={styles.libraryHeading}>
-                <Clock3 size={13} />
+                <Clock3 size={16} />
                 <span>{t('mod.layoutRecent')}</span>
               </div>
               {history.length ? (
@@ -472,7 +472,7 @@ function Stepper({
         onClick={onDec}
         aria-label={t('mod.decrease', { label })}
       >
-        <Minus size={12} />
+        <Minus size={16} />
       </button>
       <span className={styles.stepperValue}>{value}</span>
       <button
@@ -481,7 +481,7 @@ function Stepper({
         onClick={onInc}
         aria-label={t('mod.increase', { label })}
       >
-        <Plus size={12} />
+        <Plus size={16} />
       </button>
     </div>
   )

@@ -103,7 +103,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.workspace.openIndividually'),
-      icon: <FolderOpen size={14} />,
+      icon: <FolderOpen size={16} />,
       onClick: () => {
         actions.openProjectWorkspace(project.id)
         setActiveView('workspace')
@@ -112,7 +112,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.workspace.addToCurrent'),
-      icon: <Plus size={14} />,
+      icon: <Plus size={16} />,
       onClick: () => {
         actions.addProjectToWorkspace(project.id)
         setActiveView('workspace')
@@ -122,13 +122,13 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.editNameColor'),
-      icon: <Pencil size={14} />,
+      icon: <Pencil size={16} />,
       onClick: () => openModal('editProject', { projectId: project.id }),
     },
     {
       kind: 'item',
       label: t('ui.sidebar.quickRename'),
-      icon: <Pencil size={14} />,
+      icon: <Pencil size={16} />,
       onClick: () => {
         const name = window.prompt(t('ui.sidebar.newNamePrompt'), project.name)?.trim()
         if (name) actions.renameProject(project.id, name)
@@ -137,7 +137,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.newTerminalHere'),
-      icon: <Plus size={14} />,
+      icon: <Plus size={16} />,
       onClick: () => openModal('newTerminal', { projectId: project.id }),
     },
     ...(browserEnabled
@@ -145,7 +145,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
           {
             kind: 'item' as const,
             label: t('menu.addBrowser'),
-            icon: <Globe2 size={14} />,
+            icon: <Globe2 size={16} />,
             onClick: () => openModal('addBrowser', { projectId: project.id }),
           },
         ]
@@ -153,7 +153,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.designLayout'),
-      icon: <Layout size={14} />,
+      icon: <Layout size={16} />,
       onClick: () => openModal('layoutDesigner', { kind: 'project', id: project.id }),
     },
     ...(graphifyEnabled
@@ -176,7 +176,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: project.groupId ? t('ui.sidebar.removeFromGroup') : t('ui.sidebar.moveToGroup'),
-      icon: <MoveRight size={14} />,
+      icon: <MoveRight size={16} />,
       onClick: () => {
         if (project.groupId) {
           actions.moveProjectToGroup(project.id, null)
@@ -198,7 +198,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.archiveProject'),
-      icon: <Archive size={14} />,
+      icon: <Archive size={16} />,
       onClick: () => actions.archiveProject(project.id),
     },
     {
@@ -208,7 +208,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
         visibleProjectTerminals(project).every((term) => term.disabled)
           ? t('ui.sidebar.reactivateProject')
           : t('ui.sidebar.disableProject'),
-      icon: <Power size={14} />,
+      icon: <Power size={16} />,
       onClick: () => {
         const terms = visibleProjectTerminals(project)
         const allDisabled = terms.length > 0 && terms.every((term) => term.disabled)
@@ -219,7 +219,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.deleteProject'),
-      icon: <Trash2 size={14} />,
+      icon: <Trash2 size={16} />,
       danger: true,
       onClick: () => {
         if (
@@ -312,7 +312,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     {
       kind: 'item',
       label: t('ui.sidebar.archiveGroup'),
-      icon: <Archive size={14} />,
+      icon: <Archive size={16} />,
       onClick: () => actions.archiveGroup(group.id),
     },
     {
@@ -432,7 +432,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
       {
         kind: 'item',
         label: t('terminalInspector.reveal'),
-        icon: <PanelTopOpen size={14} />,
+        icon: <PanelTopOpen size={16} />,
         onClick: () => {
           setActiveTerminal(projectId, term.id)
           actions.focusWorkspaceTerminal(projectId, term.id)
@@ -445,7 +445,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
             {
               kind: 'item' as const,
               label: t('ui.terminal.restart'),
-              icon: <Power size={14} />,
+              icon: <Power size={16} />,
               onClick: () => void restartTerminal(projectId, term),
             },
           ]
@@ -455,19 +455,19 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
             {
               kind: 'item' as const,
               label: t('ui.terminal.openInExplorer'),
-              icon: <FolderOpen size={14} />,
+              icon: <FolderOpen size={16} />,
               onClick: () => void openTerminalPath(term, openInFileExplorer, 'Explorer'),
             },
             {
               kind: 'item' as const,
               label: t('ui.terminal.openInVscode'),
-              icon: <FolderOpen size={14} />,
+              icon: <FolderOpen size={16} />,
               onClick: () => void openTerminalPath(term, openInVscode, 'VS Code'),
             },
             {
               kind: 'item' as const,
               label: t('ui.terminal.focusMode'),
-              icon: <PanelTopOpen size={14} />,
+              icon: <PanelTopOpen size={16} />,
               onClick: () => {
                 setActiveTerminal(projectId, term.id)
                 actions.focusWorkspaceTerminal(projectId, term.id)
@@ -510,7 +510,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
       {
         kind: 'item',
         label: t('ui.sidebar.rename'),
-        icon: <Pencil size={14} />,
+        icon: <Pencil size={16} />,
         onClick: () => {
           const name = window.prompt(t('ui.sidebar.newNamePrompt'), term.name)?.trim()
           if (name) actions.renameTerminal(projectId, term.id, name)
@@ -519,7 +519,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
       {
         kind: 'item',
         label: inSplit ? t('ui.sidebar.hideFromSplit') : t('ui.sidebar.showInSplit'),
-        icon: <Layout size={14} />,
+        icon: <Layout size={16} />,
         onClick: () => actions.togglePane(projectId, term.id),
       },
       ...(term.kind === 'markdown' && term.filePath
@@ -527,7 +527,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
             {
               kind: 'item' as const,
               label: t('rightSidebar.openMarkdown'),
-              icon: <FileText size={14} />,
+              icon: <FileText size={16} />,
               onClick: () => {
                 openMarkdownSidebar(term.filePath!, term.name)
                 actions.setPreferences({ rightSidebarVisible: true })
@@ -542,7 +542,7 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
               label: term.remoteExcluded
                 ? t('ui.terminal.shareWithRemote')
                 : t('ui.terminal.hideFromRemote'),
-              icon: term.remoteExcluded ? <Smartphone size={14} /> : <SmartphoneNfc size={14} />,
+              icon: term.remoteExcluded ? <Smartphone size={16} /> : <SmartphoneNfc size={16} />,
               onClick: () =>
                 actions.setTerminalRemoteExcluded(projectId, term.id, !term.remoteExcluded),
             },
@@ -551,20 +551,20 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
       {
         kind: 'item',
         label: term.disabled ? t('ui.sidebar.reactivate') : t('ui.sidebar.disable'),
-        icon: <Power size={14} />,
+        icon: <Power size={16} />,
         onClick: () => actions.setTerminalDisabled(projectId, term.id, !term.disabled),
       },
       {
         kind: 'item',
         label: t('ui.sidebar.killTerminal'),
-        icon: <Power size={14} />,
+        icon: <Power size={16} />,
         onClick: () => actions.killTerminal(projectId, term.id),
       },
       { kind: 'separator' },
       {
         kind: 'item',
         label: t('ui.sidebar.deleteTerminal'),
-        icon: <Trash2 size={14} />,
+        icon: <Trash2 size={16} />,
         danger: true,
         onClick: () => confirmAndDeleteTerminal(projectId, term),
       },

@@ -282,7 +282,7 @@ export function OnboardingModal() {
                         <div className={styles.formCard}>
                           <div className={styles.field}>
                             <div className={styles.fieldLabel}>
-                              <Globe size={12} style={{ verticalAlign: '-2px' }} />{' '}
+                              <Globe size={16} style={{ verticalAlign: '-2px' }} />{' '}
                               {t('language.title')}
                             </div>
                             <div className={styles.languageGrid}>

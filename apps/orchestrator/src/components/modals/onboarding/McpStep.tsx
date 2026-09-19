@@ -131,14 +131,14 @@ export function McpStep() {
             onClick={() => void syncEverything()}
             disabled={busy}
           >
-            {busy ? <RefreshCw size={13} className={styles.spinning} /> : null}
+            {busy ? <RefreshCw size={16} className={styles.spinning} /> : null}
             {t('onboarding.mcpSyncAll', { count: gaps.length })}
           </button>
           <span>{t('onboarding.mcpSyncHint')}</span>
         </div>
       ) : (
         <p className={styles.note}>
-          <Check size={13} /> {synced > 0 ? t('onboarding.mcpSynced', { count: synced }) : t('onboarding.mcpAligned')}
+          <Check size={16} /> {synced > 0 ? t('onboarding.mcpSynced', { count: synced }) : t('onboarding.mcpAligned')}
         </p>
       )}
     </div>

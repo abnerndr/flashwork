@@ -135,7 +135,7 @@ export function FindJumpModal() {
                   fontSize: 13,
                 }}
               >
-                <Icon size={14} />
+                <Icon size={16} />
                 <span style={{ fontWeight: 500 }}>{hit.terminalName}</span>
                 <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>· {hit.projectName}</span>
                 {hit.cwd ? (

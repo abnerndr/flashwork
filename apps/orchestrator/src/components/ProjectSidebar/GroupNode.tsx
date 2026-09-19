@@ -112,7 +112,7 @@ export function GroupNode({
           title={t('ui.sidebar.newProjectInGroup')}
           aria-label={t('ui.sidebar.newProjectInGroup')}
         >
-          <Plus size={14} />
+          <Plus size={16} />
         </button>
         <button
           type="button"
@@ -124,7 +124,7 @@ export function GroupNode({
           aria-label={t('ui.sidebar.collapse')}
         >
           <ChevronDown
-            size={14}
+            size={16}
             className={`${styles.disclosureChevron} ${group.collapsed ? styles.disclosureClosed : ''}`}
           />
         </button>

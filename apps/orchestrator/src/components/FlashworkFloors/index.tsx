@@ -116,7 +116,7 @@ export function FlashworkFloors() {
           onClick={() => void createFloor()}
           disabled={!repo || busy}
         >
-          <Plus size={14} />
+          <Plus size={16} />
           New Floor
         </button>
       </header>
@@ -129,19 +129,19 @@ export function FlashworkFloors() {
         <ul className={styles.list}>
           {floors.map((floor) => (
             <li key={floor.agentId} className={styles.row}>
-              <Layers size={14} className={styles.icon} />
+              <Layers size={16} className={styles.icon} />
               <div className={styles.meta}>
                 <strong>{floor.agentId}</strong>
                 <span>
-                  <GitBranch size={11} /> {floor.branch || 'detached'}
+                  <GitBranch size={16} /> {floor.branch || 'detached'}
                 </span>
               </div>
               <div className={styles.actions}>
                 <button type="button" onClick={() => void openFloorShell(floor)} title="Open shell">
-                  <TerminalSquare size={14} />
+                  <TerminalSquare size={16} />
                 </button>
                 <button type="button" onClick={() => void removeFloor(floor)} title="Remove floor">
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </li>

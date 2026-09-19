@@ -40,7 +40,7 @@ export function OrganizationPage() {
                   className={styles.secondaryButton}
                   onClick={() => unarchiveGroup(group.id)}
                 >
-                  <ArchiveRestore size={14} />
+                  <ArchiveRestore size={16} />
                   {t('prefs.restoreGroup')}
                 </button>
                 <button
@@ -54,7 +54,7 @@ export function OrganizationPage() {
                     }
                   }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -80,7 +80,7 @@ export function OrganizationPage() {
                 className={styles.secondaryButton}
                 onClick={() => unarchiveProject(project.id)}
               >
-                <FolderArchive size={14} />
+                <FolderArchive size={16} />
                 {t('prefs.restoreProject')}
               </button>
             </div>

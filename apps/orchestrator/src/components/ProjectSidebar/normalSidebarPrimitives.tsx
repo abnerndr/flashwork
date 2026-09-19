@@ -59,5 +59,5 @@ export function GroupBadge({
   iconUrl?: string
   color: string
 }) {
-  return <Monogram name={name} iconUrl={iconUrl} color={color} size={14} />
+  return <Monogram name={name} iconUrl={iconUrl} color={color} size={16} />
 }

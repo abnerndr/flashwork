@@ -444,7 +444,7 @@ export function XTermView({
               title={t('common.close')}
               aria-label={t('common.close')}
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
           <div className={styles.linkMenuItems}>

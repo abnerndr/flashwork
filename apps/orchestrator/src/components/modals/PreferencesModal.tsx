@@ -409,7 +409,7 @@ export function PreferencesModal() {
                 <strong>{displayName}</strong>
                 <span>{t('prefs.editProfile')}</span>
               </span>
-              <ChevronRight size={14} />
+              <ChevronRight size={16} />
             </button>
 
             <div className={styles.searchWrap}>
@@ -429,7 +429,7 @@ export function PreferencesModal() {
                   onClick={() => setQuery('')}
                   aria-label={t('prefs.clearSearch')}
                 >
-                  <X size={13} />
+                  <X size={16} />
                 </button>
               ) : null}
             </div>

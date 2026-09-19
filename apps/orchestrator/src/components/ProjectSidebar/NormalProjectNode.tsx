@@ -110,7 +110,7 @@ export function NormalProjectNode({
           {project.name}
         </span>
         {project.mode === 'agentSandbox' ? (
-          <Network size={12} className={styles.agentProjectIcon} />
+          <Network size={16} className={styles.agentProjectIcon} />
         ) : null}
         {allDisabled ? <Pause size={11} className={styles.projectPauseIcon} /> : null}
         <button
@@ -128,7 +128,7 @@ export function NormalProjectNode({
         <span className={`${styles.rowEndSlot} ${runningCount > 0 ? styles.rowEndSlotActive : ''}`}>
           {runningCount > 0 ? (
             <DotmCircular2
-              size={14}
+              size={16}
               dotSize={2}
               cellPadding={1}
               speed={1.2}
@@ -147,7 +147,7 @@ export function NormalProjectNode({
             title={t('ui.sidebar.moreActions')}
             aria-label={t('ui.sidebar.moreActions')}
           >
-            <MoreHorizontal size={14} />
+            <MoreHorizontal size={16} />
           </button>
         </span>
         {!isEmpty ? (

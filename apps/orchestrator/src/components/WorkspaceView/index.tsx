@@ -984,7 +984,7 @@ function NoWorkspace({
               className={styles.emptyFolderButton}
               onClick={() => void browseFolder()}
             >
-              <FolderOpen size={14} />
+              <FolderOpen size={16} />
               <span title={folder || undefined}>{folder || t('ws.emptyFolderPlaceholder')}</span>
             </button>
             <button

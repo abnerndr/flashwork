@@ -74,11 +74,11 @@ export function NormalTerminalNode({
       <span className={styles.agentStack}>
         {terminal.kind === 'web' ? (
           <span className={styles.agentIcon}>
-            <Favicon url={terminal.url ?? ''} size={14} />
+            <Favicon url={terminal.url ?? ''} size={16} />
           </span>
         ) : terminal.kind && terminal.kind !== 'terminal' ? (
           <span className={styles.agentIcon}>
-            <FileText size={14} />
+            <FileText size={16} />
           </span>
         ) : (
           orderedTypes.map((type, i) => (
@@ -87,7 +87,7 @@ export function NormalTerminalNode({
               className={styles.agentIcon}
               style={{ marginLeft: i === 0 ? 0 : 2, zIndex: orderedTypes.length - i }}
             >
-              <AgentIcon type={type} size={14} theme={terminalTheme} />
+              <AgentIcon type={type} size={16} theme={terminalTheme} />
             </span>
           ))
         )}
@@ -101,7 +101,7 @@ export function NormalTerminalNode({
       >
         {isWorking ? (
           <DotmCircular2
-            size={14}
+            size={16}
             dotSize={2}
             cellPadding={1}
             speed={1.2}
@@ -129,7 +129,7 @@ export function NormalTerminalNode({
           title={t('ui.terminal.moreActions')}
           aria-label={t('ui.terminal.moreActions')}
         >
-          <MoreHorizontal size={13} />
+          <MoreHorizontal size={16} />
         </button>
       </span>
     </div>

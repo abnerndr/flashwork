@@ -63,7 +63,7 @@ export function SessionTerminalDock({
           onClick={onToggleEconomy}
           title={t('ws.economyModeTitle')}
         >
-          <PiggyBank size={14} />
+          <PiggyBank size={16} />
           {t('ws.economy')} {economyOn ? t('ws.on') : t('ws.off')}
         </button>
         <button
@@ -72,7 +72,7 @@ export function SessionTerminalDock({
           onClick={onRestart}
           title={t('ws.restartClaudeTitle')}
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={16} />
         </button>
       </div>
       <div className={styles.terminalHost}>

@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::provider_common::provider_home_dir;
@@ -81,6 +82,29 @@ pub struct SkillRemoveReport {
     pub path: String,
     pub removed_link_only: bool,
     pub shared_copy_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum SkillInstallSource {
+    Folder {
+        path: String,
+    },
+    Git {
+        url: String,
+        #[serde(default)]
+        spec: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillInstallRequest {
+    pub source: SkillInstallSource,
+    #[serde(default)]
+    pub agents: Vec<String>,
+    #[serde(default)]
+    pub overwrite: bool,
 }
 
 fn skills_home(segments: &[&str]) -> Option<PathBuf> {
@@ -434,6 +458,258 @@ fn uninstall_inner(agent: String, name: String) -> Result<SkillRemoveReport, Str
     })
 }
 
+const MAX_INSTALL_NAME_LEN: usize = 64;
+
+/// Turns an arbitrary directory/repo basename into a safe store name: keeps only
+/// `[a-zA-Z0-9._-]`, trims stray leading/trailing dots (so a name of only dots can
+/// never collapse to `.`/`..`), and caps the length. This is deliberately stricter
+/// than `validate_name`, which only guards the existing uninstall/detail lookups.
+fn sanitize_install_name(raw: &str) -> Result<String, String> {
+    let filtered: String = raw
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+        .take(MAX_INSTALL_NAME_LEN)
+        .collect();
+    let trimmed = filtered.trim_matches('.');
+    if trimmed.is_empty() {
+        return Err("invalid_name".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Derives a candidate skill name from a git URL, e.g.
+/// `https://github.com/foo/bar.git` -> `bar`. The result still goes through
+/// `sanitize_install_name` before it is used as a directory name.
+fn repo_name_from_url(url: &str) -> String {
+    let trimmed = url.trim_end_matches('/').trim_end_matches(".git");
+    trimmed
+        .rsplit(['/', ':'])
+        .next()
+        .filter(|segment| !segment.is_empty())
+        .unwrap_or(trimmed)
+        .to_string()
+}
+
+/// Copies `current` into `dest`, resolving every entry and refusing any whose
+/// target (typically a symlink) escapes `root`. `root` and the initial `current`
+/// must already be canonicalized by the caller.
+fn copy_tree_confined(root: &Path, current: &Path, dest: &Path) -> Result<(), String> {
+    fs::create_dir_all(dest).map_err(|error| format!("write_failed:{error}"))?;
+    let entries = fs::read_dir(current).map_err(|error| format!("read_failed:{error}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("read_failed:{error}"))?;
+        let path = entry.path();
+        let resolved = resolve(&path);
+        if !resolved.starts_with(root) {
+            return Err("outside_root".to_string());
+        }
+        let dest_child = dest.join(entry.file_name());
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("read_failed:{error}"))?;
+        if file_type.is_dir() || (file_type.is_symlink() && path.is_dir()) {
+            copy_tree_confined(root, &path, &dest_child)?;
+        } else {
+            fs::copy(&path, &dest_child).map_err(|error| format!("write_failed:{error}"))?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn create_agent_link(target: &Path, link: &Path) -> Result<(), String> {
+    std::os::unix::fs::symlink(target, link).map_err(|error| format!("link_failed:{error}"))
+}
+
+#[cfg(windows)]
+fn create_agent_link(target: &Path, link: &Path) -> Result<(), String> {
+    if std::os::windows::fs::symlink_dir(target, link).is_ok() {
+        return Ok(());
+    }
+    // A real symlink needs elevation on Windows; a directory junction does not,
+    // so fall back to `mklink /J` when the symlink attempt is denied.
+    let mut command = Command::new("cmd");
+    command.args([
+        "/C",
+        "mklink",
+        "/J",
+        &link.to_string_lossy(),
+        &target.to_string_lossy(),
+    ]);
+    crate::git_control::hide_console(&mut command);
+    let output = command
+        .output()
+        .map_err(|error| format!("link_failed:{error}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "link_failed:{}",
+            String::from_utf8_lossy(&output.stderr)
+        ))
+    }
+}
+
+/// Unlinks a directory link without following it, or removes a real file/dir.
+/// Mirrors the uninstall behavior so overwrite never deletes through a link.
+fn remove_existing(path: &Path) -> Result<(), String> {
+    if is_link(path) {
+        fs::remove_dir(path)
+            .or_else(|_| fs::remove_file(path))
+            .map_err(|error| format!("remove_failed:{error}"))
+    } else if path.is_dir() {
+        fs::remove_dir_all(path).map_err(|error| format!("remove_failed:{error}"))
+    } else if path.exists() {
+        fs::remove_file(path).map_err(|error| format!("remove_failed:{error}"))
+    } else {
+        Ok(())
+    }
+}
+
+/// Merges one entry into `.skill-lock.json`, preserving `installedAt` across
+/// reinstalls/overwrites and only touching `updatedAt`.
+fn write_lock_info(name: &str, source: &str, source_url: &str) -> Result<(), String> {
+    let path =
+        skills_home(&[".agents", ".skill-lock.json"]).ok_or_else(|| "unknown_agent".to_string())?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("write_failed:{error}"))?;
+    }
+
+    let mut root: Value = fs::read_to_string(&path)
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    if !root.get("skills").map(Value::is_object).unwrap_or(false) {
+        root["skills"] = serde_json::json!({});
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let installed_at = root["skills"]
+        .get(name)
+        .and_then(|entry| entry.get("installedAt"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| now.clone());
+
+    root["skills"][name] = serde_json::json!({
+        "source": source,
+        "sourceUrl": source_url,
+        "installedAt": installed_at,
+        "updatedAt": now,
+    });
+
+    let serialized =
+        serde_json::to_string_pretty(&root).map_err(|error| format!("write_failed:{error}"))?;
+    fs::write(&path, serialized).map_err(|error| format!("write_failed:{error}"))
+}
+
+/// Shared tail of both install paths: validate, copy into the shared store,
+/// record the lock entry, and link into every requested (non-`shared`) agent.
+fn install_from_source_dir(
+    source_dir: &Path,
+    name: &str,
+    source_kind: &str,
+    source_url: &str,
+    agents: &[String],
+    overwrite: bool,
+) -> Result<SkillSummary, String> {
+    if !source_dir.join(SKILL_FILE).is_file() {
+        return Err("no_skill_md".to_string());
+    }
+    for agent in agents {
+        if agent != "shared" && root_for(agent).is_none() {
+            return Err("unknown_agent".to_string());
+        }
+    }
+
+    let shared = shared_root().ok_or_else(|| "unknown_agent".to_string())?;
+    fs::create_dir_all(&shared).map_err(|error| format!("write_failed:{error}"))?;
+    let dest = shared.join(name);
+
+    if dest.exists() || is_link(&dest) {
+        if !overwrite {
+            return Err("skill_exists".to_string());
+        }
+        remove_existing(&dest)?;
+    }
+
+    let canonical_source =
+        fs::canonicalize(source_dir).map_err(|error| format!("read_failed:{error}"))?;
+    copy_tree_confined(&canonical_source, &canonical_source, &dest)?;
+
+    write_lock_info(name, source_kind, source_url)?;
+
+    for agent in agents {
+        if agent == "shared" {
+            continue;
+        }
+        let root = root_for(agent).ok_or_else(|| "unknown_agent".to_string())?;
+        fs::create_dir_all(&root).map_err(|error| format!("write_failed:{error}"))?;
+        let link_path = root.join(name);
+        if link_path.exists() || is_link(&link_path) {
+            remove_existing(&link_path)?;
+        }
+        create_agent_link(&dest, &link_path)?;
+    }
+
+    summarize("shared", &shared, &dest, false).ok_or_else(|| "not_found".to_string())
+}
+
+fn install_inner(req: SkillInstallRequest) -> Result<SkillSummary, String> {
+    match req.source {
+        SkillInstallSource::Folder { path } => {
+            let source_dir = PathBuf::from(&path);
+            if !source_dir.is_dir() {
+                return Err("not_found".to_string());
+            }
+            let basename = source_dir
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .ok_or_else(|| "invalid_name".to_string())?;
+            let name = sanitize_install_name(&basename)?;
+            install_from_source_dir(
+                &source_dir,
+                &name,
+                "folder",
+                &path,
+                &req.agents,
+                req.overwrite,
+            )
+        }
+        SkillInstallSource::Git { url, spec } => {
+            let temp_dir = std::env::temp_dir()
+                .join(format!("flashwork-skill-install-{}", nanoid::nanoid!(8)));
+
+            let mut command = Command::new("git");
+            command.arg("clone").arg("--depth").arg("1");
+            if let Some(branch) = spec.as_deref().filter(|value| !value.is_empty()) {
+                command.arg("--branch").arg(branch);
+            }
+            command.arg(&url).arg(&temp_dir);
+            crate::git_control::hide_console(&mut command);
+
+            let output = command
+                .output()
+                .map_err(|error| format!("git_exec_failed:{error}"))?;
+            if !output.status.success() {
+                let _ = fs::remove_dir_all(&temp_dir);
+                return Err(format!(
+                    "git_clone_failed:{}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
+
+            let result = sanitize_install_name(&repo_name_from_url(&url)).and_then(|name| {
+                install_from_source_dir(&temp_dir, &name, "git", &url, &req.agents, req.overwrite)
+            });
+            let _ = fs::remove_dir_all(&temp_dir);
+            result
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn skills_scan() -> Result<Vec<SkillAgentSnapshot>, String> {
     tokio::task::spawn_blocking(scan_inner)
@@ -455,9 +731,78 @@ pub async fn skills_uninstall(agent: String, name: String) -> Result<SkillRemove
         .map_err(|error| format!("skills_uninstall:{error}"))?
 }
 
+#[tauri::command]
+pub async fn skills_install(req: SkillInstallRequest) -> Result<SkillSummary, String> {
+    tokio::task::spawn_blocking(move || install_inner(req))
+        .await
+        .map_err(|error| format!("skills_install:{error}"))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("flashwork-skills-{label}-{}", nanoid::nanoid!(8)))
+    }
+
+    /// `FLASHWORK_MCP_HOME` is process-global, so every test that touches it must
+    /// serialize behind this lock to avoid a concurrent test observing a half-set
+    /// (or another test's) value. Restores/removes the var and deletes its temp
+    /// dir on drop.
+    fn env_lock() -> &'static std::sync::Mutex<()> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
+    }
+
+    struct EnvGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        dir: PathBuf,
+    }
+
+    impl EnvGuard {
+        fn new(label: &str) -> Self {
+            let lock = env_lock()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let dir = unique_temp_dir(&format!("home-{label}"));
+            fs::create_dir_all(&dir).unwrap();
+            std::env::set_var("FLASHWORK_MCP_HOME", &dir);
+            Self { _lock: lock, dir }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            std::env::remove_var("FLASHWORK_MCP_HOME");
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    /// Nests the source under a random parent so the directory *basename* is
+    /// exactly `name` (what `install_inner` derives the skill name from), while
+    /// the parent stays unique across test runs.
+    fn write_skill_source(name: &str) -> PathBuf {
+        let parent = unique_temp_dir(&format!("source-{name}"));
+        let dir = parent.join(name);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join(SKILL_FILE),
+            "---\nname: test\ndescription: a test skill\n---\n\nBody.\n",
+        )
+        .unwrap();
+        dir
+    }
+
+    fn folder_request(path: &Path, agents: &[&str], overwrite: bool) -> SkillInstallRequest {
+        SkillInstallRequest {
+            source: SkillInstallSource::Folder {
+                path: path.to_string_lossy().to_string(),
+            },
+            agents: agents.iter().map(|agent| agent.to_string()).collect(),
+            overwrite,
+        }
+    }
 
     #[test]
     fn frontmatter_reads_plain_quoted_and_folded_values() {
@@ -541,5 +886,205 @@ mod tests {
             assert!(root_for(agent).is_some(), "{agent} has no root");
         }
         assert!(root_for("nonsense").is_none());
+    }
+
+    #[test]
+    fn install_from_folder_requires_skill_md() {
+        let source = unique_temp_dir("install-missing-skill-md");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("notes.txt"), "not a skill").unwrap();
+
+        let req = SkillInstallRequest {
+            source: SkillInstallSource::Folder {
+                path: source.to_string_lossy().to_string(),
+            },
+            agents: vec!["shared".to_string()],
+            overwrite: false,
+        };
+
+        let result = install_inner(req);
+        let _ = fs::remove_dir_all(&source);
+        assert_eq!(result.unwrap_err(), "no_skill_md");
+    }
+
+    #[test]
+    fn install_from_folder_installs_into_shared_store() {
+        let _guard = EnvGuard::new("happy-path");
+        let source = write_skill_source("promo-film");
+        let req = folder_request(&source, &["shared"], false);
+
+        let summary = install_inner(req).expect("install should succeed");
+        let _ = fs::remove_dir_all(&source);
+
+        assert_eq!(summary.name, "promo-film");
+        assert_eq!(summary.agent, "shared");
+        let dest = shared_root().unwrap().join("promo-film");
+        assert!(dest.join(SKILL_FILE).is_file());
+    }
+
+    #[test]
+    fn install_without_overwrite_fails_when_skill_exists() {
+        let _guard = EnvGuard::new("skill-exists");
+        let source = write_skill_source("brand-kit");
+        let req = folder_request(&source, &["shared"], false);
+        install_inner(req).expect("first install should succeed");
+
+        let req_again = folder_request(&source, &["shared"], false);
+        let result = install_inner(req_again);
+        let _ = fs::remove_dir_all(&source);
+
+        assert_eq!(result.unwrap_err(), "skill_exists");
+    }
+
+    #[test]
+    fn install_with_overwrite_replaces_existing_skill() {
+        let _guard = EnvGuard::new("overwrite");
+        let source = write_skill_source("motion-kit");
+        install_inner(folder_request(&source, &["shared"], false)).expect("first install");
+
+        // Change the source contents so the overwrite is observable.
+        fs::write(source.join("extra.txt"), "new file").unwrap();
+        let result = install_inner(folder_request(&source, &["shared"], true));
+        let _ = fs::remove_dir_all(&source);
+
+        let summary = result.expect("overwrite install should succeed");
+        let dest = PathBuf::from(&summary.resolved_path);
+        assert!(dest.join("extra.txt").is_file());
+    }
+
+    #[test]
+    fn install_sanitizes_unsafe_characters_in_name() {
+        let _guard = EnvGuard::new("sanitize-name");
+        let parent = unique_temp_dir("sanitize-parent");
+        let source = parent.join("My Skill!! 2024");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join(SKILL_FILE), "---\nname: x\n---\nbody").unwrap();
+
+        let summary = install_inner(folder_request(&source, &["shared"], false)).expect("install");
+        let _ = fs::remove_dir_all(&parent);
+
+        assert_eq!(summary.name, "MySkill2024");
+    }
+
+    #[test]
+    fn install_rejects_a_name_that_sanitizes_to_empty() {
+        let _guard = EnvGuard::new("sanitize-empty");
+        let parent = unique_temp_dir("sanitize-empty-parent");
+        let source = parent.join("!!!");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join(SKILL_FILE), "body").unwrap();
+
+        let result = install_inner(folder_request(&source, &["shared"], false));
+        let _ = fs::remove_dir_all(&parent);
+
+        assert_eq!(result.unwrap_err(), "invalid_name");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn install_rejects_a_symlink_that_escapes_the_source_root() {
+        let _guard = EnvGuard::new("confined-copy");
+        let source = write_skill_source("escape-test");
+        let outside = unique_temp_dir("escape-target");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("secret.txt"), "leaked").unwrap();
+        std::os::unix::fs::symlink(&outside, source.join("escape")).unwrap();
+
+        let result = install_inner(folder_request(&source, &["shared"], false));
+        let _ = fs::remove_dir_all(&source);
+        let _ = fs::remove_dir_all(&outside);
+
+        assert_eq!(result.unwrap_err(), "outside_root");
+    }
+
+    #[test]
+    fn install_writes_lock_info() {
+        let _guard = EnvGuard::new("lock-info");
+        let source = write_skill_source("lockable");
+        install_inner(folder_request(&source, &["shared"], false)).expect("install");
+        let _ = fs::remove_dir_all(&source);
+
+        let lock = lock_info("lockable").expect("lock entry should exist");
+        assert_eq!(lock.source.as_deref(), Some("folder"));
+        assert!(lock.installed_at.is_some());
+        assert!(lock.updated_at.is_some());
+    }
+
+    #[test]
+    fn install_creates_agent_link_when_requested() {
+        let _guard = EnvGuard::new("agent-link");
+        let source = write_skill_source("linked-skill");
+        let summary =
+            install_inner(folder_request(&source, &["shared", "claude"], false)).expect("install");
+        let _ = fs::remove_dir_all(&source);
+
+        let claude_root = root_for("claude").unwrap();
+        let link_path = claude_root.join("linked-skill");
+        assert!(is_link(&link_path), "expected a link at {link_path:?}");
+        assert_eq!(resolve(&link_path), PathBuf::from(&summary.resolved_path));
+    }
+
+    #[test]
+    fn install_rejects_unknown_agent() {
+        let _guard = EnvGuard::new("unknown-agent");
+        let source = write_skill_source("agent-check");
+        let result = install_inner(folder_request(&source, &["shared", "bogus"], false));
+        let _ = fs::remove_dir_all(&source);
+
+        assert_eq!(result.unwrap_err(), "unknown_agent");
+    }
+
+    fn init_git_repo_with_skill(dir: &Path) {
+        fs::create_dir_all(dir).unwrap();
+        Command::new("git")
+            .current_dir(dir)
+            .args(["init", "-q", "-b", "main"])
+            .output()
+            .expect("git init");
+        fs::write(dir.join(SKILL_FILE), "---\nname: cloned\n---\nbody").unwrap();
+        Command::new("git")
+            .current_dir(dir)
+            .args(["add", "."])
+            .output()
+            .expect("git add");
+        Command::new("git")
+            .current_dir(dir)
+            .args([
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "user.name=Flashwork Test",
+                "commit",
+                "-q",
+                "-m",
+                "init",
+            ])
+            .output()
+            .expect("git commit");
+    }
+
+    #[test]
+    fn install_from_git_clones_default_branch() {
+        let _guard = EnvGuard::new("git-install");
+        let repo = unique_temp_dir("git-repo");
+        init_git_repo_with_skill(&repo);
+        let canonical_repo = fs::canonicalize(&repo).unwrap();
+        let url = format!("file://{}", canonical_repo.display());
+
+        let req = SkillInstallRequest {
+            source: SkillInstallSource::Git { url, spec: None },
+            agents: vec!["shared".to_string()],
+            overwrite: false,
+        };
+        let result = install_inner(req);
+        let _ = fs::remove_dir_all(&repo);
+
+        let summary = result.expect("git install should succeed");
+        assert_eq!(
+            summary.name,
+            canonical_repo.file_name().unwrap().to_string_lossy()
+        );
+        let lock = lock_info(&summary.name).expect("lock entry for git install");
+        assert_eq!(lock.source.as_deref(), Some("git"));
     }
 }

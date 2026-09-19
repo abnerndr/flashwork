@@ -457,6 +457,7 @@ pub fn run() {
             skills::skills_scan,
             skills::skills_detail,
             skills::skills_uninstall,
+            skills::skills_install,
             opencode_sessions::snapshot_opencode_sessions,
             providers::provider_key_set,
             providers::provider_key_status,

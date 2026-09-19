@@ -61,3 +61,13 @@ export async function skillsDetail(agent: string, name: string): Promise<SkillDe
 export async function skillsUninstall(agent: string, name: string): Promise<SkillRemoveReport> {
   return invoke<SkillRemoveReport>('skills_uninstall', { agent, name })
 }
+
+export type SkillInstallRequest = {
+  source: { type: 'folder'; path: string } | { type: 'git'; url: string }
+  agents: string[]
+  overwrite?: boolean
+}
+
+export async function skillsInstall(req: SkillInstallRequest): Promise<SkillSummary> {
+  return invoke<SkillSummary>('skills_install', { req })
+}

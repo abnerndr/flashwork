@@ -45,17 +45,18 @@ CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Wind
 
 ## MCP (shipped)
 
-Unified panel + manager: scan Claude / Codex / OpenCode / Antigravity, Global vs Project scope, add via form / paste / official registry, copy between agents, health check, enable/disable, atomic writes with backup.
+Unified panel + manager, labeled **Marketplace**: scan Claude / Codex / OpenCode / Antigravity, Global vs Project scope, add via form / paste / official registry, copy between agents, health check, enable/disable, atomic writes with backup. Equal CTAs: **Add MCP server** (existing registry flow) and **Install skill**.
 
-Key files: `src/components/McpPanel/`, `src/components/modals/mcp/AddServerFlow.tsx`, `src-tauri/src/mcp_*.rs`.
+Key files: `src/components/McpPanel/`, `src/components/modals/mcp/AddServerFlow.tsx`, `src/components/modals/mcp/SkillInstallFlow.tsx`, `src-tauri/src/mcp_*.rs`.
 
-## Skills (shipped scan/uninstall, no install)
+## Skills (shipped scan / install / uninstall)
 
 - Scan `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills`
+- Install from a local folder or a git URL into the shared store `~/.agents/skills/<name>`, with optional links into agent skill dirs
 - Detail + uninstall (respects bundled skills and shared links)
-- UI: Skills tab in MCP panel, `SkillsBrowser.tsx`
+- UI: Skills tab in the Marketplace manager, `SkillsBrowser.tsx` + `SkillInstallFlow.tsx`
 
-Commands exist: `skills_scan`, `skills_detail`, `skills_uninstall`. **There is no `skills_install`.**
+Commands: `skills_scan`, `skills_detail`, `skills_install`, `skills_uninstall`. No official skills registry in v1.
 
 ## Git / GitHub (partial)
 
@@ -108,7 +109,6 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 
 | # | Gap |
 | --- | --- |
-| 3 | No install surface for skills (MCP registry exists; skills do not) |
 | 4 | Visual polish: icons + type, VS Code–like workbench chrome |
 | 5 | Project = folder + isolated harness/RAG/history |
 | 6 | GitHub SCM below VS Code quality; no extension install |

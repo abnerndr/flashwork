@@ -15,17 +15,18 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P12 Token metrics all agents | `89c9746` | done (Task 6 skipped — P11 was not shipped yet) |
 | P11 First-party provider APIs | `0e0a2fd` | done |
 | P01 Task handoff + MCP/skills picker | `772237d` | done |
+| P02 Skills + MCP marketplace | `f1cf498` | done |
 
 ## Current slice
 
-**Plan:** P02 — `docs/superpowers/plans/2026-09-17-02-skills-mcp-marketplace.md`  
-**ADR:** `.claude/adr/003-unified-mcp-skills-surface.md`  
-**Branch:** start `feat/p02-skills-mcp-marketplace` from `master`  
+**Plan:** P04 — `docs/superpowers/plans/2026-09-17-04-project-harness-rag.md`  
+**ADR:** `.claude/adr/005-per-project-harness-rag.md`  
+**Branch:** start `feat/p04-project-harness-rag` from `master`  
 **Status:** not started.
 
-## After P02
+## After P04
 
-Start P04 (`docs/superpowers/plans/2026-09-17-04-project-harness-rag.md`).
+Start P07 (`docs/superpowers/plans/2026-09-17-07-opaque-model-router.md`).
 
 ## P01 notes (for later slices)
 
@@ -33,3 +34,9 @@ Start P04 (`docs/superpowers/plans/2026-09-17-04-project-harness-rag.md`).
 - `task_write_tools_json` creates `tools.json`; restrict mode fails closed if the write fails.
 - Bootstrap pointers only — no pasted attachment bodies. Optional Claude `--add-dir` for the attachments folder is still a follow-up.
 - Orphan attachment files are not cleaned up on chip remove / card delete yet.
+
+## P02 notes (for later slices)
+
+- Skills install from a local folder or git URL into `~/.agents/skills/<name>`; optional links into agent skill dirs. No official skills registry in v1.
+- Windows directory-link fallback (`mklink /J`) is compiled but was not exercised on this Linux/WSL box.
+- Overwrite deletes a pre-existing non-link folder of the same name in an agent skills dir and replaces it with a link.

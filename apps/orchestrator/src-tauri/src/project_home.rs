@@ -237,7 +237,11 @@ pub fn bootstrap(folder: &str, project_id: &str) -> Result<PathBuf, String> {
             }
             fill_project_home(&home, project_id, false)?;
         }
-        None => fill_project_home(&home, project_id, true)?,
+        None => {
+            return Err(
+                "flashwork_incomplete: project home exists without a regular project.json".into(),
+            );
+        }
     }
 
     Ok(home)
@@ -283,6 +287,19 @@ mod tests {
         let folder = dir.path().to_string_lossy().to_string();
         crate::project_home::bootstrap(&folder, "aaa").unwrap();
         crate::project_home::bootstrap(&folder, "aaa").unwrap();
+    }
+
+    #[test]
+    fn bootstrap_refuses_incomplete_existing_project_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().to_string_lossy().to_string();
+        let home = dir.path().join(".flashwork");
+        fs::create_dir(&home).unwrap();
+
+        let error = crate::project_home::bootstrap(&folder, "aaa").unwrap_err();
+
+        assert!(error.contains("flashwork_incomplete"));
+        assert!(!home.join("project.json").exists());
     }
 
     #[cfg(unix)]

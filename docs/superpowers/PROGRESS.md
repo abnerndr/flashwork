@@ -17,7 +17,7 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P01 Task handoff + MCP/skills picker | `772237d` | done |
 | P02 Skills + MCP marketplace | `f1cf498` | done |
 | P04 Per-project harness/RAG | `ff198a9` | done |
-| P07 Opaque model router | (merge of `feat/p07-opaque-model-router`) | done |
+| P07 Opaque model router | `4fd97fb` | done |
 
 ## Current slice
 

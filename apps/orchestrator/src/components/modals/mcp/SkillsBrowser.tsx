@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FileText, Folder, Link2, Lock, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Folder, Link2, Lock, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useT } from '../../../lib/i18n'
@@ -18,6 +18,7 @@ import { EmptyState } from '../../EmptyState'
 import { MarkdownRenderer } from '../../MarkdownPane/MarkdownRenderer'
 import controls from '../controls.module.css'
 import { Modal } from '../Modal'
+import { SkillInstallFlow } from './SkillInstallFlow'
 import styles from './SkillsBrowser.module.css'
 
 type RemoveTarget = { group: SkillGroup; entries: SkillSummary[] }
@@ -33,6 +34,7 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
   const [detail, setDetail] = useState<SkillDetail | null>(null)
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null)
   const [busy, setBusy] = useState(false)
+  const [installing, setInstalling] = useState(false)
 
   const load = async () => {
     try {
@@ -119,7 +121,11 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
           icon={<FileText size={20} />}
           title={t('skills.emptyTitle')}
           description={t('skills.emptyDescription')}
+          primaryAction={{ label: t('skills.install'), onClick: () => setInstalling(true) }}
         />
+        {installing ? (
+          <SkillInstallFlow onClose={() => setInstalling(false)} onDone={() => void load()} />
+        ) : null}
       </div>
     )
   }
@@ -127,6 +133,14 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
   return (
     <div className={styles.layout}>
       <aside className={styles.list}>
+        <button
+          type="button"
+          className={styles.installButton}
+          onClick={() => setInstalling(true)}
+        >
+          <Plus size={13} />
+          {t('skills.install')}
+        </button>
         {groups.map((group) => (
           <button
             key={group.name}
@@ -197,6 +211,10 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
             </p>
           ) : null}
         </Modal>
+      ) : null}
+
+      {installing ? (
+        <SkillInstallFlow onClose={() => setInstalling(false)} onDone={() => void load()} />
       ) : null}
     </div>
   )

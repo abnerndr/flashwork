@@ -1,3 +1,4 @@
+import type { MessageKey } from './i18n'
 import type { SkillAgentSnapshot, SkillSummary } from './tauri/skills'
 
 export const SHARED_SKILL_AGENT = 'shared'
@@ -50,4 +51,22 @@ export function matchesSkillQuery(group: SkillGroup, query: string): boolean {
     group.name.toLowerCase().includes(needle) ||
     group.description.toLowerCase().includes(needle)
   )
+}
+
+/** Backend errors are lowercase sentinels; anything unmapped falls back to a generic key. */
+export function skillErrorKey(error: string): MessageKey {
+  const sentinel = error.split(':', 1)[0]
+  switch (sentinel) {
+    case 'no_skill_md':
+      return 'skills.errNoSkillMd'
+    case 'skill_exists':
+      return 'skills.errExists'
+    case 'invalid_name':
+      return 'skills.errInvalidName'
+    case 'git_clone_failed':
+    case 'git_exec_failed':
+      return 'skills.errGitClone'
+    default:
+      return 'skills.errGeneric'
+  }
 }

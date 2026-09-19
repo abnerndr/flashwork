@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { countSkills, groupSkillsByName, matchesSkillQuery } from './skills'
+import { countSkills, groupSkillsByName, matchesSkillQuery, skillErrorKey } from './skills'
 import type { SkillAgentSnapshot, SkillSummary } from './tauri/skills'
 
 function skill(agent: string, name: string, overrides: Partial<SkillSummary> = {}): SkillSummary {
@@ -93,5 +93,19 @@ describe('matchesSkillQuery', () => {
   it('accepts an empty query and rejects a non-match', () => {
     expect(matchesSkillQuery(group, '  ')).toBe(true)
     expect(matchesSkillQuery(group, 'pptx')).toBe(false)
+  })
+})
+
+describe('skillErrorKey', () => {
+  it('maps install sentinels to skills i18n keys', () => {
+    expect(skillErrorKey('no_skill_md')).toBe('skills.errNoSkillMd')
+    expect(skillErrorKey('skill_exists')).toBe('skills.errExists')
+    expect(skillErrorKey('invalid_name')).toBe('skills.errInvalidName')
+    expect(skillErrorKey('git_clone_failed:remote hung up')).toBe('skills.errGitClone')
+  })
+
+  it('falls back to a generic skills error', () => {
+    expect(skillErrorKey('write_failed:disk')).toBe('skills.errGeneric')
+    expect(skillErrorKey('')).toBe('skills.errGeneric')
   })
 })

@@ -50,6 +50,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Skills can be installed from a local folder or a git URL into the shared store (`~/.agents/skills`), with optional links into each agent's skills folder.
 - Task board cards can attach one or more markdown handoff files (**Attach handoff**) and, when
   **Restrict tools** is on, pick which MCP servers and skills the spawned agent gets instead of the
   project defaults. When a card has attachments, spawned agents get pointer paths to the

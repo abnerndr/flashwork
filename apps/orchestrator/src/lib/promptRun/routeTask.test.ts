@@ -88,4 +88,17 @@ describe('routeTask', () => {
     expect(out.taskKind).toBe('ui')
     expect(out.agent).toBe('antigravity')
   })
+
+  it('accepts api:google even when it is not in installedAgents', async () => {
+    const out = await routeTask({
+      prompt: 'implement login',
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: null,
+      codexRateLimited: false,
+      probe: async () => ({ kind: 'implement', agent: 'api:google', reason: 'x' }),
+    })
+    expect(out.agent).toBe('api:google')
+    expect(out.taskKind).toBe('implement')
+  })
 })

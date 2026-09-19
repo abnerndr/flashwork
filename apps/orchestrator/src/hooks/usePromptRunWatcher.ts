@@ -9,9 +9,10 @@ import { executeAutoHandoff } from '../lib/promptRun/executeHandoff'
 import { excludeFailedAgents, markAgentAuthFailed } from '../lib/promptRun/failedAgents'
 import { decideLaneFailure } from '../lib/promptRun/laneFailure'
 import { probeInstalledAgents } from '../lib/promptRun/probeInstalled'
+import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../lib/promptRun/routedAgent'
 import { appendPromptRunJournal, ingestRunContext, listenPtyData } from '../lib/tauri'
 import { shouldIngestContext } from '../lib/promptRun/ingestContext'
-import { AGENT_TYPE_LABELS, ALL_AGENT_TYPES, UNRESTRICTED_FLAG, type AgentType, type PromptRun, type PromptRunStepReason } from '../lib/types'
+import { AGENT_TYPE_LABELS, ALL_AGENT_TYPES, UNRESTRICTED_FLAG, type AgentType, type PromptRun, type PromptRunStepReason, type RoutedAgent } from '../lib/types'
 import { boardLaneContext, failBoardLane, retargetBoardRun } from '../lib/taskBoard/submitBoardTask'
 import { useProjectsStore } from '../stores/projectsStore'
 import { usePromptRunStore } from '../stores/promptRunStore'
@@ -44,7 +45,7 @@ function resolveActivePane(run: PromptRun): ActivePane | null {
   return resolvePane(run.projectId, run.activeTerminalId)
 }
 
-function runStepTerminals(run: PromptRun): Array<{ terminalId: string; agent: AgentType }> {
+function runStepTerminals(run: PromptRun): Array<{ terminalId: string; agent: RoutedAgent }> {
   const steps = run.steps
     .filter((step) => step.terminalId)
     .map((step) => ({ terminalId: step.terminalId as string, agent: step.agent }))
@@ -122,7 +123,7 @@ export function usePromptRunWatcher() {
       const installed = excludeFailedAgents(await probeInstalledAgents(candidates))
       const occupied = run.steps
         .map((step) => step.agent)
-        .filter((agent) => agent !== sourceAgent)
+        .filter((agent): agent is AgentType => agent !== sourceAgent && !isApiAgentId(agent))
       const target = handoffTarget(sourceAgent, installed, occupied)
       if (!target) {
         failBoardLane(sourceTerminalId)
@@ -220,10 +221,11 @@ export function usePromptRunWatcher() {
   const considerTrigger = (
     run: PromptRun,
     ptyChunk: string,
-    sourceAgent: AgentType = run.activeAgent,
+    sourceAgent: RoutedAgent = run.activeAgent,
     sourceTerminalId: string = run.activeTerminalId,
   ) => {
     if (run.status !== 'running') return
+    if (isApiAgentId(sourceAgent) || isApiTerminalId(sourceTerminalId)) return
     const trigger = detectHandoffTrigger({
       activeAgent: sourceAgent,
       claudeFiveHourUtilization: usageRef.current.claudeFiveHourUtilization,
@@ -256,8 +258,8 @@ export function usePromptRunWatcher() {
       errorNote:
         trigger.kind === 'error'
           ? action === 'retarget-slice'
-            ? `${AGENT_TYPE_LABELS[sourceAgent]} failed this slice. Finish only this slice; do not redo sibling panes.`
-            : `${AGENT_TYPE_LABELS[sourceAgent]} failed. Continue from its output and finish the user request.`
+            ? `${routedAgentLabel(sourceAgent)} failed this slice. Finish only this slice; do not redo sibling panes.`
+            : `${routedAgentLabel(sourceAgent)} failed. Continue from its output and finish the user request.`
           : undefined,
     })
   }

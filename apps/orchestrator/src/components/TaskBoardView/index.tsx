@@ -25,8 +25,8 @@ import { toCwdRelative } from '../../lib/taskBoard/schedule'
 import { pumpTaskBoardQueue, stopBoardCard } from '../../lib/taskBoard/submitBoardTask'
 import { pickAndAttachMarkdown } from '../../lib/tauri/taskAttachments'
 import { getProjectDefaultCwd } from '../../lib/terminalFactory'
+import { routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
-  AGENT_TYPE_LABELS,
   type TaskAttachment,
   type TaskBoardColumn,
   type TaskCard,
@@ -130,7 +130,7 @@ function BoardCard({
         <ul className={styles.slices}>
           {card.slicePlan.map((slice) => (
             <li key={slice.id}>
-              {AGENT_TYPE_LABELS[slice.agent]} · {slice.kind} · {slice.status}
+              {routedAgentLabel(slice.agent)} · {slice.kind} · {slice.status}
             </li>
           ))}
         </ul>

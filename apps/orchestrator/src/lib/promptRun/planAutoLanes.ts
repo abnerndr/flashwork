@@ -1,5 +1,6 @@
-import { AGENT_TYPE_LABELS, type AgentType, type PromptRunStepReason } from '../types'
+import { type AgentType, type PromptRunStepReason, type RoutedAgent } from '../types'
 import { classifyTask, classifyTaskKinds, type TaskKind } from './classifyTask'
+import { routedAgentLabel } from './routedAgent'
 import { selectAgent, type SelectAgentInput } from './selectAgent'
 
 export type SkillCatalogEntry = {
@@ -22,7 +23,7 @@ export type PlanAutoLanesInput = {
 }
 
 export type AutoLane = {
-  agent: AgentType
+  agent: RoutedAgent
   role: 'orchestrator' | 'worker'
   taskKind: TaskKind
   reason: PromptRunStepReason
@@ -106,7 +107,7 @@ function workerSlice(prompt: string, lane: AutoLane, siblings: readonly AutoLane
     lines.push('Sibling panes — do not redo their work:')
     for (const sibling of siblings) {
       const skills = sibling.skillNames.length ? ` skills: ${sibling.skillNames.join(', ')}` : ''
-      lines.push(`- ${AGENT_TYPE_LABELS[sibling.agent]} owns ${kindLabel(sibling.taskKind)}${skills}`)
+      lines.push(`- ${routedAgentLabel(sibling.agent)} owns ${kindLabel(sibling.taskKind)}${skills}`)
     }
   }
   if (lane.skillNames.length > 0) {
@@ -130,7 +131,7 @@ function orchestratorSlice(prompt: string, workers: AutoLane[]): string {
   const roster = workers
     .map((lane) => {
       const skills = lane.skillNames.length ? ` skills: ${lane.skillNames.join(', ')}` : ''
-      return `- ${AGENT_TYPE_LABELS[lane.agent]} (${lane.taskKind}${skills})`
+      return `- ${routedAgentLabel(lane.agent)} (${lane.taskKind}${skills})`
     })
     .join('\n')
   return [

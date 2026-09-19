@@ -53,14 +53,14 @@ describe('parsePlannerSlices', () => {
 })
 
 describe('planBoardSlices', () => {
-  it('falls back to heuristic workers with no orchestrator when JSON is junk', () => {
-    const slices = planBoardSlices({ ...BASE }, '???')
+  it('falls back to heuristic workers with no orchestrator when JSON is junk', async () => {
+    const slices = await planBoardSlices({ ...BASE }, '???')
     expect(slices.length).toBeGreaterThan(0)
     expect(slices.every((slice) => slice.status === 'pending')).toBe(true)
   })
 
-  it('makes review wait on implement in the heuristic plan', () => {
-    const slices = heuristicBoardSlices({ ...BASE })
+  it('makes review wait on implement in the heuristic plan', async () => {
+    const slices = await heuristicBoardSlices({ ...BASE })
     const implementSlices = slices.filter((slice) => slice.kind === 'implement')
     const review = slices.find((slice) => slice.kind === 'review')
     const lastImplement = implementSlices[implementSlices.length - 1]
@@ -68,14 +68,28 @@ describe('planBoardSlices', () => {
     if (review && lastImplement) expect(review.dependsOn).toEqual([lastImplement.id])
   })
 
-  it('keeps a simple implement card on one worker instead of cloning heavy panes', () => {
-    const slices = planBoardSlices({
+  it('keeps a simple implement card on one worker instead of cloning heavy panes', async () => {
+    const slices = await planBoardSlices({
       ...BASE,
       prompt: 'implement login',
     })
     const implementSlices = slices.filter((slice) => slice.kind === 'implement')
     expect(implementSlices).toHaveLength(1)
     expect(implementSlices[0]?.dependsOn).toEqual([])
+  })
+
+  it('returns a single api slice when the probe routes to api:google', async () => {
+    const slices = await planBoardSlices(
+      { ...BASE, installedAgents: [], enabledAgents: [] },
+      null,
+      async () => ({ kind: 'implement', agent: 'api:google', reason: 'x' }),
+    )
+    expect(slices).toHaveLength(1)
+    expect(slices[0]).toMatchObject({
+      agent: 'api:google',
+      kind: 'implement',
+      status: 'pending',
+    })
   })
 })
 

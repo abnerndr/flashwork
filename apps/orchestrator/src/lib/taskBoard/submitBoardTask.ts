@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import { getCachedClaudeUsage } from '../claudeUsageCache'
 import { getCachedCodexUsage } from '../codexUsageCache'
 import { groupSkillsByName } from '../skills'
-import { ALL_AGENT_TYPES, AGENT_TYPE_LABELS, type AgentType, type TaskCard, type TaskSlicePlan } from '../types'
+import { ALL_AGENT_TYPES, type AgentType, type TaskCard, type TaskSlicePlan } from '../types'
 import { notifyAgentDone } from '../notifications'
 import {
   appendPromptRunBoard,
@@ -24,6 +24,11 @@ import type { AutoLane } from '../promptRun/planAutoLanes'
 import { isPromptRunBlocking } from '../promptRun/isPromptRunBlocking'
 import { isAgentAuthError } from '../promptRun/detectHandoffTrigger'
 import { excludeFailedAgents, markAgentAuthFailed } from '../promptRun/failedAgents'
+import { freeProbe, productionFreeProbeDeps } from '../promptRun/freeRouter'
+import { isApiAgentId, routedAgentLabel } from '../promptRun/routedAgent'
+import { routeOpenTask } from '../promptRun/routeTask'
+import { pickEffectiveCodingModel } from '../providers/catalogOverlay'
+import { providerChat, providerKeyStatus } from '../tauri/providers'
 import { attachmentsDirFor, buildToolsJsonPayload } from './attachments'
 import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
 import { buildPlannerPrompt, planBoardSlices } from './planner'
@@ -163,15 +168,43 @@ export async function startBoardCard(cardId: string): Promise<void> {
       useTaskBoardStore.getState().patchCard(cardId, { cwd })
     }
     const workingCard = { ...card, cwd }
-    const plannerText = await plannerTextFor(workingCard, installed)
+    const usableInstalled = excludeFailedAgents(installed)
+    let probeResult: unknown
+    let probed = false
+    const probe = async () => {
+      if (!probed) {
+        probed = true
+        probeResult = await freeProbe(
+          { prompt: workingCard.prompt, installedAgents: usableInstalled },
+          productionFreeProbeDeps(),
+        )
+      }
+      return probeResult
+    }
+    const routed = await routeOpenTask({
+      ...input,
+      installedAgents: usableInstalled,
+      probe,
+      keyStatus: providerKeyStatus,
+    })
+    if (!routed.ok) {
+      useTaskBoardStore.getState().patchCard(cardId, {
+        column: 'blocked',
+        error: routed.needsSetup === 'api' ? 'needs-setup-api' : 'needs-install',
+      })
+      return
+    }
+    const skipPlannerCli = isApiAgentId(routed.agent)
+    const plannerText = skipPlannerCli ? null : await plannerTextFor(workingCard, usableInstalled)
     const plannerFailedAuth = Boolean(plannerText && isAgentAuthError(plannerText))
     if (plannerFailedAuth) markAgentAuthFailed('gemini')
-    const usableInstalled = excludeFailedAgents(
-      plannerFailedAuth ? installed.filter((agent) => agent !== 'gemini') : installed,
+    const afterPlannerInstalled = excludeFailedAgents(
+      plannerFailedAuth ? usableInstalled.filter((agent) => agent !== 'gemini') : usableInstalled,
     )
-    const slicePlan = planBoardSlices(
-      { ...input, installedAgents: usableInstalled },
+    const slicePlan = await planBoardSlices(
+      { ...input, installedAgents: afterPlannerInstalled },
       plannerFailedAuth ? null : plannerText,
+      probe,
     )
     if (slicePlan.length === 0) {
       useTaskBoardStore.getState().patchCard(cardId, { column: 'blocked', error: 'needs-install' })
@@ -202,7 +235,7 @@ export async function startBoardCard(cardId: string): Promise<void> {
       prompt: card.prompt,
       unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
       enabledAgents: input.enabledAgents,
-      installedAgents: usableInstalled,
+      installedAgents: afterPlannerInstalled,
       claudeFiveHourUtilization: input.claudeFiveHourUtilization,
       codexRateLimited: input.codexRateLimited,
       activeRunStatus: existing?.status,
@@ -222,6 +255,8 @@ export async function startBoardCard(cardId: string): Promise<void> {
       ensureContextDir: ensurePromptRunContext,
       createAgentTerminal: (projectId, launch) =>
         useProjectsStore.getState().createAgentTerminal(projectId, launch),
+      chat: providerChat,
+      pickCodingModel: pickEffectiveCodingModel,
     })
     if (!result.ok) {
       const failure = decideBoardStartFailure(result.code)
@@ -296,6 +331,8 @@ export async function continueBoardCard(cardId: string): Promise<void> {
       toolsJsonPath,
       createAgentTerminal: (projectId, launch) =>
         useProjectsStore.getState().createAgentTerminal(projectId, launch),
+      chat: providerChat,
+      pickCodingModel: pickEffectiveCodingModel,
     })
     for (const step of steps) {
       usePromptRunStore.getState().appendStep(card.projectId, step)
@@ -373,7 +410,7 @@ export async function noteBoardTerminalComplete(terminalId: string): Promise<voi
   useTaskBoardStore.getState().patchCard(card.id, { slicePlan: nextPlan })
   if (card.runId) {
     try {
-      const heading = `${AGENT_TYPE_LABELS[slice.agent]} finished ${slice.kind}`
+      const heading = `${routedAgentLabel(slice.agent)} finished ${slice.kind}`
       const body = `Slice ${slice.id} is done. Remaining siblings should not redo this work.`
       await appendPromptRunBoard(card.runId, heading, body)
       await appendPromptRunJournal(card.runId, heading, body)

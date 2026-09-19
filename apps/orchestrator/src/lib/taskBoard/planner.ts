@@ -1,5 +1,7 @@
 import { classifyTaskKinds, type TaskKind } from '../promptRun/classifyTask'
 import { planAutoLanes, type PlanAutoLanesInput } from '../promptRun/planAutoLanes'
+import { isApiAgentId } from '../promptRun/routedAgent'
+import { routeOpenTask } from '../promptRun/routeTask'
 import { selectAgent } from '../promptRun/selectAgent'
 import type { AgentType, TaskSlicePlan } from '../types'
 import { filesOverlap } from './schedule'
@@ -35,6 +37,8 @@ function asStringArray(value: unknown): string[] {
 export type PlannerContext = PlanAutoLanesInput & {
   allowedFiles?: string[]
 }
+
+export type PlannerProbe = () => Promise<unknown>
 
 export function parsePlannerSlices(text: string, input: PlannerContext): TaskSlicePlan[] {
   const parsed = extractJsonObject(text)
@@ -105,7 +109,24 @@ export function serializeSiblingSlices(slices: TaskSlicePlan[]): TaskSlicePlan[]
   return next
 }
 
-export function heuristicBoardSlices(input: PlannerContext): TaskSlicePlan[] {
+export async function heuristicBoardSlices(
+  input: PlannerContext,
+  probe: PlannerProbe = async () => null,
+): Promise<TaskSlicePlan[]> {
+  const routed = await routeOpenTask({ ...input, probe })
+  if (routed.ok && isApiAgentId(routed.agent)) {
+    return [
+      {
+        id: 'slice_1',
+        kind: routed.taskKind,
+        agent: routed.agent,
+        prompt: input.prompt,
+        dependsOn: [],
+        allowedFiles: [...(input.allowedFiles ?? [])],
+        status: 'pending',
+      },
+    ]
+  }
   const lanes = planAutoLanes({ ...input, includeOrchestrator: false }).filter(
     (lane) => lane.role === 'worker',
   )
@@ -137,12 +158,16 @@ export function heuristicBoardSlices(input: PlannerContext): TaskSlicePlan[] {
   return serializeSiblingSlices(slices)
 }
 
-export function planBoardSlices(input: PlannerContext, plannerText?: string | null): TaskSlicePlan[] {
+export async function planBoardSlices(
+  input: PlannerContext,
+  plannerText?: string | null,
+  probe: PlannerProbe = async () => null,
+): Promise<TaskSlicePlan[]> {
   if (plannerText) {
     const parsed = parsePlannerSlices(plannerText, input)
     if (parsed.length > 0) return serializeSiblingSlices(parsed)
   }
-  return heuristicBoardSlices(input)
+  return heuristicBoardSlices(input, probe)
 }
 
 export function buildPlannerPrompt(input: {

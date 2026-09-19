@@ -19,4 +19,8 @@ describe('isPromptRunBlocking', () => {
   it('blocks when live terminals are unknown so a real in-memory run stays exclusive', () => {
     expect(isPromptRunBlocking('running', 'term-1')).toBe(true)
   })
+
+  it('blocks an in-flight first-party API lane that has no PTY', () => {
+    expect(isPromptRunBlocking('running', 'api:google:run_api', ['term-other'])).toBe(true)
+  })
 })

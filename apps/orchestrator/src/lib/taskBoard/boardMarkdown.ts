@@ -1,5 +1,5 @@
-import { AGENT_TYPE_LABELS } from '../types'
 import type { TaskCard, TaskSlicePlan } from '../types'
+import { routedAgentLabel } from '../promptRun/routedAgent'
 
 export function renderBoardMarkdown(
   card: Pick<TaskCard, 'title' | 'prompt' | 'allowedFiles' | 'attachments' | 'toolSelection'>,
@@ -12,7 +12,7 @@ export function renderBoardMarkdown(
   const roster = slices
     .map((slice) => {
       const deps = slice.dependsOn.length ? ` depends on ${slice.dependsOn.join(', ')}` : ''
-      return `- ${slice.id} · ${AGENT_TYPE_LABELS[slice.agent]} · ${slice.kind} · ${slice.status}${deps}`
+      return `- ${slice.id} · ${routedAgentLabel(slice.agent)} · ${slice.kind} · ${slice.status}${deps}`
     })
     .join('\n')
 

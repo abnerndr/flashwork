@@ -277,4 +277,47 @@ describe('startPromptRun', () => {
     expect(result.run.canonicalClaudeSessionId).toBe('sess-canonical')
     expect(result.run.canonicalClaudeTerminalId).toBe('term-1')
   })
+
+  it('runs an api lane via chat without spawning a PTY', async () => {
+    const chat = vi.fn(async () => ({ text: 'assistant reply' }))
+    const writeApiReply = vi.fn(async () => {})
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: [],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createId: () => 'run_api',
+      now: () => 1_700_000_000_000,
+      lanes: [
+        {
+          agent: 'api:google',
+          role: 'worker',
+          taskKind: 'implement',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'implement login',
+        },
+      ],
+      chat,
+      pickCodingModel: () => 'gemini-2.5-pro',
+      writeApiReply,
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    expect(createAgentTerminal).not.toHaveBeenCalled()
+    expect(chat).toHaveBeenCalledOnce()
+    expect(chat.mock.calls[0]?.[0]).toBe('google')
+    expect(chat.mock.calls[0]?.[1]).toBe('gemini-2.5-pro')
+    expect(chat.mock.calls[0]?.[3]).toBe(120000)
+    expect(writeApiReply).toHaveBeenCalledOnce()
+    expect(writeApiReply.mock.calls[0]?.[0]).toMatch(/api-reply\.md$/)
+    expect(writeApiReply.mock.calls[0]?.[1]).toBe('assistant reply')
+    if (!result.ok) return
+    expect(result.run.activeAgent).toBe('api:google')
+    expect(result.run.steps[0]?.terminalId).toBe('api:google:run_api')
+  })
 })

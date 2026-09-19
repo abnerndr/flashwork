@@ -6,8 +6,13 @@ import { appendPromptRunJournal, ensurePromptRunContext, skillsScan } from '../t
 import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import { excludeFailedAgents } from './failedAgents'
+import { freeProbe, productionFreeProbeDeps } from './freeRouter'
+import { isApiAgentId } from './routedAgent'
 import { probeInstalledAgents } from './probeInstalled'
+import { routeOpenTask } from './routeTask'
 import { startPromptRun, type StartPromptRunResult } from './startPromptRun'
+import { providerChat, providerKeyStatus } from '../tauri/providers'
+import { pickEffectiveCodingModel } from '../providers/catalogOverlay'
 
 export type AutoPromptRunProject = {
   id: string
@@ -63,6 +68,39 @@ export async function submitAutoPromptRun(args: {
     description: group.description,
     agents: group.agents,
   }))
+  const enabledAgents = ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent])
+  const selectInput = {
+    prompt: args.prompt,
+    enabledAgents,
+    installedAgents: installed,
+    claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
+    codexRateLimited: Boolean(codexUsage?.rate_limited),
+    reviewAgentProvider: args.project?.reviewAgentProvider,
+    conflictAgentProvider: args.project?.conflictAgentProvider,
+    lastUsedAgent: args.project?.lastUsedAgent,
+  }
+  const probe = () =>
+    freeProbe({ prompt: args.prompt, installedAgents: installed }, productionFreeProbeDeps())
+  const routed = await routeOpenTask({
+    ...selectInput,
+    probe,
+    keyStatus: providerKeyStatus,
+  })
+  if (!routed.ok) {
+    return { ok: false, code: routed.needsSetup === 'api' ? 'needs-setup-api' : 'needs-install' }
+  }
+  const apiLane = isApiAgentId(routed.agent)
+    ? [
+        {
+          agent: routed.agent,
+          role: 'worker' as const,
+          taskKind: routed.taskKind,
+          reason: routed.reason,
+          skillNames: [] as string[],
+          slicePrompt: args.prompt,
+        },
+      ]
+    : undefined
   const result = await startPromptRun({
     project: args.project
       ? {
@@ -76,10 +114,10 @@ export async function submitAutoPromptRun(args: {
     cwd: args.cwd,
     prompt: args.prompt,
     unrestricted: args.unrestricted,
-    enabledAgents: ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent]),
+    enabledAgents,
     installedAgents: installed,
-    claudeFiveHourUtilization: claudeUsage?.five_hour.utilization ?? null,
-    codexRateLimited: Boolean(codexUsage?.rate_limited),
+    claudeFiveHourUtilization: selectInput.claudeFiveHourUtilization,
+    codexRateLimited: selectInput.codexRateLimited,
     activeRunStatus: existing?.status,
     activeTerminalId: existing?.activeTerminalId,
     activeRunTerminalIds: existing?.steps
@@ -87,10 +125,13 @@ export async function submitAutoPromptRun(args: {
       .filter((id): id is string => Boolean(id)),
     liveTerminalIds: args.project?.terminals.map((terminal) => terminal.id) ?? [],
     skills,
+    lanes: apiLane,
     includeOrchestrator: false,
     ensureContextDir: ensurePromptRunContext,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),
+    chat: providerChat,
+    pickCodingModel: pickEffectiveCodingModel,
   })
   if (!result.ok) return result
   usePromptRunStore.getState().setRun(result.run)

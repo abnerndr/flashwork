@@ -64,6 +64,12 @@ export function pickEffectiveRouterModel(provider: ProviderId): string {
   return pickRouterModelFrom(getModelCatalog(provider))
 }
 
+/** Coding model id for `provider` using the effective catalog (first `coding` role, else `[0]`). */
+export function pickEffectiveCodingModel(provider: ProviderId): string {
+  const models = getModelCatalog(provider)
+  return models.find((m) => m.role === 'coding')?.id ?? models[0].id
+}
+
 /** True once at least one provider has a refreshed overlay for this process. */
 export function hasCatalogOverlay(): boolean {
   return Object.keys(overlay).length > 0

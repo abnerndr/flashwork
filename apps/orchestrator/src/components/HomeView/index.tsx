@@ -23,6 +23,7 @@ import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/p
 import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
 import { AUTO_LAUNCH_VALUE } from '../../lib/promptRun/constants'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
+import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
   AGENT_TYPE_LABELS,
   ALL_AGENT_TYPES,
@@ -291,6 +292,14 @@ export function HomeView() {
             })
             return
           }
+          if (result.code === 'needs-setup-api') {
+            openModal('preferences', { category: 'providers' })
+            pushToast({
+              title: t('promptRun.needsSetupApiTitle'),
+              body: t('promptRun.needsSetupApiBody'),
+            })
+            return
+          }
           const candidate = preferences.enabledAgents.claude
             ? 'claude'
             : (ALL_AGENT_TYPES.find(
@@ -304,19 +313,23 @@ export function HomeView() {
           return
         }
         setActiveProjectOnly(result.run.projectId)
-        useProjectsStore
-          .getState()
-          .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
-        setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
-        requestPaneFocus(result.run.activeTerminalId)
+        const skipFocus =
+          isApiAgentId(result.run.activeAgent) || isApiTerminalId(result.run.activeTerminalId)
+        if (!skipFocus) {
+          useProjectsStore
+            .getState()
+            .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
+          setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
+          requestPaneFocus(result.run.activeTerminalId)
+        }
         setHomeQuickPromptDraft('')
         if (quickPromptRef.current) quickPromptRef.current.value = ''
-        setActiveView('workspace')
+        if (!skipFocus) setActiveView('workspace')
         const reason = result.run.steps[0]?.reason ?? 'heuristic'
         pushToast({
           title: t('promptRun.startedTitle'),
           body: t('promptRun.startedBody', {
-            agent: AGENT_TYPE_LABELS[result.run.activeAgent],
+            agent: routedAgentLabel(result.run.activeAgent),
             reason: t(PROMPT_RUN_REASON_KEYS[reason]),
           }),
         })

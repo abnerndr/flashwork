@@ -1,10 +1,11 @@
 import { buildTaskBootstrap } from '../taskBoard/attachments'
-import { AGENT_TYPE_LABELS, type AgentType } from '../types'
+import type { RoutedAgent } from '../types'
+import { routedAgentLabel } from './routedAgent'
 
 export function buildRunBootstrapInput(args: {
   runId: string
   prompt: string
-  agent: AgentType
+  agent: RoutedAgent
   role?: 'orchestrator' | 'worker'
   skillNames?: readonly string[]
   allowedFiles?: readonly string[]
@@ -13,7 +14,7 @@ export function buildRunBootstrapInput(args: {
   attachmentsDir?: string
   toolsJsonPath?: string
 }): string {
-  const label = AGENT_TYPE_LABELS[args.agent]
+  const label = routedAgentLabel(args.agent)
   const promptWithAttachments = buildTaskBootstrap({
     prompt: args.prompt,
     attachmentsDir: args.attachmentsDir,

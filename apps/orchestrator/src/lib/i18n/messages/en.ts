@@ -498,6 +498,8 @@ export const en = {
   'taskBoard.error.noProject': 'The project for this card no longer exists.',
   'taskBoard.error.needsInstall':
     'No coding CLI is installed. Install Claude, Codex or Gemini and try again.',
+  'taskBoard.error.needsSetupApi':
+    'Save a Google, OpenAI, or Anthropic key in Preferences → Providers, or install a coding CLI.',
   'taskBoard.error.runActive': 'Waiting for the current Auto run on this project.',
   'taskBoard.error.startFailed': 'Could not start the task. Restart Flashwork and try again.',
   'features.aiMemory.title': 'AI Memory',
@@ -887,6 +889,9 @@ export const en = {
   'promptRun.runActiveBody': 'Cancel it from the project bar, or wait until it finishes.',
   'promptRun.needsInstallTitle': 'No coding agent installed',
   'promptRun.needsInstallBody': 'Install Claude Code, Codex, or OpenCode to use Auto.',
+  'promptRun.needsSetupApiTitle': 'Add a provider API key',
+  'promptRun.needsSetupApiBody':
+    'Save a Google, OpenAI, or Anthropic key in Providers to run Auto without a coding CLI.',
   'promptRun.startedTitle': 'Auto run started',
   'promptRun.startedBody': '{agent} · {reason}',
   'promptRun.status.running': 'Running',

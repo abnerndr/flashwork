@@ -1,3 +1,5 @@
+import type { ProviderId } from './providers/modelCatalog'
+
 export type AgentType =
   | 'shell'
   | 'claude'
@@ -8,6 +10,10 @@ export type AgentType =
   | 'mimo'
   | 'antigravity'
   | 'gemini'
+
+/** First-party API lane; never added to `ALL_AGENT_TYPES` or CLI spawn lists. */
+export type ApiAgentId = `api:${ProviderId}`
+export type RoutedAgent = AgentType | ApiAgentId
 
 export const AGENT_TYPE_LABELS: Record<AgentType, string> = {
   claude: 'Claude Code',
@@ -106,7 +112,7 @@ export type TaskSliceStatus = 'pending' | 'running' | 'done' | 'failed'
 export type TaskSlicePlan = {
   id: string
   kind: 'implement' | 'review' | 'mechanical' | 'explore' | 'ui' | 'unknown'
-  agent: AgentType
+  agent: RoutedAgent
   prompt: string
   dependsOn: string[]
   allowedFiles: string[]
@@ -201,7 +207,7 @@ export type PromptRunStepReason =
   | 'orchestrator'
 
 export type PromptRunStep = {
-  agent: AgentType
+  agent: RoutedAgent
   reason: PromptRunStepReason
   startedAt: number
   endedAt?: number
@@ -216,7 +222,7 @@ export type PromptRun = {
   cwd: string
   prompt: string
   status: PromptRunStatus
-  activeAgent: AgentType
+  activeAgent: RoutedAgent
   activeTerminalId: string
   unrestricted: boolean
   steps: PromptRunStep[]

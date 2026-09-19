@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useT, type MessageKey } from '../../lib/i18n'
 import { isPromptRunBlocking } from '../../lib/promptRun/isPromptRunBlocking'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
+import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
   AGENT_TYPE_LABELS,
   ALL_AGENT_TYPES,
@@ -130,19 +131,31 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
           })
           return
         }
+        if (result.code === 'needs-setup-api') {
+          openModal('preferences', { category: 'providers' })
+          pushToast({
+            title: t('promptRun.needsSetupApiTitle'),
+            body: t('promptRun.needsSetupApiBody'),
+          })
+          return
+        }
         return
       }
-      useProjectsStore
-        .getState()
-        .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
-      setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
-      requestPaneFocus(result.run.activeTerminalId)
+      const skipFocus =
+        isApiAgentId(result.run.activeAgent) || isApiTerminalId(result.run.activeTerminalId)
+      if (!skipFocus) {
+        useProjectsStore
+          .getState()
+          .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
+        setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
+        requestPaneFocus(result.run.activeTerminalId)
+      }
       if (promptRef.current) promptRef.current.value = ''
       const reason = result.run.steps[0]?.reason ?? 'heuristic'
       pushToast({
         title: t('promptRun.startedTitle'),
         body: t('promptRun.startedBody', {
-          agent: AGENT_TYPE_LABELS[result.run.activeAgent],
+          agent: routedAgentLabel(result.run.activeAgent),
           reason: t(REASON_KEYS[reason]),
         }),
       })
@@ -158,7 +171,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
         <>
           <div className={styles.meta}>
             <span className={styles.title}>{t('promptRun.barTitle')}</span>
-            <span className={styles.agent}>{AGENT_TYPE_LABELS[run.activeAgent]}</span>
+            <span className={styles.agent}>{routedAgentLabel(run.activeAgent)}</span>
             <span className={`${styles.status} ${failed ? styles.statusFailed : ''}`}>
               <span className={styles.dot} />
               {t(STATUS_KEYS[run.status])}
@@ -169,7 +182,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
             <div className={styles.timeline}>
               {run.steps.map((step, index) => (
                 <span key={`${step.agent}-${step.startedAt}-${index}`} className={styles.step}>
-                  {AGENT_TYPE_LABELS[step.agent]} · {t(REASON_KEYS[step.reason])}
+                  {routedAgentLabel(step.agent)} · {t(REASON_KEYS[step.reason])}
                 </span>
               ))}
             </div>

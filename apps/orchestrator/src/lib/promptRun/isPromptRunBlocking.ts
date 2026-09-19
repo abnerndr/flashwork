@@ -1,4 +1,5 @@
 import type { PromptRunStatus } from '../types'
+import { isApiTerminalId } from './routedAgent'
 
 function asTerminalIds(value: string | readonly string[] | undefined): string[] {
   if (!value) return []
@@ -11,8 +12,9 @@ export function isPromptRunBlocking(
   liveTerminalIds?: readonly string[],
 ): boolean {
   if (status !== 'running' && status !== 'handing-off') return false
-  if (!liveTerminalIds) return true
   const ids = asTerminalIds(runTerminalIds).filter(Boolean)
+  if (ids.some((id) => isApiTerminalId(id))) return true
+  if (!liveTerminalIds) return true
   if (ids.length === 0) return false
   return ids.some((id) => liveTerminalIds.includes(id))
 }

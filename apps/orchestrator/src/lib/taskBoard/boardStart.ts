@@ -13,6 +13,7 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   'no-cwd': 'taskBoard.error.noCwd',
   'no-project': 'taskBoard.error.noProject',
   'needs-install': 'taskBoard.error.needsInstall',
+  'needs-setup-api': 'taskBoard.error.needsSetupApi',
   'run-active': 'taskBoard.error.runActive',
   'start-failed': 'taskBoard.error.startFailed',
 }

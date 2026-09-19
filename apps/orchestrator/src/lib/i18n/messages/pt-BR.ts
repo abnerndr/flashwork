@@ -501,6 +501,8 @@ export const ptBR: Record<MessageKey, string> = {
   'taskBoard.error.noProject': 'O projeto deste card não existe mais.',
   'taskBoard.error.needsInstall':
     'Nenhum CLI de código está instalado. Instale Claude, Codex ou Gemini e tente de novo.',
+  'taskBoard.error.needsSetupApi':
+    'Salve uma chave Google, OpenAI ou Anthropic em Preferências → Provedores, ou instale um CLI de código.',
   'taskBoard.error.runActive': 'Esperando o Auto que já está rodando neste projeto.',
   'taskBoard.error.startFailed': 'Não foi possível iniciar a tarefa. Reinicie o Flashwork e tente de novo.',
   'features.aiMemory.title': 'AI Memory',
@@ -899,6 +901,9 @@ export const ptBR: Record<MessageKey, string> = {
   'promptRun.runActiveBody': 'Cancele na barra do projeto, ou espere ele terminar.',
   'promptRun.needsInstallTitle': 'Nenhum agente de código instalado',
   'promptRun.needsInstallBody': 'Instale Claude Code, Codex ou OpenCode para usar o Auto.',
+  'promptRun.needsSetupApiTitle': 'Adicione uma chave de provedor',
+  'promptRun.needsSetupApiBody':
+    'Salve uma chave Google, OpenAI ou Anthropic em Provedores para usar o Auto sem um CLI de código.',
   'promptRun.startedTitle': 'Run Auto iniciado',
   'promptRun.startedBody': '{agent} · {reason}',
   'promptRun.status.running': 'Em execução',

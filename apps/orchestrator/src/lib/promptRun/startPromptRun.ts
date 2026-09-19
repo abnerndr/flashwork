@@ -1,7 +1,10 @@
 import { nanoid } from 'nanoid'
 
+import { pickEffectiveCodingModel } from '../providers/catalogOverlay'
+import type { ProviderId } from '../providers/modelCatalog'
+import { CODING_TIMEOUT_MS, providerChat, type ChatMessage } from '../tauri/providers'
+import { writeTextFile } from '../tauri/filesystem'
 import {
-  AGENT_TYPE_LABELS,
   UNRESTRICTED_FLAG,
   type AgentType,
   type PromptRun,
@@ -16,10 +19,11 @@ import {
 } from './claudeWriterLock'
 import { isPromptRunBlocking } from './isPromptRunBlocking'
 import { planAutoLanes, type AutoLane, type SkillCatalogEntry } from './planAutoLanes'
+import { isApiAgentId, providerFromApiAgent, routedAgentLabel } from './routedAgent'
 
 export type StartPromptRunResult =
   | { ok: true; run: PromptRun }
-  | { ok: false; code: 'no-project' | 'no-cwd' | 'run-active' | 'needs-install' }
+  | { ok: false; code: 'no-project' | 'no-cwd' | 'run-active' | 'needs-install' | 'needs-setup-api' }
 
 export type StartPromptRunProject = {
   id: string
@@ -70,6 +74,14 @@ export type StartPromptRunInput = {
   now?: () => number
   ensureContextDir?: (runId: string) => Promise<string>
   createAgentTerminal: CreateAgentTerminal
+  chat?: (
+    provider: ProviderId,
+    model: string,
+    messages: ChatMessage[],
+    timeoutMs: number,
+  ) => Promise<{ text: string }>
+  pickCodingModel?: (provider: ProviderId) => string
+  writeApiReply?: (path: string, text: string) => Promise<void>
 }
 
 export type LaunchPromptRunLanesInput = {
@@ -86,6 +98,14 @@ export type LaunchPromptRunLanesInput = {
   createUuid?: () => string
   now?: () => number
   createAgentTerminal: CreateAgentTerminal
+  chat?: (
+    provider: ProviderId,
+    model: string,
+    messages: ChatMessage[],
+    timeoutMs: number,
+  ) => Promise<{ text: string }>
+  pickCodingModel?: (provider: ProviderId) => string
+  writeApiReply?: (path: string, text: string) => Promise<void>
 }
 
 export async function launchPromptRunLanes(
@@ -93,14 +113,49 @@ export async function launchPromptRunLanes(
 ): Promise<PromptRunStep[]> {
   const createdAt = (input.now ?? Date.now)()
   const createUuid = input.createUuid ?? (() => crypto.randomUUID())
+  const chat = input.chat ?? providerChat
+  const pickCodingModel = input.pickCodingModel ?? pickEffectiveCodingModel
+  const writeApiReply =
+    input.writeApiReply ?? ((path: string, text: string) => writeTextFile(path, text))
   const steps: PromptRunStep[] = []
   for (const lane of input.lanes) {
+    if (isApiAgentId(lane.agent)) {
+      const provider = providerFromApiAgent(lane.agent)
+      const model = pickCodingModel(provider)
+      const promptText = buildRunBootstrapInput({
+        runId: input.runId,
+        prompt: lane.slicePrompt,
+        agent: lane.agent,
+        role: lane.role,
+        skillNames: lane.skillNames,
+        allowedFiles: input.allowedFiles,
+        boardPath: input.boardPath,
+        contextDir: input.contextDir,
+        attachmentsDir: input.attachmentsDir,
+        toolsJsonPath: input.toolsJsonPath,
+      })
+      const reply = await chat(
+        provider,
+        model,
+        [{ role: 'user', content: promptText }],
+        CODING_TIMEOUT_MS,
+      )
+      const replyPath = `${input.contextDir ?? `runs/${input.runId}/context`}/api-reply.md`
+      await writeApiReply(replyPath, reply.text)
+      steps.push({
+        agent: lane.agent,
+        reason: lane.reason,
+        startedAt: createdAt,
+        terminalId: `api:${provider}:${input.runId}`,
+      })
+      continue
+    }
     const flag = input.unrestricted ? UNRESTRICTED_FLAG[lane.agent] : null
     const extraArgs = flag ? [flag] : undefined
     const paneName =
       lane.role === 'orchestrator'
-        ? `Auto · ${AGENT_TYPE_LABELS[lane.agent]}`
-        : AGENT_TYPE_LABELS[lane.agent]
+        ? `Auto · ${routedAgentLabel(lane.agent)}`
+        : routedAgentLabel(lane.agent)
     let sessionId: string | undefined
     let sessionCreate: boolean | undefined
     if (lane.agent === 'claude') {
@@ -200,6 +255,9 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     createUuid: input.createUuid,
     now,
     createAgentTerminal: input.createAgentTerminal,
+    chat: input.chat,
+    pickCodingModel: input.pickCodingModel,
+    writeApiReply: input.writeApiReply,
   })
   const run: PromptRun = {
     id: runId,

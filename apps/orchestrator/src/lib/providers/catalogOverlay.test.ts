@@ -7,6 +7,7 @@ import {
   getModelCatalog,
   hasCatalogOverlay,
   markCatalogRefreshed,
+  pickEffectiveCodingModel,
   pickEffectiveRouterModel,
   resetCatalogOverlay,
 } from './catalogOverlay'
@@ -151,5 +152,19 @@ describe('pickEffectiveRouterModel', () => {
 
     expect(pickEffectiveRouterModel('google')).toBe(staticRouterId)
     expect(getModelCatalog('google').find((m) => m.id === 'gemini-3-preview')?.role).toBe('coding')
+  })
+})
+
+describe('pickEffectiveCodingModel', () => {
+  it('picks the first coding-role model from the effective catalog', () => {
+    expect(pickEffectiveCodingModel('google')).toBe(
+      MODEL_CATALOG.google.find((m) => m.role === 'coding')?.id,
+    )
+    expect(pickEffectiveCodingModel('openai')).toBe(
+      MODEL_CATALOG.openai.find((m) => m.role === 'coding')?.id,
+    )
+    expect(pickEffectiveCodingModel('anthropic')).toBe(
+      MODEL_CATALOG.anthropic.find((m) => m.role === 'coding')?.id,
+    )
   })
 })

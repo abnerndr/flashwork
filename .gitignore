@@ -33,3 +33,6 @@ fw-status.txt
 
 # Git worktrees
 .worktrees/
+
+# Superpowers SDD scratch (task briefs, reports, review diffs)
+.superpowers/

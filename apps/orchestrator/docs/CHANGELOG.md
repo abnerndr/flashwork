@@ -12,6 +12,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Task Board cards for folder-backed projects live under that project's `.flashwork/history`.
+
 - New projects now require a destination folder and initialize their local `.flashwork/` metadata
   before registration; folders already owned by Flashwork can be opened without duplication.
 - Creating a project now records Graphify and AI Memory index status in `.flashwork/rag/STATUS.json`

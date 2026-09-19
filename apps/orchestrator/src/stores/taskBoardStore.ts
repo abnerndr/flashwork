@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 
 import { deleteTaskCard, listTaskCards, saveTaskCard } from '../lib/tauri'
+import { useProjectsStore } from './projectsStore'
 import type {
   TaskAttachment,
   TaskBoardColumn,
@@ -44,7 +45,14 @@ export const useTaskBoardStore = create<TaskBoardState>((set, get) => ({
   hydrated: false,
   hydrate: async () => {
     try {
-      const cards = await listTaskCards()
+      const projectFolders = useProjectsStore
+        .getState()
+        .projects.filter((project) => Boolean(project.defaultCwd?.trim()))
+        .map((project) => ({
+          projectId: project.id,
+          folder: project.defaultCwd!.trim(),
+        }))
+      const cards = await listTaskCards(undefined, projectFolders)
       set({ cards, hydrated: true })
     } catch (cause) {
       console.warn('[task-board] hydrate failed:', cause)
@@ -74,8 +82,9 @@ export const useTaskBoardStore = create<TaskBoardState>((set, get) => ({
     get().patchCard(cardId, { slicePlan })
   },
   removeCard: (cardId) => {
-    set((state) => ({ cards: state.cards.filter((card) => card.id !== cardId) }))
-    void deleteTaskCard(cardId).catch((cause) => {
+    const card = get().cards.find((item) => item.id === cardId)
+    set((state) => ({ cards: state.cards.filter((item) => item.id !== cardId) }))
+    void deleteTaskCard(cardId, card?.cwd, card?.projectId).catch((cause) => {
       console.warn('[task-board] delete failed:', cause)
     })
   },

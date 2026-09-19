@@ -6,6 +6,8 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 const HARNESS_GUIDE: &str = "This folder is a Flashwork project. Use `rag/` for project knowledge and `history/` for task, flow, and run history.\n";
+const HISTORY_RUNS_README: &str =
+    "Run hubs remain under the app profile until the hub plan ships.\n";
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -138,6 +140,10 @@ fn fill_project_home(home: &Path, project_id: &str, write_metadata: bool) -> Res
     write_if_missing(
         &home.join("rag/graphify.json"),
         b"{\n  \"root\": \"..\"\n}\n",
+    )?;
+    write_if_missing(
+        &home.join("history/runs/README.md"),
+        HISTORY_RUNS_README.as_bytes(),
     )?;
 
     if write_metadata {
@@ -334,6 +340,10 @@ mod tests {
         assert!(home.join("harness").is_dir());
         assert!(home.join("rag").is_dir());
         assert!(home.join("history/tasks").is_dir());
+        assert_eq!(
+            fs::read_to_string(home.join("history/runs/README.md")).unwrap(),
+            "Run hubs remain under the app profile until the hub plan ships.\n"
+        );
         assert!(!home.join("rag/STATUS.json").exists());
     }
 

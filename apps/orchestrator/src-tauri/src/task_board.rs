@@ -231,6 +231,13 @@ fn save_cards(path: &Path, cards: &[TaskCardRecord]) -> Result<(), String> {
     write_json_atomically(path, &json)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFolderHint {
+    pub project_id: String,
+    pub folder: String,
+}
+
 fn save_task_card_inner(path: PathBuf, card: TaskCardRecord) -> Result<(), String> {
     validate_card_id(&card.id)?;
     let mut cards = load_cards(&path)?;
@@ -261,10 +268,182 @@ fn delete_task_card_inner(path: PathBuf, card_id: String) -> Result<(), String> 
     save_cards(&path, &cards)
 }
 
+fn load_single_card(path: &Path) -> Result<TaskCardRecord, String> {
+    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str(&content).map_err(|error| error.to_string())
+}
+
+fn matching_project_folder(folder: &str, project_id: &str) -> Option<String> {
+    let trimmed = folder.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let meta = crate::project_home::detect(trimmed)?;
+    if meta.id != project_id {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+fn usable_project_folder(card: &TaskCardRecord) -> Option<String> {
+    matching_project_folder(&card.cwd, &card.project_id)
+}
+
+fn confined_history_tasks_dir(folder: &str) -> Option<PathBuf> {
+    let _ = crate::project_home::detect(folder)?;
+    let root = fs::canonicalize(folder).ok()?;
+    let home = root.join(".flashwork");
+    let tasks = home.join("history").join("tasks");
+    let metadata = fs::symlink_metadata(&tasks).ok()?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return None;
+    }
+    let resolved_home = fs::canonicalize(&home).ok()?;
+    let resolved_tasks = fs::canonicalize(&tasks).ok()?;
+    if !resolved_tasks.starts_with(&resolved_home) {
+        return None;
+    }
+    Some(resolved_tasks)
+}
+
+fn project_card_file(folder: &str, card_id: &str) -> Result<PathBuf, String> {
+    validate_card_id(card_id)?;
+    let dir = confined_history_tasks_dir(folder).ok_or_else(|| "no project home".to_string())?;
+    let path = dir.join(format!("{card_id}.json"));
+    if path.parent() != Some(dir.as_path()) {
+        return Err("card path escapes history/tasks".to_string());
+    }
+    Ok(path)
+}
+
+fn save_project_home_card(folder: &str, card: &TaskCardRecord) -> Result<PathBuf, String> {
+    crate::project_home::bootstrap(folder, &card.project_id)?;
+    let path = project_card_file(folder, &card.id)?;
+    let json = serde_json::to_string_pretty(card).map_err(|error| error.to_string())?;
+    write_json_atomically(&path, &json)?;
+    Ok(path)
+}
+
+fn remove_profile_card(profile_path: &Path, card_id: &str) -> Result<(), String> {
+    if !profile_path.exists() {
+        return Ok(());
+    }
+    let mut cards = load_cards(profile_path)?;
+    let before = cards.len();
+    cards.retain(|card| card.id != card_id);
+    if cards.len() != before {
+        save_cards(profile_path, &cards)?;
+    }
+    Ok(())
+}
+
+fn list_project_home_cards(folder: &str) -> Result<Vec<TaskCardRecord>, String> {
+    let Some(dir) = confined_history_tasks_dir(folder) else {
+        return Ok(Vec::new());
+    };
+    let entries = match fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let mut cards = Vec::new();
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        if !file_name.ends_with(".json") || file_name.ends_with(".tmp") {
+            continue;
+        }
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(_) => continue,
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            continue;
+        }
+        if let Ok(card) = load_single_card(&path) {
+            cards.push(card);
+        }
+    }
+    Ok(cards)
+}
+
+fn save_task_card_resolved(profile_path: &Path, card: TaskCardRecord) -> Result<(), String> {
+    validate_card_id(&card.id)?;
+    if let Some(folder) = usable_project_folder(&card) {
+        save_project_home_card(&folder, &card)?;
+        remove_profile_card(profile_path, &card.id)?;
+        return Ok(());
+    }
+    save_task_card_inner(profile_path.to_path_buf(), card)
+}
+
+fn list_task_cards_resolved(
+    profile_path: &Path,
+    project_id: Option<String>,
+    project_folders: &[ProjectFolderHint],
+) -> Result<Vec<TaskCardRecord>, String> {
+    let mut cards = list_task_cards_inner(profile_path.to_path_buf(), None)?;
+    let mut home_ids = std::collections::HashSet::new();
+    let mut home_cards = Vec::new();
+    for hint in project_folders {
+        let Some(folder) = matching_project_folder(&hint.folder, &hint.project_id) else {
+            continue;
+        };
+        for card in list_project_home_cards(&folder)? {
+            home_ids.insert(card.id.clone());
+            home_cards.push(card);
+        }
+    }
+    cards.retain(|card| !home_ids.contains(&card.id));
+    cards.append(&mut home_cards);
+    if let Some(project_id) = project_id {
+        cards.retain(|card| card.project_id == project_id);
+    }
+    cards.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+    Ok(cards)
+}
+
+fn delete_project_home_card(folder: &str, card_id: &str) -> Result<bool, String> {
+    let path = match project_card_file(folder, card_id) {
+        Ok(path) => path,
+        Err(_) => return Ok(false),
+    };
+    if !path.exists() {
+        return Ok(false);
+    }
+    fs::remove_file(&path).map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
+fn delete_task_card_resolved(
+    profile_path: &Path,
+    card_id: String,
+    folder: Option<String>,
+    project_id: Option<String>,
+) -> Result<(), String> {
+    validate_card_id(&card_id)?;
+    if let Some(folder) = folder.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        let home_matches = project_id
+            .as_deref()
+            .map(|id| matching_project_folder(folder, id).is_some())
+            .unwrap_or_else(|| crate::project_home::detect(folder).is_some());
+        if home_matches {
+            delete_project_home_card(folder, &card_id)?;
+        }
+    }
+    delete_task_card_inner(profile_path.to_path_buf(), card_id)
+}
+
 #[tauri::command]
 pub async fn save_task_card(app: AppHandle, card: TaskCardRecord) -> Result<(), String> {
     let path = crate::paths::task_board_file(&app)?;
-    tokio::task::spawn_blocking(move || save_task_card_inner(path, card))
+    tokio::task::spawn_blocking(move || save_task_card_resolved(&path, card))
         .await
         .map_err(|error| format!("save_task_card task failed: {error}"))?
 }
@@ -273,19 +452,29 @@ pub async fn save_task_card(app: AppHandle, card: TaskCardRecord) -> Result<(), 
 pub async fn list_task_cards(
     app: AppHandle,
     project_id: Option<String>,
+    project_folders: Option<Vec<ProjectFolderHint>>,
 ) -> Result<Vec<TaskCardRecord>, String> {
     let path = crate::paths::task_board_file(&app)?;
-    tokio::task::spawn_blocking(move || list_task_cards_inner(path, project_id))
-        .await
-        .map_err(|error| format!("list_task_cards task failed: {error}"))?
+    tokio::task::spawn_blocking(move || {
+        list_task_cards_resolved(&path, project_id, project_folders.as_deref().unwrap_or(&[]))
+    })
+    .await
+    .map_err(|error| format!("list_task_cards task failed: {error}"))?
 }
 
 #[tauri::command]
-pub async fn delete_task_card(app: AppHandle, card_id: String) -> Result<(), String> {
+pub async fn delete_task_card(
+    app: AppHandle,
+    card_id: String,
+    folder: Option<String>,
+    project_id: Option<String>,
+) -> Result<(), String> {
     let path = crate::paths::task_board_file(&app)?;
-    tokio::task::spawn_blocking(move || delete_task_card_inner(path, card_id))
-        .await
-        .map_err(|error| format!("delete_task_card task failed: {error}"))?
+    tokio::task::spawn_blocking(move || {
+        delete_task_card_resolved(&path, card_id, folder, project_id)
+    })
+    .await
+    .map_err(|error| format!("delete_task_card task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -605,5 +794,156 @@ mod tests {
         assert_eq!(written, root.join("card_1").join("tools.json"));
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    fn sample_card(id: &str, project_id: &str, cwd: &str) -> TaskCardRecord {
+        TaskCardRecord {
+            id: id.to_string(),
+            project_id: project_id.to_string(),
+            cwd: cwd.to_string(),
+            title: format!("Card {id}"),
+            prompt: "do it".to_string(),
+            allowed_files: vec![],
+            priority: 1,
+            column: "backlog".to_string(),
+            verify_commands: None,
+            run_id: None,
+            board_path: None,
+            slice_plan: None,
+            error: None,
+            attachments: vec![],
+            tool_selection: None,
+            created_at: 1,
+            updated_at: 1,
+        }
+    }
+
+    #[test]
+    fn listing_one_project_folder_does_not_see_another_project_card() {
+        let folder_a = tempfile::tempdir().unwrap();
+        let folder_b = tempfile::tempdir().unwrap();
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+
+        crate::project_home::bootstrap(&folder_a.path().to_string_lossy(), "proj_a").unwrap();
+        crate::project_home::bootstrap(&folder_b.path().to_string_lossy(), "proj_b").unwrap();
+
+        let cwd_a = folder_a.path().to_string_lossy().to_string();
+        let cwd_b = folder_b.path().to_string_lossy().to_string();
+        save_task_card_resolved(&profile_file, sample_card("card_a", "proj_a", &cwd_a)).unwrap();
+        save_task_card_resolved(&profile_file, sample_card("card_b", "proj_b", &cwd_b)).unwrap();
+
+        let card_a_path = folder_a.path().join(".flashwork/history/tasks/card_a.json");
+        let card_b_path = folder_b.path().join(".flashwork/history/tasks/card_b.json");
+        assert!(card_a_path.is_file(), "card A belongs under project A");
+        assert!(card_b_path.is_file(), "card B belongs under project B");
+        assert!(
+            load_cards(&profile_file).unwrap().is_empty(),
+            "folder-backed cards must not be dual-written to the profile file"
+        );
+
+        #[cfg(unix)]
+        let b_history_perms = {
+            use std::os::unix::fs::PermissionsExt;
+            let b_history = folder_b.path().join(".flashwork/history");
+            let original = fs::metadata(&b_history).unwrap().permissions();
+            let mut locked = original.clone();
+            locked.set_mode(0o000);
+            fs::set_permissions(&b_history, locked).unwrap();
+            (b_history, original)
+        };
+
+        let listed = list_task_cards_resolved(
+            &profile_file,
+            None,
+            &[ProjectFolderHint {
+                project_id: "proj_a".into(),
+                folder: cwd_a,
+            }],
+        )
+        .expect("listing A must not need to read B");
+
+        #[cfg(unix)]
+        {
+            fs::set_permissions(&b_history_perms.0, b_history_perms.1).unwrap();
+        }
+
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "card_a");
+        assert!(listed.iter().all(|card| card.id != "card_b"));
+    }
+
+    #[test]
+    fn save_falls_back_to_profile_when_cwd_empty_or_home_missing() {
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+        let empty_cwd = sample_card("legacy_empty", "proj_old", "");
+        save_task_card_resolved(&profile_file, empty_cwd).unwrap();
+
+        let folder = tempfile::tempdir().unwrap();
+        let no_home = sample_card(
+            "legacy_no_home",
+            "proj_old",
+            &folder.path().to_string_lossy(),
+        );
+        save_task_card_resolved(&profile_file, no_home).unwrap();
+
+        let cards = load_cards(&profile_file).unwrap();
+        assert_eq!(cards.len(), 2);
+        assert!(!folder.path().join(".flashwork/history/tasks/legacy_no_home.json").exists());
+    }
+
+    #[test]
+    fn save_to_project_home_removes_legacy_profile_copy() {
+        let folder = tempfile::tempdir().unwrap();
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+        crate::project_home::bootstrap(&folder.path().to_string_lossy(), "proj_a").unwrap();
+        let cwd = folder.path().to_string_lossy().to_string();
+
+        save_task_card_inner(profile_file.clone(), sample_card("card_a", "proj_a", &cwd)).unwrap();
+        assert_eq!(load_cards(&profile_file).unwrap().len(), 1);
+
+        save_task_card_resolved(&profile_file, sample_card("card_a", "proj_a", &cwd)).unwrap();
+        assert!(folder.path().join(".flashwork/history/tasks/card_a.json").is_file());
+        assert!(load_cards(&profile_file).unwrap().is_empty());
+    }
+
+    #[test]
+    fn delete_removes_project_home_card_and_profile_leftover() {
+        let folder = tempfile::tempdir().unwrap();
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+        crate::project_home::bootstrap(&folder.path().to_string_lossy(), "proj_a").unwrap();
+        let cwd = folder.path().to_string_lossy().to_string();
+        save_task_card_resolved(&profile_file, sample_card("card_a", "proj_a", &cwd)).unwrap();
+        save_task_card_inner(profile_file.clone(), sample_card("card_a", "proj_a", &cwd)).unwrap();
+
+        delete_task_card_resolved(
+            &profile_file,
+            "card_a".into(),
+            Some(cwd.clone()),
+            Some("proj_a".into()),
+        )
+        .unwrap();
+
+        assert!(!folder.path().join(".flashwork/history/tasks/card_a.json").exists());
+        assert!(load_cards(&profile_file).unwrap().is_empty());
+    }
+
+    #[test]
+    fn first_project_home_write_restores_runs_hub_pointer() {
+        let folder = tempfile::tempdir().unwrap();
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+        let home =
+            crate::project_home::bootstrap(&folder.path().to_string_lossy(), "proj_a").unwrap();
+        fs::remove_file(home.join("history/runs/README.md")).unwrap();
+        let cwd = folder.path().to_string_lossy().to_string();
+        save_task_card_resolved(&profile_file, sample_card("card_a", "proj_a", &cwd)).unwrap();
+        assert_eq!(
+            fs::read_to_string(home.join("history/runs/README.md")).unwrap(),
+            "Run hubs remain under the app profile until the hub plan ships.\n"
+        );
     }
 }

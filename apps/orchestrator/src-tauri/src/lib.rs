@@ -47,6 +47,7 @@ mod plugins;
 mod process_tree;
 mod profiles;
 mod project_detector;
+mod project_home;
 mod projects;
 mod prompt_run;
 mod provider_common;
@@ -424,6 +425,8 @@ pub fn run() {
             scheduler::trigger_scheduler_tick,
             scheduler::cancel_task,
             project_detector::detect_project_stack,
+            project_home::project_bootstrap,
+            project_home::project_detect,
             contract_check::contract_check,
             health_probe::health_probe,
             graphify::graphify_ensure_graph,

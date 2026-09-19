@@ -1282,6 +1282,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "tempfile",
  "tiny_http",
  "tokio",
  "toml_edit 0.22.27",

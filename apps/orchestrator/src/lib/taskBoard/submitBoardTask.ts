@@ -31,7 +31,7 @@ import { pickEffectiveCodingModel } from '../providers/catalogOverlay'
 import { providerChat, providerKeyStatus } from '../tauri/providers'
 import { attachmentsDirFor, buildToolsJsonPayload } from './attachments'
 import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
-import { buildPlannerPrompt, planBoardSlices } from './planner'
+import { buildPlannerPrompt, planBoardSlices, routedBoardSlice } from './planner'
 import { boardInvokeError, decideBoardStartFailure } from './boardStart'
 import { launchableSlices, pickNextTaskCard, readySlices } from './schedule'
 import {
@@ -200,18 +200,26 @@ export async function startBoardCard(cardId: string): Promise<void> {
       })
       return
     }
-    const skipPlannerCli = isApiAgentId(routed.agent)
-    const plannerText = skipPlannerCli ? null : await plannerTextFor(workingCard, usableInstalled)
+    const useRoutedSlice = isApiAgentId(routed.agent) || routed.source === 'probe'
+    const plannerText = useRoutedSlice ? null : await plannerTextFor(workingCard, usableInstalled)
     const plannerFailedAuth = Boolean(plannerText && isAgentAuthError(plannerText))
     if (plannerFailedAuth) markAgentAuthFailed('gemini')
     const afterPlannerInstalled = excludeFailedAgents(
       plannerFailedAuth ? usableInstalled.filter((agent) => agent !== 'gemini') : usableInstalled,
     )
-    const slicePlan = await planBoardSlices(
-      { ...input, installedAgents: afterPlannerInstalled },
-      plannerFailedAuth ? null : plannerText,
-      probe,
-    )
+    const slicePlan = useRoutedSlice
+      ? [
+          routedBoardSlice(routed, {
+            prompt: workingCard.prompt,
+            allowedFiles: workingCard.allowedFiles,
+          }),
+        ]
+      : await planBoardSlices(
+          { ...input, installedAgents: afterPlannerInstalled },
+          plannerFailedAuth ? null : plannerText,
+          probe,
+          providerKeyStatus,
+        )
     if (slicePlan.length === 0) {
       useTaskBoardStore.getState().patchCard(cardId, { column: 'blocked', error: 'needs-install' })
       return

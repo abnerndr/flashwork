@@ -1,7 +1,7 @@
 import { classifyTaskKinds, type TaskKind } from '../promptRun/classifyTask'
 import { planAutoLanes, type PlanAutoLanesInput } from '../promptRun/planAutoLanes'
 import { isApiAgentId } from '../promptRun/routedAgent'
-import { routeOpenTask } from '../promptRun/routeTask'
+import { routeOpenTask, type RouteOpenResult, type RouteOpenTaskInput } from '../promptRun/routeTask'
 import { selectAgent } from '../promptRun/selectAgent'
 import type { AgentType, TaskSlicePlan } from '../types'
 import { filesOverlap } from './schedule'
@@ -39,6 +39,23 @@ export type PlannerContext = PlanAutoLanesInput & {
 }
 
 export type PlannerProbe = () => Promise<unknown>
+
+export type PlannerKeyStatus = RouteOpenTaskInput['keyStatus']
+
+export function routedBoardSlice(
+  routed: Extract<RouteOpenResult, { ok: true }>,
+  input: Pick<PlannerContext, 'prompt' | 'allowedFiles'>,
+): TaskSlicePlan {
+  return {
+    id: 'slice_1',
+    kind: routed.taskKind,
+    agent: routed.agent,
+    prompt: input.prompt,
+    dependsOn: [],
+    allowedFiles: [...(input.allowedFiles ?? [])],
+    status: 'pending',
+  }
+}
 
 export function parsePlannerSlices(text: string, input: PlannerContext): TaskSlicePlan[] {
   const parsed = extractJsonObject(text)
@@ -112,20 +129,11 @@ export function serializeSiblingSlices(slices: TaskSlicePlan[]): TaskSlicePlan[]
 export async function heuristicBoardSlices(
   input: PlannerContext,
   probe: PlannerProbe = async () => null,
+  keyStatus?: PlannerKeyStatus,
 ): Promise<TaskSlicePlan[]> {
-  const routed = await routeOpenTask({ ...input, probe })
+  const routed = await routeOpenTask({ ...input, probe, keyStatus })
   if (routed.ok && (isApiAgentId(routed.agent) || routed.source === 'probe')) {
-    return [
-      {
-        id: 'slice_1',
-        kind: routed.taskKind,
-        agent: routed.agent,
-        prompt: input.prompt,
-        dependsOn: [],
-        allowedFiles: [...(input.allowedFiles ?? [])],
-        status: 'pending',
-      },
-    ]
+    return [routedBoardSlice(routed, input)]
   }
   const lanes = planAutoLanes({ ...input, includeOrchestrator: false }).filter(
     (lane) => lane.role === 'worker',
@@ -162,12 +170,13 @@ export async function planBoardSlices(
   input: PlannerContext,
   plannerText?: string | null,
   probe: PlannerProbe = async () => null,
+  keyStatus?: PlannerKeyStatus,
 ): Promise<TaskSlicePlan[]> {
   if (plannerText) {
     const parsed = parsePlannerSlices(plannerText, input)
     if (parsed.length > 0) return serializeSiblingSlices(parsed)
   }
-  return heuristicBoardSlices(input, probe)
+  return heuristicBoardSlices(input, probe, keyStatus)
 }
 
 export function buildPlannerPrompt(input: {

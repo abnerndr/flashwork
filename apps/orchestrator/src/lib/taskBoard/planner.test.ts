@@ -104,6 +104,20 @@ describe('planBoardSlices', () => {
       status: 'pending',
     })
   })
+
+  it('synthesizes api:google when no CLI, probe is null, and google key is saved', async () => {
+    const slices = await planBoardSlices(
+      { ...BASE, installedAgents: [], enabledAgents: [] },
+      null,
+      async () => null,
+      async (id) => ({ saved: id === 'google' }),
+    )
+    expect(slices).toHaveLength(1)
+    expect(slices[0]).toMatchObject({
+      agent: 'api:google',
+      status: 'pending',
+    })
+  })
 })
 
 describe('serializeSiblingSlices', () => {

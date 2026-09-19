@@ -15,6 +15,7 @@ import controls from './controls.module.css'
 import { ImageInput } from './ImageInput'
 import { Modal } from './Modal'
 import {
+  clearedNewProjectConflictState,
   createProjectInFolder,
   isProjectFolderMissing,
   openExistingProject,
@@ -62,10 +63,16 @@ export function NewProjectModal() {
     setMode('standard')
     setGroupId(context?.groupId ?? null)
     setIsColorPopoverOpen(false)
-    setFolderMissing(false)
-    setFlashworkExists(false)
-    setOperationError('')
+    const cleared = clearedNewProjectConflictState()
+    setFolderMissing(cleared.folderMissing)
+    setFlashworkExists(cleared.flashworkExists)
+    setOperationError(cleared.operationError)
     setSubmitting(false)
+  }
+
+  const handleClose = () => {
+    reset()
+    closeModal()
   }
 
   const browse = async () => {
@@ -149,14 +156,11 @@ export function NewProjectModal() {
   return (
     <Modal
       open={open}
-      onClose={() => {
-        reset()
-        closeModal()
-      }}
+      onClose={handleClose}
       title={t('crud.newProjectTitle')}
       footer={
         <>
-          <button type="button" className={controls.btn} onClick={closeModal}>
+          <button type="button" className={controls.btn} onClick={handleClose}>
             {t('crud.cancel')}
           </button>
           <button

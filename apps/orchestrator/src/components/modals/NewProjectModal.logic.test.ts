@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { Project } from '../../lib/types'
 import {
+  clearedNewProjectConflictState,
   createProjectInFolder,
   isProjectFolderMissing,
   openExistingProject,
@@ -70,6 +71,24 @@ describe('new project folder flow', () => {
 
     expect(result).toEqual({ kind: 'flashworkExists' })
     expect(createProject).not.toHaveBeenCalled()
+  })
+
+  it('clears flashwork_exists conflict flags on modal reset', async () => {
+    const createProject = vi.fn()
+    const result = await createProjectInFolder(registration, {
+      generateId: () => 'generated-id',
+      projectBootstrap: async () => {
+        throw new Error('flashwork_exists:existing-id')
+      },
+      createProject,
+    })
+
+    expect(result).toEqual({ kind: 'flashworkExists' })
+
+    const afterReset = clearedNewProjectConflictState()
+    expect(afterReset.flashworkExists).toBe(false)
+    expect(afterReset.folderMissing).toBe(false)
+    expect(afterReset.operationError).toBe('')
   })
 
   it('registers the detected id when opening an existing folder', async () => {

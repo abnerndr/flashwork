@@ -17,6 +17,20 @@ export function isProjectFolderMissing(folder: string): boolean {
   return !folder.trim()
 }
 
+export type NewProjectConflictState = {
+  folderMissing: boolean
+  flashworkExists: boolean
+  operationError: string
+}
+
+export function clearedNewProjectConflictState(): NewProjectConflictState {
+  return {
+    folderMissing: false,
+    flashworkExists: false,
+    operationError: '',
+  }
+}
+
 export async function createProjectInFolder(
   registration: NewProjectRegistration,
   dependencies: {

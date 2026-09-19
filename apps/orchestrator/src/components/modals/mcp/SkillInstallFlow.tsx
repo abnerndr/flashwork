@@ -54,7 +54,10 @@ export function SkillInstallFlow({ onClose, onDone }: Props) {
         agents: targets,
         overwrite,
       })
-      pushToast({ title: t('skills.installed', { name: summary.name }) })
+      pushToast({
+        title: t('skills.installed', { name: summary.name }),
+        body: summary.path,
+      })
       onDone()
       onClose()
     } catch (error) {

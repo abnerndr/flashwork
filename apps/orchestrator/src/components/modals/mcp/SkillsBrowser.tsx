@@ -23,7 +23,13 @@ import styles from './SkillsBrowser.module.css'
 
 type RemoveTarget = { group: SkillGroup; entries: SkillSummary[] }
 
-export function SkillsBrowser({ dark }: { dark: boolean }) {
+export function SkillsBrowser({
+  dark,
+  startInstall = false,
+}: {
+  dark: boolean
+  startInstall?: boolean
+}) {
   const t = useT()
   const pushToast = useUiStore((state) => state.pushToast)
   const agentLabel = (agent: string) =>
@@ -34,7 +40,7 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
   const [detail, setDetail] = useState<SkillDetail | null>(null)
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null)
   const [busy, setBusy] = useState(false)
-  const [installing, setInstalling] = useState(false)
+  const [installing, setInstalling] = useState(startInstall)
 
   const load = async () => {
     try {
@@ -47,6 +53,10 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
   useEffect(() => {
     void load()
   }, [])
+
+  useEffect(() => {
+    if (startInstall) setInstalling(true)
+  }, [startInstall])
 
   const groups = useMemo(() => groupSkillsByName(snapshots ?? []), [snapshots])
   const active = groups.find((group) => group.name === selected) ?? groups[0] ?? null
@@ -111,7 +121,16 @@ export function SkillsBrowser({ dark }: { dark: boolean }) {
     setBusy(false)
   }
 
-  if (snapshots === null) return <p className={styles.muted}>{t('skills.loading')}</p>
+  if (snapshots === null) {
+    return (
+      <>
+        <p className={styles.muted}>{t('skills.loading')}</p>
+        {installing ? (
+          <SkillInstallFlow onClose={() => setInstalling(false)} onDone={() => void load()} />
+        ) : null}
+      </>
+    )
+  }
 
   if (groups.length === 0) {
     return (

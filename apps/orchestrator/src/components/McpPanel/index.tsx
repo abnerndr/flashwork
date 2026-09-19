@@ -147,6 +147,29 @@ export function McpPanel() {
         </button>
       </div>
 
+      <div className={styles.marketplace}>
+        <div className={styles.marketplaceTitle}>{t('mcp.marketplace')}</div>
+        <p className={styles.marketplaceHint}>{t('mcp.marketplaceHint')}</p>
+        <div className={styles.ctas}>
+          <button
+            type="button"
+            className={styles.cta}
+            onClick={() => openModal('mcpManager', { tab: 'servers', add: true })}
+          >
+            <Plus size={13} />
+            {t('mcp.addMcpServer')}
+          </button>
+          <button
+            type="button"
+            className={styles.cta}
+            onClick={() => openModal('mcpManager', { tab: 'skills', addSkill: true })}
+          >
+            <Plus size={13} />
+            {t('skills.install')}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.search}>
         <Search size={13} />
         <input
@@ -248,20 +271,6 @@ export function McpPanel() {
               ))}
         </div>
       )}
-
-      <button
-        type="button"
-        className={styles.addMore}
-        onClick={() =>
-          openModal(
-            'mcpManager',
-            showingServers ? { tab: 'servers', add: true } : { tab: 'skills' },
-          )
-        }
-      >
-        <Plus size={13} />
-        {showingServers ? t('mcp.addMore') : t('skills.manage')}
-      </button>
 
       {showingServers && diagnostics.length > 0 ? (
         <div className={styles.diagnostics}>

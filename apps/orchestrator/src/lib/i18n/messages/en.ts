@@ -1997,6 +1997,10 @@ export const en = {
   'mcp.searchSkills': 'Search skills',
   'mcp.statSkills': 'skills',
   'mcp.addMore': 'Add more',
+  'mcp.marketplace': 'Marketplace',
+  'mcp.addMcpServer': 'Add MCP server',
+  'mcp.marketplaceHint':
+    'Add MCP servers from the registry, or install skills from a local folder or a git URL.',
   'skills.onAgents': '{count} agent(s)',
   'skills.manage': 'Manage skills',
   'mcp.statServers': 'servers',
@@ -2127,7 +2131,7 @@ export const en = {
   'skills.loading': 'Reading the skill folders…',
   'skills.emptyTitle': 'No skill installed',
   'skills.emptyDescription':
-    'Flashwork looks in the skills folder of each agent and in the shared store.',
+    'Flashwork looks in the skills folder of each agent and in the shared store. Install from a local folder or a git URL.',
   'skills.selectOne': 'Pick a skill to inspect it',
   'skills.sharedStore': 'Shared store',
   'skills.lockSource': 'source',

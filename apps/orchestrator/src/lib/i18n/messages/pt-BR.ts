@@ -2012,6 +2012,10 @@ export const ptBR: Record<MessageKey, string> = {
   'mcp.searchSkills': 'Buscar skills',
   'mcp.statSkills': 'skills',
   'mcp.addMore': 'Adicionar mais',
+  'mcp.marketplace': 'Marketplace',
+  'mcp.addMcpServer': 'Adicionar servidor MCP',
+  'mcp.marketplaceHint':
+    'Adicione servidores MCP pelo registry, ou instale skills a partir de uma pasta local ou de uma URL git.',
   'skills.onAgents': '{count} agente(s)',
   'skills.manage': 'Gerenciar skills',
   'mcp.statServers': 'servidores',
@@ -2142,7 +2146,7 @@ export const ptBR: Record<MessageKey, string> = {
   'skills.loading': 'Lendo as pastas de skills…',
   'skills.emptyTitle': 'Nenhuma skill instalada',
   'skills.emptyDescription':
-    'O Flashwork procura na pasta de skills de cada agente e no store compartilhado.',
+    'O Flashwork procura na pasta de skills de cada agente e no store compartilhado. Instale a partir de uma pasta local ou de uma URL git.',
   'skills.selectOne': 'Escolha uma skill para inspecionar',
   'skills.sharedStore': 'Store compartilhado',
   'skills.lockSource': 'origem',

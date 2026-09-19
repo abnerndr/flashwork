@@ -42,6 +42,7 @@ export function McpManagerModal() {
   const requestedServer = useUiStore((state) => state.modalContext?.server)
   const requestedTab = useUiStore((state) => state.modalContext?.tab)
   const requestedAdd = useUiStore((state) => state.modalContext?.add)
+  const requestedAddSkill = useUiStore((state) => state.modalContext?.addSkill)
   const closeModal = useUiStore((state) => state.closeModal)
   const pushToast = useUiStore((state) => state.pushToast)
 
@@ -215,7 +216,7 @@ export function McpManagerModal() {
     <Modal
       open={open}
       onClose={closeModal}
-      title={t('mcp.managerTitle')}
+      title={t('mcp.marketplace')}
       width={880}
       footer={
         <>
@@ -243,7 +244,9 @@ export function McpManagerModal() {
         ))}
       </div>
 
-      {tab === 'skills' ? <SkillsBrowser dark={dark} /> : null}
+      {tab === 'skills' ? (
+        <SkillsBrowser dark={dark} startInstall={requestedAddSkill === true} />
+      ) : null}
 
       <div className={styles.layout} hidden={tab !== 'servers'}>
         <aside className={styles.sidebar}>
@@ -263,7 +266,7 @@ export function McpManagerModal() {
             disabled={writableAgents.length === 0}
           >
             <Plus size={13} />
-            {t('mcp.addServer')}
+            {t('mcp.addMcpServer')}
           </button>
           <div className={styles.serverList}>
             {visible.map((group) => (

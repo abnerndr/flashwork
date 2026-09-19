@@ -1,6 +1,6 @@
 import { Folder, Network, Palette, Terminal } from 'lucide-react'
 import { nanoid } from 'nanoid'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { pickDirectory } from '../../lib/dialog'
 import { AGENT_SANDBOX_ENABLED } from '../../lib/featureFlags'
@@ -19,6 +19,7 @@ import {
   createProjectInFolder,
   isProjectFolderMissing,
   openExistingProject,
+  shouldApplySubmitResult,
   type NewProjectRegistration,
 } from './NewProjectModal.logic'
 
@@ -47,15 +48,21 @@ export function NewProjectModal() {
   const [flashworkExists, setFlashworkExists] = useState(false)
   const [operationError, setOperationError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const submitRequestId = useRef(0)
 
                                                                         
                                                                        
                                         
   useEffect(() => {
-    if (open && context?.defaultCwd) setDefaultCwd(context.defaultCwd)
+    if (open && context?.defaultCwd) {
+      submitRequestId.current += 1
+      setSubmitting(false)
+      setDefaultCwd(context.defaultCwd)
+    }
   }, [open, context?.defaultCwd])
 
   const reset = () => {
+    submitRequestId.current += 1
     setName('')
     setColor(GROUP_COLORS[0])
     setIconUrl('')
@@ -78,6 +85,8 @@ export function NewProjectModal() {
   const browse = async () => {
     const directory = await pickDirectory({ defaultPath: defaultCwd || undefined })
     if (directory) {
+      submitRequestId.current += 1
+      setSubmitting(false)
       setDefaultCwd(directory)
       setFolderMissing(false)
       setFlashworkExists(false)
@@ -118,38 +127,50 @@ export function NewProjectModal() {
     setFlashworkExists(false)
     setOperationError('')
     setSubmitting(true)
+    const requestId = ++submitRequestId.current
+    const shouldApplyResult = () =>
+      shouldApplySubmitResult(requestId, submitRequestId.current)
     try {
       const result = await createProjectInFolder(registration(), {
         generateId: nanoid,
         projectBootstrap,
         createProject,
+        shouldApplyResult,
       })
+      if (!shouldApplyResult() || result.kind === 'stale') return
       if (result.kind === 'flashworkExists') {
         setFlashworkExists(true)
         return
       }
       finish(result.project)
     } catch (error) {
+      if (!shouldApplyResult()) return
       setOperationError(String(error))
     } finally {
-      setSubmitting(false)
+      if (shouldApplyResult()) setSubmitting(false)
     }
   }
 
   const openExisting = async () => {
     setOperationError('')
     setSubmitting(true)
+    const requestId = ++submitRequestId.current
+    const shouldApplyResult = () =>
+      shouldApplySubmitResult(requestId, submitRequestId.current)
     try {
       const project = await openExistingProject(registration(), {
         projectDetect,
         findProject: (id) => useProjectsStore.getState().projects.find((item) => item.id === id),
         createProject,
+        shouldApplyResult,
       })
+      if (!shouldApplyResult() || !project) return
       finish(project)
     } catch (error) {
+      if (!shouldApplyResult()) return
       setOperationError(String(error))
     } finally {
-      setSubmitting(false)
+      if (shouldApplyResult()) setSubmitting(false)
     }
   }
 
@@ -183,7 +204,11 @@ export function NewProjectModal() {
         <input
           className={controls.input}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            submitRequestId.current += 1
+            setSubmitting(false)
+            setName(e.target.value)
+          }}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
           placeholder={t('crud.projectNamePlaceholder')}
         />
@@ -255,6 +280,8 @@ export function NewProjectModal() {
               className={controls.input}
               value={defaultCwd}
               onChange={(event) => {
+                submitRequestId.current += 1
+                setSubmitting(false)
                 setDefaultCwd(event.target.value)
                 setFolderMissing(false)
                 setFlashworkExists(false)

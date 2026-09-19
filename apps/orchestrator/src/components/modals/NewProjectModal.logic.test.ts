@@ -6,6 +6,7 @@ import {
   createProjectInFolder,
   isProjectFolderMissing,
   openExistingProject,
+  shouldApplySubmitResult,
   type NewProjectRegistration,
 } from './NewProjectModal.logic'
 
@@ -31,6 +32,11 @@ const registration: NewProjectRegistration = {
 }
 
 describe('new project folder flow', () => {
+  it('only applies the current submit result', () => {
+    expect(shouldApplySubmitResult(2, 2)).toBe(true)
+    expect(shouldApplySubmitResult(1, 2)).toBe(false)
+  })
+
   it('requires a non-empty destination folder', () => {
     expect(isProjectFolderMissing('')).toBe(true)
     expect(isProjectFolderMissing('   ')).toBe(true)
@@ -70,6 +76,19 @@ describe('new project folder flow', () => {
     })
 
     expect(result).toEqual({ kind: 'flashworkExists' })
+    expect(createProject).not.toHaveBeenCalled()
+  })
+
+  it('does not register a project when the bootstrap result is stale', async () => {
+    const createProject = vi.fn()
+    const result = await createProjectInFolder(registration, {
+      generateId: () => 'generated-id',
+      projectBootstrap: async () => '/workspace/example/.flashwork',
+      createProject,
+      shouldApplyResult: () => false,
+    })
+
+    expect(result).toEqual({ kind: 'stale' })
     expect(createProject).not.toHaveBeenCalled()
   })
 

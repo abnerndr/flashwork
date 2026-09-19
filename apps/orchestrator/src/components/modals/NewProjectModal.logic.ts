@@ -17,6 +17,10 @@ export function isProjectFolderMissing(folder: string): boolean {
   return !folder.trim()
 }
 
+export function shouldApplySubmitResult(requestId: number, currentId: number): boolean {
+  return requestId === currentId
+}
+
 export type NewProjectConflictState = {
   folderMissing: boolean
   flashworkExists: boolean
@@ -37,17 +41,23 @@ export async function createProjectInFolder(
     generateId: () => string
     projectBootstrap: (folder: string, projectId: string) => Promise<string>
     createProject: CreateProject
+    shouldApplyResult?: () => boolean
   },
-): Promise<{ kind: 'created'; project: Project } | { kind: 'flashworkExists' }> {
+): Promise<
+  { kind: 'created'; project: Project } | { kind: 'flashworkExists' } | { kind: 'stale' }
+> {
   const folder = registration.defaultCwd.trim()
   const id = dependencies.generateId()
 
   try {
     await dependencies.projectBootstrap(folder, id)
   } catch (error) {
+    if (dependencies.shouldApplyResult?.() === false) return { kind: 'stale' }
     if (String(error).includes('flashwork_exists')) return { kind: 'flashworkExists' }
     throw error
   }
+
+  if (dependencies.shouldApplyResult?.() === false) return { kind: 'stale' }
 
   const project = dependencies.createProject({
     ...registration,
@@ -63,10 +73,12 @@ export async function openExistingProject(
     projectDetect: (folder: string) => Promise<ProjectHomeMeta | null>
     findProject: (id: string) => Project | undefined
     createProject: CreateProject
+    shouldApplyResult?: () => boolean
   },
-): Promise<Project> {
+): Promise<Project | null> {
   const folder = registration.defaultCwd.trim()
   const meta = await dependencies.projectDetect(folder)
+  if (dependencies.shouldApplyResult?.() === false) return null
   if (!meta) throw new Error('flashwork_project_not_found')
 
   const existing = dependencies.findProject(meta.id)

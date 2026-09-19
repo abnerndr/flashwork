@@ -1,4 +1,4 @@
-import type { AgentType, TaskSlicePlan } from '../types'
+import type { AgentType, PromptRunStatus, PromptRunStep, TaskSlicePlan } from '../types'
 
 export function retargetSlicePlan(
   slices: readonly TaskSlicePlan[],
@@ -23,6 +23,20 @@ export function failSlicePlan(
 
 export function boardCardSettled(plan: readonly TaskSlicePlan[]): boolean {
   return plan.every((slice) => slice.status === 'done' || slice.status === 'failed')
+}
+
+export function slicesAfterLaunch(
+  slicePlan: readonly TaskSlicePlan[],
+  launchedIds: readonly string[],
+  steps: readonly Pick<PromptRunStep, 'terminalId'>[],
+  runStatus: PromptRunStatus,
+): TaskSlicePlan[] {
+  const launchedStatus = runStatus === 'done' ? ('done' as const) : ('running' as const)
+  return slicePlan.map((slice) => {
+    const index = launchedIds.indexOf(slice.id)
+    if (index < 0) return slice
+    return { ...slice, status: launchedStatus, terminalId: steps[index]?.terminalId }
+  })
 }
 
 export function laneContextFromPlan(

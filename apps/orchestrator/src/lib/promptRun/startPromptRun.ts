@@ -142,10 +142,12 @@ export async function launchPromptRunLanes(
       )
       const replyPath = `${input.contextDir ?? `runs/${input.runId}/context`}/api-reply.md`
       await writeApiReply(replyPath, reply.text)
+      const endedAt = (input.now ?? Date.now)()
       steps.push({
         agent: lane.agent,
         reason: lane.reason,
         startedAt: createdAt,
+        endedAt,
         terminalId: `api:${provider}:${input.runId}`,
       })
       continue
@@ -259,12 +261,13 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     pickCodingModel: input.pickCodingModel,
     writeApiReply: input.writeApiReply,
   })
+  const apiOnly = lanes.length > 0 && lanes.every((lane) => isApiAgentId(lane.agent))
   const run: PromptRun = {
     id: runId,
     projectId: input.project.id,
     cwd,
     prompt: input.prompt,
-    status: 'running',
+    status: apiOnly ? 'done' : 'running',
     activeAgent: lanes[0].agent,
     activeTerminalId: steps[0]?.terminalId ?? '',
     unrestricted: input.unrestricted,

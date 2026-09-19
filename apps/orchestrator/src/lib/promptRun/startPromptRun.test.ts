@@ -317,7 +317,106 @@ describe('startPromptRun', () => {
     expect(writeApiReply.mock.calls[0]?.[0]).toMatch(/api-reply\.md$/)
     expect(writeApiReply.mock.calls[0]?.[1]).toBe('assistant reply')
     if (!result.ok) return
+    expect(result.run.status).toBe('done')
     expect(result.run.activeAgent).toBe('api:google')
     expect(result.run.steps[0]?.terminalId).toBe('api:google:run_api')
+    expect(result.run.steps[0]?.endedAt).toBe(1_700_000_000_000)
+  })
+
+  it('does not treat a completed api run as still blocking the project', async () => {
+    const chat = vi.fn(async () => ({ text: 'assistant reply' }))
+    const writeApiReply = vi.fn(async () => {})
+    const first = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: [],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createId: () => 'run_api',
+      now: () => 1_700_000_000_000,
+      lanes: [
+        {
+          agent: 'api:google',
+          role: 'worker',
+          taskKind: 'implement',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'implement login',
+        },
+      ],
+      chat,
+      pickCodingModel: () => 'gemini-2.5-pro',
+      writeApiReply,
+      createAgentTerminal,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const second = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'write tests',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      activeRunStatus: first.run.status,
+      activeRunTerminalIds: first.run.steps.map((step) => step.terminalId ?? ''),
+      createId: () => 'run_next',
+      createAgentTerminal,
+    })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.run.id).toBe('run_next')
+  })
+
+  it('keeps a mixed cli+api start running and ends only the api step', async () => {
+    const chat = vi.fn(async () => ({ text: 'assistant reply' }))
+    const writeApiReply = vi.fn(async () => {})
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login and review it',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: ['claude'],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createId: () => 'run_mix',
+      now: () => 1_700_000_000_000,
+      lanes: [
+        {
+          agent: 'claude',
+          role: 'worker',
+          taskKind: 'implement',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'implement login',
+        },
+        {
+          agent: 'api:google',
+          role: 'worker',
+          taskKind: 'review',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'review login',
+        },
+      ],
+      chat,
+      pickCodingModel: () => 'gemini-2.5-pro',
+      writeApiReply,
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.run.status).toBe('running')
+    expect(result.run.steps[0]?.terminalId).toBe('term-1')
+    expect(result.run.steps[0]?.endedAt).toBeUndefined()
+    expect(result.run.steps[1]?.terminalId).toBe('api:google:run_mix')
+    expect(result.run.steps[1]?.endedAt).toBe(1_700_000_000_000)
   })
 })

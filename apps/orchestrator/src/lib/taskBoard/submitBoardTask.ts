@@ -34,7 +34,13 @@ import { appendBoardNote, renderBoardMarkdown } from './boardMarkdown'
 import { buildPlannerPrompt, planBoardSlices } from './planner'
 import { boardInvokeError, decideBoardStartFailure } from './boardStart'
 import { launchableSlices, pickNextTaskCard, readySlices } from './schedule'
-import { boardCardSettled, failSlicePlan, laneContextFromPlan, retargetSlicePlan } from './retargetBoardSlice'
+import {
+  boardCardSettled,
+  failSlicePlan,
+  laneContextFromPlan,
+  retargetSlicePlan,
+  slicesAfterLaunch,
+} from './retargetBoardSlice'
 import { toAutoPromptRunProject } from '../promptRun/submitAutoPromptRun'
 import { getProjectDefaultCwd } from '../terminalFactory'
 
@@ -267,11 +273,12 @@ export async function startBoardCard(cardId: string): Promise<void> {
       return
     }
     const launchedIds = toLaunch.map((slice) => slice.id)
-    const withTerminals = slicePlan.map((slice) => {
-      const index = launchedIds.indexOf(slice.id)
-      if (index < 0) return slice
-      return { ...slice, status: 'running' as const, terminalId: result.run.steps[index]?.terminalId }
-    })
+    const withTerminals = slicesAfterLaunch(
+      slicePlan,
+      launchedIds,
+      result.run.steps,
+      result.run.status,
+    )
     usePromptRunStore.getState().setRun(result.run)
     try {
       await appendPromptRunJournal(result.run.id, 'Board task started', card.prompt)
@@ -296,6 +303,13 @@ export async function startBoardCard(cardId: string): Promise<void> {
         runId: result.run.id,
         slicePlan: withTerminals,
       })
+    }
+    if (result.run.status === 'done') {
+      if (readySlices(withTerminals).length > 0) {
+        await continueBoardCard(cardId)
+      } else if (boardCardSettled(withTerminals)) {
+        await finishBoardCard(cardId)
+      }
     }
   } catch (cause) {
     console.warn('[task-board] start failed:', cause)

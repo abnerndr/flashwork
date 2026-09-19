@@ -388,6 +388,7 @@ type ProjectsSlice = Pick<
 export function createProjectsSlice({ set, get, update, updateProject }: SliceCtx): ProjectsSlice {
   return {
     createProject: ({
+      id,
       name,
       mode = 'standard',
       color,
@@ -398,13 +399,13 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
       firstBootPending,
     }) => {
       const project: Project = {
-        id: nanoid(),
+        id: id ?? nanoid(),
         name,
         mode,
         color,
         iconUrl,
         groupId,
-        ...(defaultCwd?.trim() ? { defaultCwd: defaultCwd.trim() } : {}),
+        defaultCwd: defaultCwd.trim(),
         githubUrl,
         firstBootPending,
         terminals: [],

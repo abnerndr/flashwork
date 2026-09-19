@@ -1,10 +1,12 @@
 import { Folder, Network, Palette, Terminal } from 'lucide-react'
+import { nanoid } from 'nanoid'
 import { useEffect, useState } from 'react'
 
 import { pickDirectory } from '../../lib/dialog'
 import { AGENT_SANDBOX_ENABLED } from '../../lib/featureFlags'
 import { useT } from '../../lib/i18n'
-import { GROUP_COLORS } from '../../lib/types'
+import { projectBootstrap, projectDetect } from '../../lib/tauri'
+import { GROUP_COLORS, type Project } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { Dropdown } from '../ui/Dropdown'
@@ -12,6 +14,12 @@ import { ColorPalettePopover } from './ColorPalettePopover'
 import controls from './controls.module.css'
 import { ImageInput } from './ImageInput'
 import { Modal } from './Modal'
+import {
+  createProjectInFolder,
+  isProjectFolderMissing,
+  openExistingProject,
+  type NewProjectRegistration,
+} from './NewProjectModal.logic'
 
 export function NewProjectModal() {
   const t = useT()
@@ -34,6 +42,10 @@ export function NewProjectModal() {
   const [mode, setMode] = useState<'standard' | 'agentSandbox'>('standard')
   const [groupId, setGroupId] = useState<string | null>(context?.groupId ?? null)
   const [isColorPopoverOpen, setIsColorPopoverOpen] = useState(false)
+  const [folderMissing, setFolderMissing] = useState(false)
+  const [flashworkExists, setFlashworkExists] = useState(false)
+  const [operationError, setOperationError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
                                                                         
                                                                        
@@ -50,35 +62,88 @@ export function NewProjectModal() {
     setMode('standard')
     setGroupId(context?.groupId ?? null)
     setIsColorPopoverOpen(false)
+    setFolderMissing(false)
+    setFlashworkExists(false)
+    setOperationError('')
+    setSubmitting(false)
   }
 
   const browse = async () => {
     const directory = await pickDirectory({ defaultPath: defaultCwd || undefined })
-    if (directory) setDefaultCwd(directory)
+    if (directory) {
+      setDefaultCwd(directory)
+      setFolderMissing(false)
+      setFlashworkExists(false)
+      setOperationError('')
+    }
   }
 
-  const submit = async () => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    if (mode === 'agentSandbox' && !defaultCwd.trim()) return
-    const project = createProject({
-      name: trimmed,
-      mode,
-      color,
-      iconUrl: iconUrl.trim() || undefined,
-      groupId,
-      defaultCwd: defaultCwd.trim() || undefined,
-    })
+  const registration = (): NewProjectRegistration => ({
+    name: name.trim(),
+    mode,
+    color,
+    iconUrl: iconUrl.trim() || undefined,
+    groupId,
+    defaultCwd,
+  })
+
+  const finish = (project: Project) => {
     reset()
     setActiveProject(project.id)
 
-    if (mode === 'agentSandbox') {
+    if (project.mode === 'agentSandbox') {
       setActiveView('agentSandbox')
       closeModal()
       return
     }
 
     openModal('newTerminal', { projectId: project.id })
+  }
+
+  const submit = async () => {
+    if (!name.trim()) return
+    if (isProjectFolderMissing(defaultCwd)) {
+      setFolderMissing(true)
+      return
+    }
+
+    setFolderMissing(false)
+    setFlashworkExists(false)
+    setOperationError('')
+    setSubmitting(true)
+    try {
+      const result = await createProjectInFolder(registration(), {
+        generateId: nanoid,
+        projectBootstrap,
+        createProject,
+      })
+      if (result.kind === 'flashworkExists') {
+        setFlashworkExists(true)
+        return
+      }
+      finish(result.project)
+    } catch (error) {
+      setOperationError(String(error))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openExisting = async () => {
+    setOperationError('')
+    setSubmitting(true)
+    try {
+      const project = await openExistingProject(registration(), {
+        projectDetect,
+        findProject: (id) => useProjectsStore.getState().projects.find((item) => item.id === id),
+        createProject,
+      })
+      finish(project)
+    } catch (error) {
+      setOperationError(String(error))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -97,10 +162,14 @@ export function NewProjectModal() {
           <button
             type="button"
             className={`${controls.btn} ${controls.btnPrimary}`}
-            disabled={!name.trim() || (mode === 'agentSandbox' && !defaultCwd.trim())}
-            onClick={() => void submit()}
+            disabled={!name.trim() || !defaultCwd.trim() || submitting}
+            onClick={() => void (flashworkExists ? openExisting() : submit())}
           >
-            {mode === 'agentSandbox' ? t('crud.createAgentSandboxProject') : t('crud.create')}
+            {flashworkExists
+              ? t('crud.openExisting')
+              : mode === 'agentSandbox'
+                ? t('crud.createAgentSandboxProject')
+                : t('crud.create')}
           </button>
         </>
       }
@@ -181,7 +250,12 @@ export function NewProjectModal() {
             <input
               className={controls.input}
               value={defaultCwd}
-              onChange={(event) => setDefaultCwd(event.target.value)}
+              onChange={(event) => {
+                setDefaultCwd(event.target.value)
+                setFolderMissing(false)
+                setFlashworkExists(false)
+                setOperationError('')
+              }}
               placeholder={t('crud.projectPathPlaceholder')}
               title={defaultCwd}
             />
@@ -191,6 +265,17 @@ export function NewProjectModal() {
           </button>
         </div>
         <span className={controls.hint}>{t('crud.projectPathHint')}</span>
+        {folderMissing ? (
+          <span className={controls.fieldError}>{t('crud.folderRequired')}</span>
+        ) : null}
+        {flashworkExists ? (
+          <span className={controls.fieldError}>{t('crud.flashworkExists')}</span>
+        ) : null}
+        {operationError ? (
+          <span className={controls.fieldError}>
+            {t('common.errorPrefix', { message: operationError })}
+          </span>
+        ) : null}
       </div>
 
       <div className={controls.field}>

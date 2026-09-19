@@ -95,12 +95,13 @@ export type ProjectsState = ProjectsFile & {
 
   // projects
   createProject: (args: {
+    id?: string
     name: string
     mode?: Project['mode']
     color?: string
     iconUrl?: string
     groupId?: string | null
-    defaultCwd?: string
+    defaultCwd: string
     githubUrl?: string
     firstBootPending?: boolean
   }) => Project

@@ -12,6 +12,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- New projects now require a destination folder and initialize their local `.flashwork/` metadata
+  before registration; folders already owned by Flashwork can be opened without duplication.
 - Task board `tools.json` for project-default tool mode now writes `{ "mode": "projectDefault" }`
   only, so spawned agents do not misread empty allowlists as "no tools allowed."
 - Token HUD lists every live coding-agent pane (Gemini, Copilot, Antigravity, Mimo, Freebuff

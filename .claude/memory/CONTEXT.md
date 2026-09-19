@@ -79,14 +79,15 @@ Creating a project requires a destination folder. Flashwork writes `<folder>/.fl
 - Spec proposed, not fully landed: `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` (run hubs remain under the app profile; `.flashwork/history/runs/README.md` is a pointer).
 - Attachments still live under `{profile}/task-board/attachments/{cardId}/` (not yet migrated next to the card JSON).
 
-## Visual (partial)
+## Visual (P03 shipped)
 
 - Themes including a VS Code Dark+ palette (`theme.vscode`)
 - Visual styles: Normal vs Clean (`docs/UI_VISUAL_STYLES.md`)
-- Fonts: Inter + Cascadia Mono (`docs/BRAND.md`)
-- Icons: lucide-react + agent PNGs/SVGs
+- Fonts: Segoe UI Variable / Segoe UI, Inter fallback; Cascadia Code / Cascadia Mono / Sarasa Mono (`docs/BRAND.md`). No Google Fonts CDN.
+- Icons: lucide-react via `UiIcon` (16 px, stroke 1.75) + agent brand images at min 16×16. Inactive agent marks stay at opacity ≥ 0.7.
+- Workbench chrome: `--workbench-tab-height` 35 px on the title bar and pane headers; focused Normal panes use a 1 px `--accent` border.
 
-Owner still wants more readable icons and a more attractive typeface, using VS Code as the visual baseline.
+Owner still wants GitHub SCM and the editor workbench (P05 / P06) at VS Code quality.
 
 ## Canvas (experimental, not N8N)
 
@@ -106,7 +107,7 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 
 | # | Gap |
 | --- | --- |
-| 4 | Visual polish: icons + type, VS Code–like workbench chrome |
+| 4 | ~~Visual polish: icons + type, VS Code–like workbench chrome~~ **P03 shipped.** Remaining: GitHub SCM and editor workbench still below VS Code |
 | 5 | ~~Project = folder + isolated harness/RAG/history~~ **P04 shipped.** Remaining: attachment files still profile-scoped; 09-04 project hub not under `.flashwork/` |
 | 6 | GitHub SCM below VS Code quality; no extension install |
 | 7 | No IDE editor behind the orchestrator |

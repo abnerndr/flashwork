@@ -18,17 +18,18 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P02 Skills + MCP marketplace | `f1cf498` | done |
 | P04 Per-project harness/RAG | `ff198a9` | done |
 | P07 Opaque model router | `4fd97fb` | done |
+| P03 Visual refresh | `2860ea9` | done |
 
 ## Current slice
 
-**Plan:** P03 — `docs/superpowers/plans/2026-09-17-03-visual-refresh.md`  
+**Plan:** P05 — `docs/superpowers/plans/2026-09-17-05-github-source-control.md`  
 **ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
-**Branch:** start `feat/p03-visual-refresh` from `master`  
+**Branch:** start `feat/p05-github-source-control` from `master`  
 **Status:** not started.
 
-## After P03
+## After P05
 
-Start P05 (`docs/superpowers/plans/2026-09-17-05-github-source-control.md`) unless the P03 plan or owner says otherwise.
+Start P06 (`docs/superpowers/plans/2026-09-17-06-ide-workbench.md`) unless the P05 plan or owner says otherwise.
 
 ## P07 notes (for later slices)
 
@@ -58,3 +59,10 @@ Start P05 (`docs/superpowers/plans/2026-09-17-05-github-source-control.md`) unle
 - Task Board cards for folder-backed projects: `<folder>/.flashwork/history/tasks/<id>.json`. Profile `task-board.json` is the fallback. Listing binds filename stem + `project_id` to that home.
 - Run hubs stay under the app profile; `.flashwork/history/runs/README.md` is a one-line pointer. 09-04 hub is not implemented under `.flashwork/`.
 - Attachments were not migrated in this slice.
+
+## P03 notes (for later slices)
+
+- Type stack is OS-first (Segoe UI Variable / Cascadia Code). Linux/WSL falls back to Inter / Cascadia Mono / system fonts. No Google Fonts CDN.
+- `UiIcon` defaults to 16 px and stroke 1.75. Lucide SVGs also inherit `--icon-stroke` from `theme.css`.
+- Inline badges (Pin, Pause, Lock, Link2, ShieldCheck, Clock) stayed at 10–12 px.
+- Visual check in the running Tauri window was skipped: Vite/Tauri were not listening and must not be started if already owned by the user. `tsc` clean; 552 vitest tests passed.

@@ -68,19 +68,16 @@ Commands: `skills_scan`, `skills_detail`, `skills_install`, `skills_uninstall`. 
 
 **Missing:** GitHub auth for repo operations, PR flow, branch UI like VS Code SCM, installing VS Code extensions.
 
-## Project creation (partial)
+## Project creation (shipped — P04 / ADR 005)
 
-`NewProjectModal.tsx`: name, color, icon, optional `defaultCwd` (required only for agent sandbox). Folder picker exists (`pickDirectory`).
-
-**Missing:** destination folder mandatory for every project; bootstrap of per-project harness, history, and RAG on that disk path.
+Creating a project requires a destination folder. Flashwork writes `<folder>/.flashwork/` (harness, `rag/STATUS.json`, history) before registering the row in `projects.json`. A folder that already has `.flashwork/` is opened as that project id instead of duplicating. CLI open and “open folder as project” reuse the same bootstrap/detect path.
 
 ## Per-project intelligence (partial)
 
-- Graphify: optional code graph + MCP wiring per repo (`graphify.rs`, `GraphifyView`)
-- AI Memory: optional local MCP (`ai_memory.rs`)
-- Spec proposed, not fully landed: `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md`
-
-These are feature flags, not a required project bootstrap.
+- Graphify + AI Memory still optional feature flags; on create they run in the background and write `.flashwork/rag/STATUS.json` (`exists` | `unavailable`). No hosted embedding API.
+- Task Board cards for folder-backed projects: `.flashwork/history/tasks/<id>.json`. Pre-P04 cards stay in profile `task-board.json`.
+- Spec proposed, not fully landed: `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` (run hubs remain under the app profile; `.flashwork/history/runs/README.md` is a pointer).
+- Attachments still live under `{profile}/task-board/attachments/{cardId}/` (not yet migrated next to the card JSON).
 
 ## Visual (partial)
 
@@ -110,7 +107,7 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 | # | Gap |
 | --- | --- |
 | 4 | Visual polish: icons + type, VS Code–like workbench chrome |
-| 5 | Project = folder + isolated harness/RAG/history |
+| 5 | ~~Project = folder + isolated harness/RAG/history~~ **P04 shipped.** Remaining: attachment files still profile-scoped; 09-04 project hub not under `.flashwork/` |
 | 6 | GitHub SCM below VS Code quality; no extension install |
 | 7 | No IDE editor behind the orchestrator |
 | 8 | Model/token/agent choice still leaks to the developer |

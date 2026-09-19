@@ -1,6 +1,6 @@
 # ADR 005 — Per-project folder, harness, and RAG
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: projects, rag, graphify
 
@@ -29,6 +29,6 @@ The owner wants: each project has its own history, files, harness, and RAG. Crea
 
 ## Consequences
 
-- `NewProjectModal` must block submit without a folder (today only Agent Sandbox requires cwd).
-- Task Board cards, canvas graphs, and run hubs for that project resolve under `.flashwork/history` (with a migration from profile-scoped task storage).
+- `NewProjectModal` blocks submit without a folder. Opening a folder that already has `.flashwork/` reuses that project id.
+- Task Board cards for folder-backed projects live under `.flashwork/history/tasks/<id>.json`; profile `task-board.json` remains the fallback for older projects. Attachments and the 09-04 run hub are still profile-scoped.
 - Cross-project isolation from ADR 002 still holds: never union two `.flashwork/rag` trees.

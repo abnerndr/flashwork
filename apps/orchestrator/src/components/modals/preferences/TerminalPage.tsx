@@ -222,6 +222,29 @@ export function TerminalPage({ enabledCount }: { enabledCount: number }) {
       </SettingsSection>
 
       <SettingsSection
+        id="show-token-hud"
+        title={t('prefs.showTokenHud')}
+        description={t('prefs.showTokenHudDesc')}
+      >
+        <div className={styles.segmented}>
+          <button
+            type="button"
+            className={preferences.showTokenHud ? styles.segmentActive : undefined}
+            onClick={() => setPreferences({ showTokenHud: true })}
+          >
+            {t('prefs.showTokenHudOn')}
+          </button>
+          <button
+            type="button"
+            className={!preferences.showTokenHud ? styles.segmentActive : undefined}
+            onClick={() => setPreferences({ showTokenHud: false })}
+          >
+            {t('prefs.showTokenHudOff')}
+          </button>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
         id="limit-reset-notify"
         title={t('prefs.limitResetNotify')}
         description={t('prefs.limitResetNotifyDesc')}

@@ -462,7 +462,7 @@ export const en = {
   'taskBoard.title': 'Task board',
   'taskBoard.kicker': 'Auto queue',
   'taskBoard.lede':
-    'Drop a card into To do. A cheap planner splits the work, workers share a board, and Flashwork tests when they finish.',
+    'Drop a card into To do. Flashwork assigns the worker (UI vs architecture) automatically. A cheap planner splits the work, workers share a board, and Flashwork tests when they finish.',
   'taskBoard.project': 'Project',
   'taskBoard.cardTitle': 'Title',
   'taskBoard.priority': 'Priority',
@@ -546,6 +546,11 @@ export const en = {
     'Notify when a Claude or Codex usage window resets, showing which one.',
   'prefs.limitResetNotifyOn': 'On',
   'prefs.limitResetNotifyOff': 'Off',
+  'prefs.showTokenHud': 'Token HUD',
+  'prefs.showTokenHudDesc':
+    'Start the token cost HUD expanded. Off keeps it collapsed until you open it in the session.',
+  'prefs.showTokenHudOn': 'On',
+  'prefs.showTokenHudOff': 'Off',
   'prefs.dictation': 'Voice dictation',
   'prefs.dictationDesc':
     'Show a mic button to dictate (speech-to-text) into the active terminal. Off by default.',
@@ -853,8 +858,10 @@ export const en = {
   'home.startSomething': 'start something',
   'home.quickAgent': 'Coding agent',
   'home.quickAgentShort': 'Agent',
+  'home.quickAgentChoose': 'Choose agent',
   'home.quickAgentAuto': 'Auto',
-  'home.quickAgentAutoHint': 'Flashwork picks an installed CLI and can hand off on quota',
+  'home.quickAgentAutoHint':
+    'Flashwork routes UI vs architecture automatically (cheap first-party probe when a key is saved; otherwise the installed-CLI classifier)',
   'home.quickTerminalTitle': 'flashwork@workspace:~',
   'home.quickPath': 'Path',
   'home.viewAll': 'View all',

@@ -48,6 +48,18 @@ describe('preference normalization', () => {
     expect(preferences).not.toHaveProperty('omniRouteBaseUrl')
     expect(preferences).not.toHaveProperty('omniRouteCaveman')
   })
+
+  it('defaults showTokenHud to false when the key is missing', () => {
+    const preferences = normalizePreferences({})
+
+    expect(preferences.showTokenHud).toBe(false)
+  })
+
+  it('preserves an explicit showTokenHud true', () => {
+    const preferences = normalizePreferences({ showTokenHud: true })
+
+    expect(preferences.showTokenHud).toBe(true)
+  })
 })
 
 describe('projects file migration', () => {

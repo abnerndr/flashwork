@@ -21,7 +21,7 @@ import { useT, type MessageKey, type TFunction } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
 import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
-import { AUTO_LAUNCH_VALUE } from '../../lib/promptRun/constants'
+import { AUTO_LAUNCH_VALUE, HOME_DEFAULT_QUICK_PICK } from '../../lib/promptRun/constants'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
 import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
@@ -209,7 +209,7 @@ export function HomeView() {
   const [quickProjectId, setQuickProjectId] = useState(() => fallbackQuickTarget?.id ?? '')
   const quickTarget =
     projects.find((project) => project.id === quickProjectId) ?? fallbackQuickTarget
-  const [quickPick, setQuickPick] = useState<QuickPick>('claude')
+  const [quickPick, setQuickPick] = useState<QuickPick>(HOME_DEFAULT_QUICK_PICK)
   const quickAgentMenuRef = useRef<HTMLDetailsElement>(null)
   const quickModeMenuRef = useRef<HTMLDetailsElement>(null)
   const [quickUnrestricted, setQuickUnrestricted] = useState(false)
@@ -463,7 +463,7 @@ export function HomeView() {
                 ) : (
                   <AgentIcon type={quickAgent} size={15} theme={preferences.uiTheme} />
                 )}
-                <span className={styles.quickControlLabel}>{t('home.quickAgentShort')}:</span>
+                <span className={styles.quickControlLabel}>{t('home.quickAgentChoose')}:</span>
                 <span>{quickAgentLabel}</span>
                 <ChevronDown size={10} />
               </summary>

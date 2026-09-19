@@ -465,7 +465,7 @@ export const ptBR: Record<MessageKey, string> = {
   'taskBoard.title': 'Quadro de tarefas',
   'taskBoard.kicker': 'Fila Auto',
   'taskBoard.lede':
-    'Arraste o card para A fazer. Um planejador barato divide o trabalho, os workers compartilham um quadro e o Flashwork testa quando termina.',
+    'Arraste o card para A fazer. O Flashwork atribui o worker (UI vs arquitetura) automaticamente. Um planejador barato divide o trabalho, os workers compartilham um quadro e o Flashwork testa quando termina.',
   'taskBoard.project': 'Projeto',
   'taskBoard.cardTitle': 'Título',
   'taskBoard.priority': 'Prioridade',
@@ -549,6 +549,11 @@ export const ptBR: Record<MessageKey, string> = {
     'Notifica quando uma janela de uso do Claude ou Codex reseta, mostrando qual.',
   'prefs.limitResetNotifyOn': 'Ligado',
   'prefs.limitResetNotifyOff': 'Desligado',
+  'prefs.showTokenHud': 'HUD de tokens',
+  'prefs.showTokenHudDesc':
+    'Inicia o HUD de custo de tokens expandido. Desligado mantém recolhido até você abrir na sessão.',
+  'prefs.showTokenHudOn': 'Ligado',
+  'prefs.showTokenHudOff': 'Desligado',
   'prefs.dictation': 'Ditado por voz',
   'prefs.dictationDesc':
     'Mostra um botão de microfone pra ditar (voz → texto) no terminal ativo. Desligado por padrão.',
@@ -864,8 +869,10 @@ export const ptBR: Record<MessageKey, string> = {
   'home.startSomething': 'comece algo',
   'home.quickAgent': 'Agente de código',
   'home.quickAgentShort': 'Agente',
+  'home.quickAgentChoose': 'Escolher agente',
   'home.quickAgentAuto': 'Auto',
-  'home.quickAgentAutoHint': 'O Flashwork escolhe um CLI instalado e pode passar o bastão na quota',
+  'home.quickAgentAutoHint':
+    'O Flashwork roteia UI vs arquitetura automaticamente (probe de API de primeira parte barata quando há chave salva; senão o classificador de CLI instalado)',
   'home.quickTerminalTitle': 'flashwork@workspace:~',
   'home.quickPath': 'Pasta',
   'home.viewAll': 'Ver todos',

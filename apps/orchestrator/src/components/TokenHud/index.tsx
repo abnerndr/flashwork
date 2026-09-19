@@ -28,9 +28,10 @@ function costClass(v: number): string {
 export function TokenHud() {
   const t = useT()
   const uiTheme = useProjectsStore((s) => s.preferences.uiTheme)
+  const showTokenHud = useProjectsStore((s) => s.preferences.showTokenHud)
   const byPtyId = useAgentCostStore((s) => s.byPtyId)
   const refresh = useAgentCostStore((s) => s.refresh)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(!showTokenHud)
   const timer = useRef<number | null>(null)
 
                                                                                     

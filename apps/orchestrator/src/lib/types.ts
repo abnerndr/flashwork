@@ -540,6 +540,11 @@ export type Preferences = {
   rightSidebarWidth: number
 
   notifyOnLimitReset: boolean
+  /**
+   * Start the Token HUD expanded. Default false (collapsed); the user can
+   * still expand it in-session.
+   */
+  showTokenHud: boolean
   /** Ditado por voz (speech-to-text) escreve no terminal ativo. Default false. */
   dictationEnabled: boolean
   /** Quantos PTYs podem ser spawnados em paralelo (fila global). Default 3. */
@@ -677,6 +682,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   leftSidebarWidth: 286,
   rightSidebarWidth: 300,
   notifyOnLimitReset: true,
+  showTokenHud: false,
   dictationEnabled: false,
   spawnConcurrency: 3,
   resourcePolicy: {

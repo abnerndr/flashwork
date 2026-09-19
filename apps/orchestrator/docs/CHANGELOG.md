@@ -60,6 +60,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Flashwork routes Auto and Task Board (UI vs architecture) without asking which model to pick; cheap first-party API when a key is saved, else the classifier; Token HUD stays collapsed unless enabled in Preferences.
 - Skills can be installed from a local folder or a git URL into the shared store (`~/.agents/skills`), with optional links into each agent's skills folder. The MCP sidebar is titled **Marketplace**, with equal **Add MCP server** and **Install skill** actions.
 - Task board cards can attach one or more markdown handoff files (**Attach handoff**) and, when
   **Restrict tools** is on, pick which MCP servers and skills the spawned agent gets instead of the

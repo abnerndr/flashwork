@@ -117,6 +117,7 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     gitControlPlacement: preferences.gitControlPlacement === 'right' ? 'right' : 'left',
     mcpDefaultScope: preferences.mcpDefaultScope === 'project' ? 'project' : 'global',
     mcpOnboardingSeen: Boolean(preferences.mcpOnboardingSeen),
+    showTokenHud: Boolean(preferences.showTokenHud),
     displayName: preferences.displayName.trim(),
     profileImageUrl: preferences.profileImageUrl.trim(),
     todoStoragePath: preferences.todoStoragePath.trim(),

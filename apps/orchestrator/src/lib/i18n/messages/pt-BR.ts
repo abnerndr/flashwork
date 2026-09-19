@@ -913,6 +913,8 @@ export const ptBR: Record<MessageKey, string> = {
     'Salve uma chave Google, OpenAI ou Anthropic em Provedores para usar o Auto sem um CLI de código.',
   'promptRun.startedTitle': 'Run Auto iniciado',
   'promptRun.startedBody': '{agent} · {reason}',
+  'promptRun.finishedTitle': 'Run Auto concluído',
+  'promptRun.finishedBody': '{agent} respondeu neste run (api-reply.md / journal).',
   'promptRun.status.running': 'Em execução',
   'promptRun.status.handing-off': 'Passando o bastão',
   'promptRun.status.waiting': 'Aguardando',

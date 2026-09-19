@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useT, type MessageKey } from '../../lib/i18n'
 import { isPromptRunBlocking } from '../../lib/promptRun/isPromptRunBlocking'
+import { promptRunOutcomeToast } from '../../lib/promptRun/promptRunToast'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
 import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
@@ -152,9 +153,10 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
       }
       if (promptRef.current) promptRef.current.value = ''
       const reason = result.run.steps[0]?.reason ?? 'heuristic'
+      const outcome = promptRunOutcomeToast(result.run.status)
       pushToast({
-        title: t('promptRun.startedTitle'),
-        body: t('promptRun.startedBody', {
+        title: t(outcome.titleKey),
+        body: t(outcome.bodyKey, {
           agent: routedAgentLabel(result.run.activeAgent),
           reason: t(REASON_KEYS[reason]),
         }),

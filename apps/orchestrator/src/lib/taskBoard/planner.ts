@@ -114,7 +114,7 @@ export async function heuristicBoardSlices(
   probe: PlannerProbe = async () => null,
 ): Promise<TaskSlicePlan[]> {
   const routed = await routeOpenTask({ ...input, probe })
-  if (routed.ok && isApiAgentId(routed.agent)) {
+  if (routed.ok && (isApiAgentId(routed.agent) || routed.source === 'probe')) {
     return [
       {
         id: 'slice_1',

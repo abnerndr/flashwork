@@ -22,6 +22,7 @@ import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
 import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
 import { AUTO_LAUNCH_VALUE, HOME_DEFAULT_QUICK_PICK } from '../../lib/promptRun/constants'
+import { promptRunOutcomeToast } from '../../lib/promptRun/promptRunToast'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
 import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
@@ -326,9 +327,10 @@ export function HomeView() {
         if (quickPromptRef.current) quickPromptRef.current.value = ''
         if (!skipFocus) setActiveView('workspace')
         const reason = result.run.steps[0]?.reason ?? 'heuristic'
+        const outcome = promptRunOutcomeToast(result.run.status)
         pushToast({
-          title: t('promptRun.startedTitle'),
-          body: t('promptRun.startedBody', {
+          title: t(outcome.titleKey),
+          body: t(outcome.bodyKey, {
             agent: routedAgentLabel(result.run.activeAgent),
             reason: t(PROMPT_RUN_REASON_KEYS[reason]),
           }),

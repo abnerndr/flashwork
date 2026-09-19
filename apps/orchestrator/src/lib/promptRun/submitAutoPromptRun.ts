@@ -7,8 +7,8 @@ import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import { excludeFailedAgents } from './failedAgents'
 import { freeProbe, productionFreeProbeDeps } from './freeRouter'
-import { isApiAgentId } from './routedAgent'
 import { probeInstalledAgents } from './probeInstalled'
+import { type AutoLane } from './planAutoLanes'
 import { routeOpenTask } from './routeTask'
 import { startPromptRun, type StartPromptRunResult } from './startPromptRun'
 import { providerChat, providerKeyStatus } from '../tauri/providers'
@@ -41,6 +41,22 @@ export function toAutoPromptRunProject(
     lastUsedAgent: project.terminals[project.terminals.length - 1]?.tabs[0]?.type,
     terminals: project.terminals,
   }
+}
+
+export function lanesFromRoutedChoice(
+  routed: Pick<AutoLane, 'agent' | 'taskKind' | 'reason'>,
+  prompt: string,
+): AutoLane[] {
+  return [
+    {
+      agent: routed.agent,
+      role: 'worker',
+      taskKind: routed.taskKind,
+      reason: routed.reason,
+      skillNames: [],
+      slicePrompt: prompt,
+    },
+  ]
 }
 
 export async function submitAutoPromptRun(args: {
@@ -89,18 +105,6 @@ export async function submitAutoPromptRun(args: {
   if (!routed.ok) {
     return { ok: false, code: routed.needsSetup === 'api' ? 'needs-setup-api' : 'needs-install' }
   }
-  const apiLane = isApiAgentId(routed.agent)
-    ? [
-        {
-          agent: routed.agent,
-          role: 'worker' as const,
-          taskKind: routed.taskKind,
-          reason: routed.reason,
-          skillNames: [] as string[],
-          slicePrompt: args.prompt,
-        },
-      ]
-    : undefined
   const result = await startPromptRun({
     project: args.project
       ? {
@@ -125,7 +129,7 @@ export async function submitAutoPromptRun(args: {
       .filter((id): id is string => Boolean(id)),
     liveTerminalIds: args.project?.terminals.map((terminal) => terminal.id) ?? [],
     skills,
-    lanes: apiLane,
+    lanes: lanesFromRoutedChoice(routed, args.prompt),
     includeOrchestrator: false,
     ensureContextDir: ensurePromptRunContext,
     createAgentTerminal: (projectId, launch) =>

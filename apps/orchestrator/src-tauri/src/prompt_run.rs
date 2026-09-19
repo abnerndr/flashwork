@@ -224,6 +224,26 @@ fn write_named_markdown(run_dir: &Path, file_name: &str, contents: &str) -> Resu
     Ok(journal_path_for_persist(&path))
 }
 
+const ALLOWED_PROMPT_RUN_FILES: &[&str] = &["api-reply.md"];
+
+fn validate_prompt_run_file_name(file_name: &str) -> Result<(), String> {
+    if !ALLOWED_PROMPT_RUN_FILES.contains(&file_name) {
+        return Err("unsupported prompt run file".to_string());
+    }
+    Ok(())
+}
+
+fn write_prompt_run_file_inner(
+    runs: PathBuf,
+    run_id: String,
+    file_name: String,
+    contents: String,
+) -> Result<String, String> {
+    validate_prompt_run_file_name(&file_name)?;
+    let run_dir = confined_run_dir(&runs, &run_id)?;
+    write_named_markdown(&run_dir, &file_name, &contents)
+}
+
 fn write_prompt_run_board_inner(runs: PathBuf, run_id: String, contents: String) -> Result<String, String> {
     let run_dir = confined_run_dir(&runs, &run_id)?;
     let truncated = truncate_journal(&contents, JOURNAL_CHAR_LIMIT);
@@ -296,6 +316,21 @@ pub async fn append_prompt_run_journal(
 }
 
 #[tauri::command]
+pub async fn write_prompt_run_file(
+    app: AppHandle,
+    run_id: String,
+    file_name: String,
+    contents: String,
+) -> Result<String, String> {
+    let runs = crate::paths::runs_dir(&app)?;
+    tokio::task::spawn_blocking(move || {
+        write_prompt_run_file_inner(runs, run_id, file_name, contents)
+    })
+    .await
+    .map_err(|error| format!("write_prompt_run_file task failed: {error}"))?
+}
+
+#[tauri::command]
 pub async fn write_prompt_run_board(
     app: AppHandle,
     run_id: String,
@@ -360,5 +395,21 @@ mod tests {
         let persisted = journal_path_for_persist(Path::new(r"\\?\C:\Users\me\runs\abc\journal.md"));
         assert!(!persisted.starts_with(r"\\?\"));
         assert_eq!(persisted, r"C:\Users\me\runs\abc\journal.md");
+    }
+
+    #[test]
+    fn writes_api_reply_md_when_file_does_not_exist() {
+        let runs = tempfile::tempdir().unwrap();
+        let path = write_prompt_run_file_inner(
+            runs.path().to_path_buf(),
+            "run_api".to_string(),
+            "api-reply.md".to_string(),
+            "# reply\n".to_string(),
+        )
+        .expect("create api-reply.md");
+        let written = runs.path().join("run_api").join("api-reply.md");
+        assert!(written.is_file(), "api-reply.md should be created");
+        assert_eq!(fs::read_to_string(&written).unwrap(), "# reply\n");
+        assert!(path.ends_with("api-reply.md"));
     }
 }

@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid'
 import { pickEffectiveCodingModel } from '../providers/catalogOverlay'
 import type { ProviderId } from '../providers/modelCatalog'
 import { CODING_TIMEOUT_MS, providerChat, type ChatMessage } from '../tauri/providers'
-import { writeTextFile } from '../tauri/filesystem'
+import { writePromptRunFile } from '../tauri/promptRun'
 import {
   UNRESTRICTED_FLAG,
   type AgentType,
@@ -116,7 +116,9 @@ export async function launchPromptRunLanes(
   const chat = input.chat ?? providerChat
   const pickCodingModel = input.pickCodingModel ?? pickEffectiveCodingModel
   const writeApiReply =
-    input.writeApiReply ?? ((path: string, text: string) => writeTextFile(path, text))
+    input.writeApiReply ??
+    ((_path: string, text: string) =>
+      writePromptRunFile(input.runId, 'api-reply.md', text).then(() => undefined))
   const steps: PromptRunStep[] = []
   for (const lane of input.lanes) {
     if (isApiAgentId(lane.agent)) {

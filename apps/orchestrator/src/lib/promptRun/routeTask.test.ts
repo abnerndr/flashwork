@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { routeTask } from './routeTask'
+import { routeOpenTask, routeTask } from './routeTask'
 
 describe('routeTask', () => {
   afterEach(() => {
@@ -18,6 +18,7 @@ describe('routeTask', () => {
     })
     expect(out.taskKind).toBe('ui')
     expect(out.agent).toBe('antigravity')
+    expect(out.source).toBe('fallback')
   })
 
   it('accepts schema-valid JSON from probe and ignores extra keys', async () => {
@@ -31,6 +32,7 @@ describe('routeTask', () => {
     })
     expect(out.agent).toBe('codex')
     expect(out.taskKind).toBe('mechanical')
+    expect(out.source).toBe('probe')
   })
 
   it('ignores probe agents that are not installed', async () => {
@@ -89,7 +91,7 @@ describe('routeTask', () => {
     expect(out.agent).toBe('antigravity')
   })
 
-  it('accepts api:google even when it is not in installedAgents', async () => {
+  it('rejects api:google when a coding CLI is installed and uses selectAgent', async () => {
     const out = await routeTask({
       prompt: 'implement login',
       enabledAgents: ['claude'],
@@ -98,7 +100,70 @@ describe('routeTask', () => {
       codexRateLimited: false,
       probe: async () => ({ kind: 'implement', agent: 'api:google', reason: 'x' }),
     })
-    expect(out.agent).toBe('api:google')
+    expect(out.agent).toBe('claude')
     expect(out.taskKind).toBe('implement')
+    expect(out.source).toBe('fallback')
+  })
+
+  it('accepts api:google when no coding CLI is installed', async () => {
+    const out = await routeTask({
+      prompt: 'implement login',
+      enabledAgents: [],
+      installedAgents: [],
+      claudeFiveHourUtilization: null,
+      codexRateLimited: false,
+      probe: async () => ({ kind: 'implement', agent: 'api:google', reason: 'x' }),
+    })
+    expect(out?.agent).toBe('api:google')
+    expect(out?.taskKind).toBe('implement')
+    expect(out?.source).toBe('probe')
+  })
+})
+
+describe('routeOpenTask', () => {
+  it('keeps a probed api:google when that provider has a saved key', async () => {
+    const out = await routeOpenTask({
+      prompt: 'implement login',
+      enabledAgents: [],
+      installedAgents: [],
+      claudeFiveHourUtilization: null,
+      codexRateLimited: false,
+      probe: async () => ({ kind: 'implement', agent: 'api:google' }),
+      keyStatus: async (id) => ({ saved: id === 'google' }),
+    })
+    expect(out).toMatchObject({
+      ok: true,
+      agent: 'api:google',
+      source: 'probe',
+    })
+  })
+
+  it('synthesizes api:openai when the probe picked api:google without a google key', async () => {
+    const out = await routeOpenTask({
+      prompt: 'implement login',
+      enabledAgents: [],
+      installedAgents: [],
+      claudeFiveHourUtilization: null,
+      codexRateLimited: false,
+      probe: async () => ({ kind: 'implement', agent: 'api:google' }),
+      keyStatus: async (id) => ({ saved: id === 'openai' }),
+    })
+    expect(out).toMatchObject({
+      ok: true,
+      agent: 'api:openai',
+    })
+  })
+
+  it('drops a probed api:google with no saved key and no CLI', async () => {
+    const out = await routeOpenTask({
+      prompt: 'implement login',
+      enabledAgents: [],
+      installedAgents: [],
+      claudeFiveHourUtilization: null,
+      codexRateLimited: false,
+      probe: async () => ({ kind: 'implement', agent: 'api:google' }),
+      keyStatus: async () => ({ saved: false }),
+    })
+    expect(out).toEqual({ ok: false, needsSetup: 'cli' })
   })
 })

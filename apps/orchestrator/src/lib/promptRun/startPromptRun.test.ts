@@ -1,8 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { writeTextFile } from '../tauri/filesystem'
+import { writePromptRunFile } from '../tauri/promptRun'
 import { UNRESTRICTED_FLAG } from '../types'
 import { clearClaudeWriterLocks } from './claudeWriterLock'
 import { startPromptRun } from './startPromptRun'
+
+vi.mock('../tauri/filesystem', () => ({
+  writeTextFile: vi.fn(async () => {}),
+}))
+
+vi.mock('../tauri/promptRun', () => ({
+  writePromptRunFile: vi.fn(async () => 'runs/run_api/api-reply.md'),
+}))
 
 const createAgentTerminal = vi.fn(async () => ({ id: 'term-1' }))
 
@@ -321,6 +331,40 @@ describe('startPromptRun', () => {
     expect(result.run.activeAgent).toBe('api:google')
     expect(result.run.steps[0]?.terminalId).toBe('api:google:run_api')
     expect(result.run.steps[0]?.endedAt).toBe(1_700_000_000_000)
+  })
+
+  it('writes api-reply.md through writePromptRunFile when writeApiReply is omitted', async () => {
+    const chat = vi.fn(async () => ({ text: 'assistant reply' }))
+    vi.mocked(writePromptRunFile).mockClear()
+    vi.mocked(writeTextFile).mockClear()
+    const result = await startPromptRun({
+      project: { id: 'p1', name: 'App' },
+      cwd: '/tmp/app',
+      prompt: 'implement login',
+      unrestricted: false,
+      enabledAgents: ['claude'],
+      installedAgents: [],
+      claudeFiveHourUtilization: 0,
+      codexRateLimited: false,
+      createId: () => 'run_api_default',
+      now: () => 1_700_000_000_000,
+      lanes: [
+        {
+          agent: 'api:google',
+          role: 'worker',
+          taskKind: 'implement',
+          reason: 'heuristic',
+          skillNames: [],
+          slicePrompt: 'implement login',
+        },
+      ],
+      chat,
+      pickCodingModel: () => 'gemini-2.5-pro',
+      createAgentTerminal,
+    })
+    expect(result.ok).toBe(true)
+    expect(writePromptRunFile).toHaveBeenCalledWith('run_api_default', 'api-reply.md', 'assistant reply')
+    expect(writeTextFile).not.toHaveBeenCalled()
   })
 
   it('does not treat a completed api run as still blocking the project', async () => {

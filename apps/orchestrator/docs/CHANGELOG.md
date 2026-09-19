@@ -38,6 +38,12 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Auto API replies are written into the run folder (`api-reply.md`) even when that file did not
+  exist yet. A finished Auto API run shows a completion toast that names the agent and points at
+  the reply in the run.
+- Auto and the Task Board honor a CLI pick from the first-party router probe instead of
+  re-planning lanes. Provider APIs are used only when no coding CLI is installed.
+
 - Task board cards in **Restrict tools** mode now block instead of starting when `tools.json`
   cannot be written; project-default mode still soft-fails and continues without the file.
 - Task board `tools.json` is now written through a dedicated command that creates the card's

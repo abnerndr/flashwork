@@ -91,6 +91,19 @@ describe('planBoardSlices', () => {
       status: 'pending',
     })
   })
+
+  it('returns a single CLI slice when the probe accepts an installed agent', async () => {
+    const slices = await heuristicBoardSlices(
+      { ...BASE },
+      async () => ({ kind: 'mechanical', agent: 'codex', reason: 'x' }),
+    )
+    expect(slices).toHaveLength(1)
+    expect(slices[0]).toMatchObject({
+      agent: 'codex',
+      kind: 'mechanical',
+      status: 'pending',
+    })
+  })
 })
 
 describe('serializeSiblingSlices', () => {

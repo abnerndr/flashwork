@@ -901,6 +901,8 @@ export const en = {
     'Save a Google, OpenAI, or Anthropic key in Providers to run Auto without a coding CLI.',
   'promptRun.startedTitle': 'Auto run started',
   'promptRun.startedBody': '{agent} · {reason}',
+  'promptRun.finishedTitle': 'Auto run finished',
+  'promptRun.finishedBody': '{agent} replied in this run (api-reply.md / journal).',
   'promptRun.status.running': 'Running',
   'promptRun.status.handing-off': 'Handing off',
   'promptRun.status.waiting': 'Waiting',

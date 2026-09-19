@@ -372,6 +372,7 @@ pub fn run() {
             prompt_run::load_prompt_run,
             prompt_run::list_prompt_runs,
             prompt_run::append_prompt_run_journal,
+            prompt_run::write_prompt_run_file,
             prompt_run::write_prompt_run_board,
             prompt_run::append_prompt_run_board,
             prompt_run::ensure_prompt_run_context,

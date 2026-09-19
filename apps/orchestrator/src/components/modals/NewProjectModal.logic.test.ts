@@ -79,7 +79,7 @@ describe('new project folder flow', () => {
     const result = await openExistingProject(registration, {
       projectDetect: async () => ({
         id: 'existing-id',
-        createdAt: 1,
+        createdAt: '1970-01-01T00:00:00Z',
         schemaVersion: 1,
       }),
       findProject: () => undefined,
@@ -101,7 +101,7 @@ describe('new project folder flow', () => {
     const result = await openExistingProject(registration, {
       projectDetect: async () => ({
         id: 'existing-id',
-        createdAt: 1,
+        createdAt: '1970-01-01T00:00:00Z',
         schemaVersion: 1,
       }),
       findProject: (id) => (id === existing.id ? existing : undefined),

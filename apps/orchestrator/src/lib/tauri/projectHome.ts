@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 
 export type ProjectHomeMeta = {
   id: string
-  createdAt: number
+  createdAt: string
   schemaVersion: number
 }
 

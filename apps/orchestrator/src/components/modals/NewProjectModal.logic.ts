@@ -58,14 +58,6 @@ export async function createProjectInFolder(
     throw error
   }
 
-  if (dependencies.bootstrapRag) {
-    try {
-      await dependencies.bootstrapRag(folder)
-    } catch {
-      // Graphify / AI Memory / STATUS.json must not fail project creation.
-    }
-  }
-
   if (dependencies.shouldApplyResult?.() === false) return { kind: 'stale' }
 
   const project = dependencies.createProject({
@@ -73,6 +65,13 @@ export async function createProjectInFolder(
     id,
     defaultCwd: folder,
   })
+
+  if (dependencies.bootstrapRag) {
+    void dependencies.bootstrapRag(folder).catch(() => {
+      // Graphify / AI Memory / STATUS.json must not block or fail create.
+    })
+  }
+
   return { kind: 'created', project }
 }
 

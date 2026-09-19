@@ -65,9 +65,18 @@ describe('new project folder flow', () => {
     ])
   })
 
-  it('bootstraps RAG after a successful project home without blocking create', async () => {
+  it('registers the project before fire-and-forget RAG and does not wait on it', async () => {
     const calls: string[] = []
     const created = project('generated-id')
+    let releaseRag!: () => void
+    const ragReleased = new Promise<void>((resolve) => {
+      releaseRag = resolve
+    })
+    let ragStarted!: () => void
+    const ragBegan = new Promise<void>((resolve) => {
+      ragStarted = resolve
+    })
+
     const result = await createProjectInFolder(registration, {
       generateId: () => 'generated-id',
       projectBootstrap: async (folder, id) => {
@@ -75,6 +84,8 @@ describe('new project folder flow', () => {
         return `${folder}/.flashwork`
       },
       bootstrapRag: async (folder) => {
+        ragStarted()
+        await ragReleased
         calls.push(`rag:${folder}`)
         throw new Error('graphify unavailable')
       },
@@ -87,8 +98,16 @@ describe('new project folder flow', () => {
     expect(result).toEqual({ kind: 'created', project: created })
     expect(calls).toEqual([
       'bootstrap:/workspace/example:generated-id',
-      'rag:/workspace/example',
       'create:/workspace/example:generated-id',
+    ])
+    await ragBegan
+    expect(calls).not.toContain('rag:/workspace/example')
+    releaseRag()
+    await Promise.resolve()
+    expect(calls).toEqual([
+      'bootstrap:/workspace/example:generated-id',
+      'create:/workspace/example:generated-id',
+      'rag:/workspace/example',
     ])
   })
 

@@ -12,6 +12,7 @@ import { Panel, Separator } from 'react-resizable-panels'
 import { useShallow } from 'zustand/react/shallow'
 
 import { pickDirectory } from '../../lib/dialog'
+import { registerOrOpenFolderProject } from '../../lib/registerFolderProject'
 import { hasFileDragPayload, readFileDragPayload } from '../../lib/fileDrag'
 import {
   cellStyle,
@@ -884,7 +885,6 @@ function NoWorkspace({
 }) {
   const t = useT()
   const openContainerWithAllPanes = useProjectsStore((s) => s.openContainerWithAllPanes)
-  const createProject = useProjectsStore((s) => s.createProject)
   const createTerminal = useProjectsStore((s) => s.createTerminal)
   const openTerminalWorkspace = useProjectsStore((s) => s.openTerminalWorkspace)
   const setGraphifyEnabled = useProjectsStore((s) => s.setGraphifyEnabled)
@@ -918,7 +918,7 @@ function NoWorkspace({
     if (selected) setFolder(selected)
   }
 
-  const openFolderAsProject = () => {
+  const openFolderAsProject = async () => {
     const cwd = folder.trim()
     if (!cwd) return
     const normalized = cwd.replace(/[\\/]+$/, '')
@@ -936,14 +936,21 @@ function NoWorkspace({
       openTerminalWorkspace(project.id, terminal.id)
       return
     }
-    const createdProject = createProject({ name, defaultCwd: cwd })
-    if (graphifyEnabled) setGraphifyEnabled(createdProject.id, true)
-    const terminal = createTerminal(createdProject.id, {
-      name: quickAgent[0].toUpperCase() + quickAgent.slice(1),
-      cwd,
-      firstTab: { type: quickAgent, cwd, runtimeProfile: 'lean' },
-    })
-    openTerminalWorkspace(createdProject.id, terminal.id)
+    try {
+      const createdProject = await registerOrOpenFolderProject({ name, defaultCwd: cwd })
+      if (!createdProject) return
+      if (graphifyEnabled) setGraphifyEnabled(createdProject.id, true)
+      const terminal = createTerminal(createdProject.id, {
+        name: quickAgent[0].toUpperCase() + quickAgent.slice(1),
+        cwd,
+        firstTab: { type: quickAgent, cwd, runtimeProfile: 'lean' },
+      })
+      openTerminalWorkspace(createdProject.id, terminal.id)
+    } catch (error) {
+      useUiStore.getState().pushToast({
+        title: t('common.errorPrefix', { message: String(error) }),
+      })
+    }
   }
   if (!project) {
     return (
@@ -984,7 +991,7 @@ function NoWorkspace({
               type="button"
               className={styles.emptyFolderAction}
               disabled={!folder.trim()}
-              onClick={openFolderAsProject}
+              onClick={() => void openFolderAsProject()}
             >
               {t('ws.emptyFolderAction')}
             </button>

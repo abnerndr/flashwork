@@ -16,9 +16,12 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 - New projects now require a destination folder and initialize their local `.flashwork/` metadata
   before registration; folders already owned by Flashwork can be opened without duplication.
-- Creating a project now records Graphify and AI Memory index status in `.flashwork/rag/STATUS.json`
-  after the local home exists. Graphify unavailable is treated as a successful bootstrap and does
-  not block create.
+- Creating a project registers the folder immediately after `.flashwork/` exists. Graphify, MCP, and
+  `rag/STATUS.json` run in the background and never delay or fail create.
+- Task Board history listing only includes cards whose file name matches the card id and whose
+  `project_id` matches that folder's `.flashwork/project.json`.
+- Saving a Task Board card only ensures `.flashwork/history/tasks` (and the runs README if missing);
+  it no longer re-fills the harness.
 - Task board `tools.json` for project-default tool mode now writes `{ "mode": "projectDefault" }`
   only, so spawned agents do not misread empty allowlists as "no tools allowed."
 - Token HUD lists every live coding-agent pane (Gemini, Copilot, Antigravity, Mimo, Freebuff

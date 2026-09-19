@@ -317,7 +317,7 @@ fn project_card_file(folder: &str, card_id: &str) -> Result<PathBuf, String> {
 }
 
 fn save_project_home_card(folder: &str, card: &TaskCardRecord) -> Result<PathBuf, String> {
-    crate::project_home::bootstrap(folder, &card.project_id)?;
+    crate::project_home::ensure_history_layout(folder)?;
     let path = project_card_file(folder, &card.id)?;
     let json = serde_json::to_string_pretty(card).map_err(|error| error.to_string())?;
     write_json_atomically(&path, &json)?;
@@ -338,6 +338,9 @@ fn remove_profile_card(profile_path: &Path, card_id: &str) -> Result<(), String>
 }
 
 fn list_project_home_cards(folder: &str) -> Result<Vec<TaskCardRecord>, String> {
+    let Some(meta) = crate::project_home::detect(folder) else {
+        return Ok(Vec::new());
+    };
     let Some(dir) = confined_history_tasks_dir(folder) else {
         return Ok(Vec::new());
     };
@@ -359,6 +362,12 @@ fn list_project_home_cards(folder: &str) -> Result<Vec<TaskCardRecord>, String> 
         if !file_name.ends_with(".json") || file_name.ends_with(".tmp") {
             continue;
         }
+        let Some(stem) = file_name.strip_suffix(".json") else {
+            continue;
+        };
+        if validate_card_id(stem).is_err() {
+            continue;
+        }
         let metadata = match fs::symlink_metadata(&path) {
             Ok(metadata) => metadata,
             Err(_) => continue,
@@ -367,7 +376,9 @@ fn list_project_home_cards(folder: &str) -> Result<Vec<TaskCardRecord>, String> 
             continue;
         }
         if let Ok(card) = load_single_card(&path) {
-            cards.push(card);
+            if card.id == stem && card.project_id == meta.id {
+                cards.push(card);
+            }
         }
     }
     Ok(cards)
@@ -928,6 +939,70 @@ mod tests {
         .unwrap();
 
         assert!(!folder.path().join(".flashwork/history/tasks/card_a.json").exists());
+        assert!(load_cards(&profile_file).unwrap().is_empty());
+    }
+
+    #[test]
+    fn list_ignores_cards_with_wrong_project_id_or_stem() {
+        let folder = tempfile::tempdir().unwrap();
+        crate::project_home::bootstrap(&folder.path().to_string_lossy(), "proj_a").unwrap();
+        let tasks = folder.path().join(".flashwork/history/tasks");
+        let cwd = folder.path().to_string_lossy().to_string();
+
+        let bound = sample_card("card_good", "proj_a", &cwd);
+        fs::write(
+            tasks.join("card_good.json"),
+            serde_json::to_string_pretty(&bound).unwrap(),
+        )
+        .unwrap();
+
+        let wrong_project = sample_card("card_foreign", "proj_other", &cwd);
+        fs::write(
+            tasks.join("card_foreign.json"),
+            serde_json::to_string_pretty(&wrong_project).unwrap(),
+        )
+        .unwrap();
+
+        let mismatched_stem = sample_card("card_real", "proj_a", &cwd);
+        fs::write(
+            tasks.join("card_alias.json"),
+            serde_json::to_string_pretty(&mismatched_stem).unwrap(),
+        )
+        .unwrap();
+
+        fs::write(tasks.join("notes.json"), "{\"title\":\"not a card\"}").unwrap();
+
+        let listed = list_project_home_cards(&cwd).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "card_good");
+        assert_eq!(listed[0].project_id, "proj_a");
+        assert!(listed.iter().all(|card| card.id != "card_foreign"));
+        assert!(listed.iter().all(|card| card.id != "card_real"));
+    }
+
+    #[test]
+    fn card_save_does_not_rerun_full_bootstrap() {
+        let folder = tempfile::tempdir().unwrap();
+        let profile = tempfile::tempdir().unwrap();
+        let profile_file = profile.path().join("task-board.json");
+        let home =
+            crate::project_home::bootstrap(&folder.path().to_string_lossy(), "proj_a").unwrap();
+        fs::remove_file(home.join("harness/AGENTS.md")).unwrap();
+        fs::create_dir(home.join("harness/AGENTS.md")).unwrap();
+        fs::remove_file(home.join("history/runs/README.md")).unwrap();
+
+        let cwd = folder.path().to_string_lossy().to_string();
+        save_task_card_resolved(&profile_file, sample_card("card_a", "proj_a", &cwd)).unwrap();
+
+        assert!(folder.path().join(".flashwork/history/tasks/card_a.json").is_file());
+        assert!(
+            home.join("harness/AGENTS.md").is_dir(),
+            "card save must not rewrite harness files"
+        );
+        assert_eq!(
+            fs::read_to_string(home.join("history/runs/README.md")).unwrap(),
+            "Run hubs remain under the app profile until the hub plan ships.\n"
+        );
         assert!(load_cards(&profile_file).unwrap().is_empty());
     }
 

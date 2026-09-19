@@ -233,6 +233,20 @@ pub fn detect(folder: &str) -> Option<ProjectHomeMeta> {
     read_project_meta(&home).ok()
 }
 
+/// Ensures confined `history/tasks` and the one-line runs README when missing.
+/// Does not fill harness, RAG, AGENTS.md, or tools.default.
+pub fn ensure_history_layout(folder: &str) -> Result<(), String> {
+    let (_, home) = resolved_project_home(folder)?;
+    let _ = read_project_meta(&home)?;
+    ensure_directory(&home.join("history/tasks"), &home)?;
+    ensure_directory(&home.join("history/runs"), &home)?;
+    write_if_missing(
+        &home.join("history/runs/README.md"),
+        HISTORY_RUNS_README.as_bytes(),
+    )?;
+    Ok(())
+}
+
 pub fn bootstrap(folder: &str, project_id: &str) -> Result<PathBuf, String> {
     let (root, home) = resolved_project_home(folder)?;
     if path_metadata(&home)?.is_none() {
@@ -459,6 +473,27 @@ mod tests {
         symlink(&outside_file, home.join("project.json")).unwrap();
 
         assert_eq!(crate::project_home::detect(&folder), None);
+    }
+
+    #[test]
+    fn ensure_history_layout_restores_tasks_and_readme_without_harness() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().to_string_lossy().to_string();
+        let home = crate::project_home::bootstrap(&folder, "proj_test").unwrap();
+        fs::remove_file(home.join("harness/AGENTS.md")).unwrap();
+        fs::remove_file(home.join("harness/tools.default.json")).unwrap();
+        fs::remove_file(home.join("history/runs/README.md")).unwrap();
+        fs::remove_dir_all(home.join("history/tasks")).unwrap();
+
+        crate::project_home::ensure_history_layout(&folder).unwrap();
+
+        assert!(home.join("history/tasks").is_dir());
+        assert_eq!(
+            fs::read_to_string(home.join("history/runs/README.md")).unwrap(),
+            "Run hubs remain under the app profile until the hub plan ships.\n"
+        );
+        assert!(!home.join("harness/AGENTS.md").exists());
+        assert!(!home.join("harness/tools.default.json").exists());
     }
 
     #[test]

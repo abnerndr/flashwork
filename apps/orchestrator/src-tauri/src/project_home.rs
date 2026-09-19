@@ -15,6 +15,21 @@ pub struct ProjectHomeMeta {
     pub schema_version: u32,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RagGraphifyStatus {
+    Exists,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RagStatus {
+    pub graphify: RagGraphifyStatus,
+    pub ai_memory: bool,
+    pub updated_at: String,
+}
+
 fn path_metadata(path: &Path) -> Result<Option<fs::Metadata>, String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) => Ok(Some(metadata)),
@@ -247,6 +262,50 @@ pub fn bootstrap(folder: &str, project_id: &str) -> Result<PathBuf, String> {
     Ok(home)
 }
 
+fn write_atomic_regular_file(path: &Path, content: &[u8]) -> Result<(), String> {
+    if let Some(metadata) = path_metadata(path)? {
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("rag STATUS.json is not a regular file".into());
+        }
+    }
+
+    let tmp = path.with_extension("json.tmp");
+    if let Some(metadata) = path_metadata(&tmp)? {
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("rag STATUS.json temporary file is not a regular file".into());
+        }
+        fs::remove_file(&tmp).map_err(|error| error.to_string())?;
+    }
+
+    fs::write(&tmp, content).map_err(|error| error.to_string())?;
+    #[cfg(windows)]
+    if path_metadata(path)?.is_some() {
+        fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
+    if let Err(error) = fs::rename(&tmp, path) {
+        let _ = fs::remove_file(&tmp);
+        return Err(error.to_string());
+    }
+    Ok(())
+}
+
+pub fn write_rag_status(folder: &str, status: &RagStatus) -> Result<PathBuf, String> {
+    let (_, home) = resolved_project_home(folder)?;
+    let home_metadata =
+        path_metadata(&home)?.ok_or_else(|| "project home is missing".to_string())?;
+    if home_metadata.file_type().is_symlink() || !home_metadata.is_dir() {
+        return Err("project home is not a regular directory".into());
+    }
+
+    let rag = home.join("rag");
+    ensure_directory(&rag, &home)?;
+
+    let status_file = rag.join("STATUS.json");
+    let content = serde_json::to_vec_pretty(status).map_err(|error| error.to_string())?;
+    write_atomic_regular_file(&status_file, &content)?;
+    Ok(status_file)
+}
+
 #[tauri::command]
 pub fn project_bootstrap(folder: String, project_id: String) -> Result<PathBuf, String> {
     bootstrap(&folder, &project_id)
@@ -255,6 +314,11 @@ pub fn project_bootstrap(folder: String, project_id: String) -> Result<PathBuf, 
 #[tauri::command]
 pub fn project_detect(folder: String) -> Option<ProjectHomeMeta> {
     detect(&folder)
+}
+
+#[tauri::command]
+pub fn project_write_rag_status(folder: String, status: RagStatus) -> Result<PathBuf, String> {
+    write_rag_status(&folder, &status)
 }
 
 #[cfg(test)]
@@ -270,6 +334,34 @@ mod tests {
         assert!(home.join("harness").is_dir());
         assert!(home.join("rag").is_dir());
         assert!(home.join("history/tasks").is_dir());
+        assert!(!home.join("rag/STATUS.json").exists());
+    }
+
+    #[test]
+    fn write_rag_status_writes_regular_json_under_rag() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().to_string_lossy().to_string();
+        let home = crate::project_home::bootstrap(&folder, "proj_test").unwrap();
+        let path = crate::project_home::write_rag_status(
+            &folder,
+            &crate::project_home::RagStatus {
+                graphify: crate::project_home::RagGraphifyStatus::Unavailable,
+                ai_memory: false,
+                updated_at: "2026-09-19T05:00:00Z".into(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(path, home.join("rag/STATUS.json"));
+        assert!(path.is_file());
+        assert!(!path.symlink_metadata().unwrap().file_type().is_symlink());
+
+        let value: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["graphify"], "unavailable");
+        assert_eq!(value["aiMemory"], false);
+        assert_eq!(value["updatedAt"], "2026-09-19T05:00:00Z");
+        assert_eq!(value.as_object().unwrap().len(), 3);
     }
 
     #[test]

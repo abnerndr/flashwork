@@ -5,7 +5,14 @@ import { useEffect, useRef, useState } from 'react'
 import { pickDirectory } from '../../lib/dialog'
 import { AGENT_SANDBOX_ENABLED } from '../../lib/featureFlags'
 import { useT } from '../../lib/i18n'
-import { projectBootstrap, projectDetect } from '../../lib/tauri'
+import { bootstrapProjectRag } from '../../lib/projectRagBootstrap'
+import {
+  aiMemoryMcpConfigPath,
+  graphifyEnsureGraph,
+  projectBootstrap,
+  projectDetect,
+  projectWriteRagStatus,
+} from '../../lib/tauri'
 import { GROUP_COLORS, type Project } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -134,6 +141,16 @@ export function NewProjectModal() {
       const result = await createProjectInFolder(registration(), {
         generateId: nanoid,
         projectBootstrap,
+        bootstrapRag: async (folder) => {
+          const features = useProjectsStore.getState().preferences.enabledFeatures
+          await bootstrapProjectRag(folder, {
+            graphifyEnabled: features.graphify,
+            aiMemoryEnabled: features.aiMemory,
+            graphifyEnsureGraph,
+            aiMemoryMcpConfigPath,
+            writeRagStatus: projectWriteRagStatus,
+          })
+        },
         createProject,
         shouldApplyResult,
       })

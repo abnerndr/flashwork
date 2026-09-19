@@ -14,6 +14,9 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 - New projects now require a destination folder and initialize their local `.flashwork/` metadata
   before registration; folders already owned by Flashwork can be opened without duplication.
+- Creating a project now records Graphify and AI Memory index status in `.flashwork/rag/STATUS.json`
+  after the local home exists. Graphify unavailable is treated as a successful bootstrap and does
+  not block create.
 - Task board `tools.json` for project-default tool mode now writes `{ "mode": "projectDefault" }`
   only, so spawned agents do not misread empty allowlists as "no tools allowed."
 - Token HUD lists every live coding-agent pane (Gemini, Copilot, Antigravity, Mimo, Freebuff

@@ -65,6 +65,48 @@ describe('new project folder flow', () => {
     ])
   })
 
+  it('bootstraps RAG after a successful project home without blocking create', async () => {
+    const calls: string[] = []
+    const created = project('generated-id')
+    const result = await createProjectInFolder(registration, {
+      generateId: () => 'generated-id',
+      projectBootstrap: async (folder, id) => {
+        calls.push(`bootstrap:${folder}:${id}`)
+        return `${folder}/.flashwork`
+      },
+      bootstrapRag: async (folder) => {
+        calls.push(`rag:${folder}`)
+        throw new Error('graphify unavailable')
+      },
+      createProject: (args) => {
+        calls.push(`create:${args.defaultCwd}:${args.id}`)
+        return created
+      },
+    })
+
+    expect(result).toEqual({ kind: 'created', project: created })
+    expect(calls).toEqual([
+      'bootstrap:/workspace/example:generated-id',
+      'rag:/workspace/example',
+      'create:/workspace/example:generated-id',
+    ])
+  })
+
+  it('does not bootstrap RAG when the folder already belongs to another project', async () => {
+    const bootstrapRag = vi.fn()
+    const result = await createProjectInFolder(registration, {
+      generateId: () => 'generated-id',
+      projectBootstrap: async () => {
+        throw new Error('flashwork_exists:existing-id')
+      },
+      bootstrapRag,
+      createProject: vi.fn(),
+    })
+
+    expect(result).toEqual({ kind: 'flashworkExists' })
+    expect(bootstrapRag).not.toHaveBeenCalled()
+  })
+
   it('offers the existing-project path without registering a new id', async () => {
     const createProject = vi.fn()
     const result = await createProjectInFolder(registration, {

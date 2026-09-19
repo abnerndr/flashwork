@@ -427,6 +427,7 @@ pub fn run() {
             project_detector::detect_project_stack,
             project_home::project_bootstrap,
             project_home::project_detect,
+            project_home::project_write_rag_status,
             contract_check::contract_check,
             health_probe::health_probe,
             graphify::graphify_ensure_graph,

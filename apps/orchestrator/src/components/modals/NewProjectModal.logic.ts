@@ -40,6 +40,7 @@ export async function createProjectInFolder(
   dependencies: {
     generateId: () => string
     projectBootstrap: (folder: string, projectId: string) => Promise<string>
+    bootstrapRag?: (folder: string) => Promise<void>
     createProject: CreateProject
     shouldApplyResult?: () => boolean
   },
@@ -55,6 +56,14 @@ export async function createProjectInFolder(
     if (dependencies.shouldApplyResult?.() === false) return { kind: 'stale' }
     if (String(error).includes('flashwork_exists')) return { kind: 'flashworkExists' }
     throw error
+  }
+
+  if (dependencies.bootstrapRag) {
+    try {
+      await dependencies.bootstrapRag(folder)
+    } catch {
+      // Graphify / AI Memory / STATUS.json must not fail project creation.
+    }
   }
 
   if (dependencies.shouldApplyResult?.() === false) return { kind: 'stale' }

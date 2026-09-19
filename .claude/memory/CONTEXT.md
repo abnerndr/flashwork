@@ -14,7 +14,7 @@ Projects persist in profile-scoped `projects.json`. PTYs, scrollback, and agent 
 
 CLIs: Shell, Claude Code, Codex, OpenCode, GitHub Copilot CLI, Gemini, Antigravity, Mimo, Freebuff.
 
-Auto launch classifies a prompt (`classifyTask.ts`) and picks an agent (`selectAgent.ts`) with preference lists per kind (`implement`, `review`, `mechanical`, `explore`, `ui`). UI tasks prefer Antigravity. Handoff between Claude and Codex uses on-disk chunks, not a pasted transcript.
+Auto and Task Board route through `routeTask` (P07 / ADR 006). A cheap first-party `provider_chat` probe runs when a key is saved (Google → OpenAI → Anthropic, 2500 ms); regex `classifyTask` + `selectAgent` is the offline fallback. UI tasks still prefer Antigravity when that CLI is installed. `api:<provider>` is used only when no coding CLI is installed and a key exists (coding call, reply in the run's `api-reply.md`, no PTY). Home defaults to Auto; an explicit CLI stays behind Choose agent. Token HUD starts collapsed (`showTokenHud`, default off). Handoff between Claude and Codex uses on-disk chunks, not a pasted transcript.
 
 OmniRoute/9router **was removed** (P09 / ADR 009). Agents spawn with vendor CLIs only; Flashwork does not set `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL`. There is no OpenRouter.com integration in the tree.
 
@@ -29,7 +29,7 @@ CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Wind
 - Gemini sessions: `gemini_sessions.rs` snapshots `~/.gemini/tmp/*/chats/*.jsonl` (skips antigravity slugs). Resume includes Gemini.
 - Pricing table covers Claude families, GPT, and Gemini 2.5/2.0 flash + 2.5 pro.
 
-**P12 shipped.** P11 adds `provider_chat` for direct Anthropic/OpenAI/Gemini HTTP; API-path token metering for Auto-without-CLI still waits on later router work (P07 not shipped).
+**P12 shipped.** P07 shipped the Auto-without-CLI `api:*` path via `provider_chat`. Token metering for that path still does not map vendor usage onto the HUD (synthetic `api:<provider>:<runId>`).
 
 ## Task Board (shipped; P01 attachments + tool picker)
 
@@ -110,6 +110,6 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 | 5 | ~~Project = folder + isolated harness/RAG/history~~ **P04 shipped.** Remaining: attachment files still profile-scoped; 09-04 project hub not under `.flashwork/` |
 | 6 | GitHub SCM below VS Code quality; no extension install |
 | 7 | No IDE editor behind the orchestrator |
-| 8 | Model/token/agent choice still leaks to the developer |
+| 8 | ~~Model/token/agent choice still leaks to the developer~~ **P07 shipped.** Remaining: pin-CLI still available behind Choose agent; API runs have no streaming pane (reply file + toast); HUD expand is session-local until remount |
 | 9 | No N8N-like flow canvas (beta) |
-| 13 | API-path token metering for Auto-without-CLI — `provider_chat` exists (P11); metering waits on later router work |
+| 13 | API-path token metering for Auto-without-CLI — `provider_chat` + `api:*` spawn exist (P11/P07); HUD still does not ingest vendor usage JSON |

@@ -1,8 +1,8 @@
 # ADR 006 — Opaque model and agent routing
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
-- Updated: 2026-09-17 (remove OmniRoute; route via CLI + provider APIs)
+- Updated: 2026-09-19 (P07 shipped: routeTask + first-party probe)
 - Tags: models, auto, providers
 - See also: ADR 009 (remove OmniRoute), ADR 010 (provider APIs)
 

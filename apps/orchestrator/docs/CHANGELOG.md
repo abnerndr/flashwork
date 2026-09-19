@@ -43,6 +43,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
   the reply in the run.
 - Auto and the Task Board honor a CLI pick from the first-party router probe instead of
   re-planning lanes. Provider APIs are used only when no coding CLI is installed.
+- Task Board cards with a saved provider key and no coding CLI no longer block as needs-install
+  when the router probe times out or needs a remap.
 
 - Task board cards in **Restrict tools** mode now block instead of starting when `tools.json`
   cannot be written; project-default mode still soft-fails and continues without the file.

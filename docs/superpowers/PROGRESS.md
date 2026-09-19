@@ -17,17 +17,26 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P01 Task handoff + MCP/skills picker | `772237d` | done |
 | P02 Skills + MCP marketplace | `f1cf498` | done |
 | P04 Per-project harness/RAG | `ff198a9` | done |
+| P07 Opaque model router | (merge of `feat/p07-opaque-model-router`) | done |
 
 ## Current slice
 
-**Plan:** P07 — `docs/superpowers/plans/2026-09-17-07-opaque-model-router.md`  
-**ADR:** `.claude/adr/006-opaque-model-routing.md` (confirm in that plan)  
-**Branch:** start `feat/p07-opaque-model-router` from `master`  
+**Plan:** P03 — `docs/superpowers/plans/2026-09-17-03-visual-refresh.md`  
+**ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
+**Branch:** start `feat/p03-visual-refresh` from `master`  
 **Status:** not started.
 
-## After P07
+## After P03
 
-Start P03 (`docs/superpowers/plans/2026-09-17-03-visual-refresh.md`) unless the P07 plan or owner says otherwise.
+Start P05 (`docs/superpowers/plans/2026-09-17-05-github-source-control.md`) unless the P03 plan or owner says otherwise.
+
+## P07 notes (for later slices)
+
+- Probe order: first saved key among `google`, `openai`, `anthropic` via `provider_chat` + `pickEffectiveRouterModel` (2500 ms, no retry). No OmniRoute / OpenRouter / Groq / Ollama.
+- `api:*` only when no coding CLI is installed and a key exists. Reply is `api-reply.md` in the run folder (`write_prompt_run_file`), not a PTY. Run status is `done` after the chat.
+- Auto always uses the `routeTask` lane. Task Board reuses that routed slice for probe/`api:*`; fallback still uses `planAutoLanes`.
+- Home defaults to Auto; Choose agent still pins a CLI. Token HUD starts collapsed (`showTokenHud`, default false).
+- API-path token metering (P12 leftover) is still not wired.
 
 ## P01 notes (for later slices)
 

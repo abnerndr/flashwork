@@ -76,8 +76,8 @@ fn ensure_directory(path: &Path, home: &Path) -> Result<(), String> {
 
 fn write_if_missing(path: &Path, content: &[u8]) -> Result<(), String> {
     if let Some(metadata) = path_metadata(path)? {
-        if metadata.file_type().is_symlink() {
-            return Err("project home file escapes .flashwork".into());
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("project home file is not a regular file".into());
         }
         return Ok(());
     }
@@ -92,6 +92,12 @@ fn write_project_file(home: &Path, project_id: &str) -> Result<(), String> {
     };
     let content = serde_json::to_vec_pretty(&metadata).map_err(|error| error.to_string())?;
     let project_file = home.join("project.json");
+    if let Some(metadata) = path_metadata(&project_file)? {
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err("project home file is not a regular file".into());
+        }
+        return Err("project home project.json already exists".into());
+    }
     let tmp = project_file.with_extension("json.tmp");
     if path_metadata(&tmp)?.is_some() {
         return Err("project home temporary file already exists".into());
@@ -138,7 +144,45 @@ impl Drop for StagingHome {
     }
 }
 
-fn with_staged_home<F>(root: &Path, home: &Path, populate: F) -> Result<PathBuf, String>
+fn read_project_meta(home: &Path) -> Result<ProjectHomeMeta, String> {
+    let home_metadata =
+        path_metadata(home)?.ok_or_else(|| "project home is missing".to_string())?;
+    if home_metadata.file_type().is_symlink() || !home_metadata.is_dir() {
+        return Err("project home is not a regular directory".into());
+    }
+
+    let project_file = home.join("project.json");
+    let file_metadata = path_metadata(&project_file)?
+        .ok_or_else(|| "project home project.json is missing".to_string())?;
+    if file_metadata.file_type().is_symlink() || !file_metadata.is_file() {
+        return Err("project home project.json is not a regular file".into());
+    }
+
+    let content = fs::read_to_string(&project_file)
+        .map_err(|error| format!("project home project.json is unreadable: {error}"))?;
+    serde_json::from_str(&content)
+        .map_err(|error| format!("project home project.json is invalid: {error}"))
+}
+
+fn use_published_home(home: &Path, project_id: &str) -> Result<PathBuf, String> {
+    let published = read_project_meta(home).map_err(|error| {
+        format!("project home appeared during bootstrap but could not be used: {error}")
+    })?;
+    if published.id == project_id {
+        return Ok(home.to_path_buf());
+    }
+    Err(format!(
+        "flashwork_exists: project home belongs to {}",
+        published.id
+    ))
+}
+
+fn with_staged_home<F>(
+    root: &Path,
+    home: &Path,
+    project_id: &str,
+    populate: F,
+) -> Result<PathBuf, String>
 where
     F: FnOnce(&Path) -> Result<(), String>,
 {
@@ -151,23 +195,27 @@ where
 
     populate(&staging.path)?;
     if path_metadata(home)?.is_some() {
-        return Err("flashwork_exists: project home appeared during bootstrap".into());
+        return use_published_home(home, project_id);
     }
-    fs::rename(&staging.path, home).map_err(|error| error.to_string())?;
+    if let Err(rename_error) = fs::rename(&staging.path, home) {
+        if path_metadata(home)?.is_some() {
+            return use_published_home(home, project_id);
+        }
+        return Err(format!("project home publish failed: {rename_error}"));
+    }
     staging.published = true;
     Ok(home.to_path_buf())
 }
 
 pub fn detect(folder: &str) -> Option<ProjectHomeMeta> {
     let (_, home) = resolved_project_home(folder).ok()?;
-    let content = fs::read_to_string(home.join("project.json")).ok()?;
-    serde_json::from_str(&content).ok()
+    read_project_meta(&home).ok()
 }
 
 pub fn bootstrap(folder: &str, project_id: &str) -> Result<PathBuf, String> {
     let (root, home) = resolved_project_home(folder)?;
     if path_metadata(&home)?.is_none() {
-        return with_staged_home(&root, &home, |staging| {
+        return with_staged_home(&root, &home, project_id, |staging| {
             fill_project_home(staging, project_id, true)
         });
     }
@@ -176,7 +224,7 @@ pub fn bootstrap(folder: &str, project_id: &str) -> Result<PathBuf, String> {
     match path_metadata(&project_file)? {
         Some(file_metadata) => {
             if file_metadata.file_type().is_symlink() || !file_metadata.is_file() {
-                return Err("project home file escapes .flashwork".into());
+                return Err("project home file is not a regular file".into());
             }
             let content = fs::read_to_string(&project_file).map_err(|error| error.to_string())?;
             let existing: ProjectHomeMeta =
@@ -263,7 +311,7 @@ mod tests {
         let root = fs::canonicalize(dir.path()).unwrap();
         let home = root.join(".flashwork");
 
-        let result = super::with_staged_home(&root, &home, |staging| {
+        let result = super::with_staged_home(&root, &home, "aaa", |staging| {
             fs::write(staging.join("partial"), b"partial").unwrap();
             Err("injected failure".into())
         });
@@ -271,5 +319,39 @@ mod tests {
         assert_eq!(result.unwrap_err(), "injected failure");
         assert!(!home.exists());
         assert!(fs::read_dir(&root).unwrap().next().is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detect_refuses_symlinked_project_file() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let folder = dir.path().to_string_lossy().to_string();
+        let home = crate::project_home::bootstrap(&folder, "aaa").unwrap();
+        let outside_file = outside.path().join("project.json");
+        fs::write(
+            &outside_file,
+            br#"{"id":"outside","createdAt":"secret","schemaVersion":1}"#,
+        )
+        .unwrap();
+        fs::remove_file(home.join("project.json")).unwrap();
+        symlink(&outside_file, home.join("project.json")).unwrap();
+
+        assert_eq!(crate::project_home::detect(&folder), None);
+    }
+
+    #[test]
+    fn bootstrap_rejects_directory_where_default_file_is_expected() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().to_string_lossy().to_string();
+        let home = crate::project_home::bootstrap(&folder, "aaa").unwrap();
+        fs::remove_file(home.join("harness/AGENTS.md")).unwrap();
+        fs::create_dir(home.join("harness/AGENTS.md")).unwrap();
+
+        let error = crate::project_home::bootstrap(&folder, "aaa").unwrap_err();
+
+        assert!(error.contains("not a regular file"));
     }
 }

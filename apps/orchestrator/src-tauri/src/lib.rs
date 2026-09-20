@@ -41,6 +41,7 @@ mod mcp_store;
 mod opencode_bridge;
 mod opencode_gsd_plugin;
 mod opencode_sessions;
+mod openvsx;
 mod paths;
 mod planning;
 mod planning_gate;
@@ -472,6 +473,10 @@ pub fn run() {
             mcp_store::mcp_sync,
             mcp_catalog::mcp_registry_search,
             mcp_health::mcp_health_check,
+            openvsx::openvsx_search,
+            openvsx::extensions_list,
+            openvsx::extensions_install,
+            openvsx::extensions_uninstall,
             skills::skills_scan,
             skills::skills_detail,
             skills::skills_uninstall,

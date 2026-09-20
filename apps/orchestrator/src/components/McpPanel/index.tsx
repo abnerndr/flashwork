@@ -1,4 +1,4 @@
-import { Link2, Lock, Plug, Plus, RefreshCw, Search } from 'lucide-react'
+import { Link2, Lock, Plug, Plus, Puzzle, RefreshCw, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useT } from '../../lib/i18n'
@@ -13,11 +13,12 @@ import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
 import { AgentIcon } from '../icons/AgentIcons'
 import controls from '../modals/controls.module.css'
+import { ExtensionsBrowser } from '../modals/mcp/ExtensionsBrowser'
 import { ScopeSwitch } from './ScopeSwitch'
 import { ServerRow } from './ServerRow'
 import styles from './McpPanel.module.css'
 
-type View = 'servers' | 'skills'
+type View = 'servers' | 'skills' | 'extensions'
 
 type Diagnostic = {
   agent: McpAgentSnapshot['agent']
@@ -55,6 +56,7 @@ export function McpPanel() {
   const [term, setTerm] = useState('')
   const [agentFilter, setAgentFilter] = useState<McpAgent[]>([])
   const [skills, setSkills] = useState<SkillAgentSnapshot[] | null>(null)
+  const [extensionsReload, setExtensionsReload] = useState(0)
 
   useEffect(() => {
     if (!initialisedRef.current) {
@@ -117,6 +119,7 @@ export function McpPanel() {
     )
 
   const showingServers = view === 'servers'
+  const showingExtensions = view === 'extensions'
   const visibleCount = showingServers ? visibleServers.length : visibleSkills.length
   const total = showingServers ? groups.length : skillGroups.length
 
@@ -124,21 +127,31 @@ export function McpPanel() {
     <div className={styles.panel}>
       <div className={styles.header}>
         <div className={styles.segmented} role="group" aria-label={t('mcp.viewLabel')}>
-          {(['servers', 'skills'] as View[]).map((option) => (
+          {(['servers', 'skills', 'extensions'] as View[]).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={view === option}
               onClick={() => setView(option)}
             >
-              {t(option === 'servers' ? 'mcp.tabServers' : 'mcp.tabSkills')}
+              {t(
+                option === 'servers'
+                  ? 'mcp.tabServers'
+                  : option === 'skills'
+                    ? 'mcp.tabSkills'
+                    : 'extensions.tab',
+              )}
             </button>
           ))}
         </div>
         <button
           type="button"
           className={controls.iconBtnSm}
-          onClick={() => (showingServers ? void refresh() : setSkills(null))}
+          onClick={() => {
+            if (showingServers) void refresh()
+            else if (view === 'skills') setSkills(null)
+            else setExtensionsReload((value) => value + 1)
+          }}
           disabled={loading}
           title={t('mcp.refresh')}
           aria-label={t('mcp.refresh')}
@@ -167,9 +180,23 @@ export function McpPanel() {
             <Plus size={16} />
             {t('skills.install')}
           </button>
+          <button
+            type="button"
+            className={styles.cta}
+            onClick={() => openModal('mcpManager', { tab: 'extensions' })}
+          >
+            <Puzzle size={16} />
+            {t('extensions.browse')}
+          </button>
         </div>
       </div>
 
+      {showingExtensions ? (
+        <div className={styles.extensionsBody}>
+          <ExtensionsBrowser root={repo} reloadToken={extensionsReload} />
+        </div>
+      ) : (
+        <>
       <div className={styles.search}>
         <Search size={16} />
         <input
@@ -283,6 +310,9 @@ export function McpPanel() {
           ))}
         </div>
       ) : null}
+        </>
+      )}
     </div>
   )
 }
+

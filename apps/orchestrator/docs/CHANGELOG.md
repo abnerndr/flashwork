@@ -12,11 +12,16 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Marketplace tab **Extensions (beta)**: search Open VSX and install themes, grammars, and language
+  packs into the project folder `.flashwork/extensions`. Electron-only VSIX (debuggers, views, custom
+  editors, and similar) is refused.
 - Editor pane with a project file tree, tabs, and Monaco. Open it from the project menu; save with
   Ctrl+S / Cmd+S. Files larger than 2 MiB stay closed with an error.
 
 ### Changed
 
+- Open VSX install is live; `@codingame/monaco-vscode-api` was **not** adopted because it would
+  replace the Monaco host. Electron-only VSIX is refused with `extension_incompatible`.
 - Interface type uses a VS Code–like stack (Segoe UI Variable / Cascadia Code, Inter as fallback).
   Sidebar and toolbar icons are 16 px with a thicker stroke. Pane headers and the title bar are 35 px.
 - Task Board cards for folder-backed projects live under that project's `.flashwork/history`.

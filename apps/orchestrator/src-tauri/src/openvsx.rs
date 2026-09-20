@@ -13,8 +13,11 @@ const OPEN_VSX_API: &str = "https://open-vsx.org/api";
 const SEARCH_TIMEOUT: Duration = Duration::from_secs(8);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_CACHED_QUERIES: usize = 20;
+const MAX_EXTRACT_UNCOMPRESSED_BYTES: u64 = 32 * 1024 * 1024;
 const PATH_ESCAPE: &str = "path_escape";
 const EXTENSION_INCOMPATIBLE: &str = "extension_incompatible";
+const OPENVSX_MALFORMED: &str = "openvsx_malformed";
+const OPENVSX_TOO_LARGE: &str = "openvsx_too_large";
 const FORBIDDEN_CONTRIBUTES: &[&str] = &[
     "debuggers",
     "views",
@@ -249,32 +252,41 @@ fn parse_extension_id(id: &str) -> Result<(String, String), String> {
     Ok((namespace.to_string(), name.to_string()))
 }
 
+fn ensure_confined_dir(root: &str, rel: &str) -> Result<PathBuf, String> {
+    let target = crate::workspace_fs::confined_target(root, rel)?;
+    match fs::create_dir(&target) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    let target = crate::workspace_fs::confined_target(root, rel)?;
+    if !target.is_dir() {
+        return Err(PATH_ESCAPE.into());
+    }
+    Ok(target)
+}
+
+fn confine_extensions_tree(root: &str) -> Result<PathBuf, String> {
+    ensure_confined_dir(root, ".flashwork")?;
+    ensure_confined_dir(root, ".flashwork/extensions")
+}
+
 fn extensions_root(root: &str) -> Result<PathBuf, String> {
-    let root_raw = PathBuf::from(root.trim());
-    if root_raw.as_os_str().is_empty() {
-        return Err("empty root".into());
-    }
-    let canonical = fs::canonicalize(&root_raw).map_err(|error| error.to_string())?;
-    if !canonical.is_dir() {
-        return Err("root is not a directory".into());
-    }
-    Ok(canonical.join(".flashwork").join("extensions"))
+    let _flashwork = crate::workspace_fs::confined_target(root, ".flashwork")?;
+    crate::workspace_fs::confined_target(root, ".flashwork/extensions")
 }
 
 fn install_dir(root: &str, namespace: &str, name: &str) -> Result<PathBuf, String> {
     let id = extension_id(namespace, name)?;
-    let dest = extensions_root(root)?.join(&id);
-    let parent = dest.parent().ok_or_else(|| PATH_ESCAPE.to_string())?;
-    let dest_name = dest.file_name().ok_or_else(|| PATH_ESCAPE.to_string())?;
-    if dest_name == ".." || dest_name == "." {
-        return Err(PATH_ESCAPE.into());
+    let flashwork = crate::workspace_fs::confined_target(root, ".flashwork")?;
+    let rel = format!(".flashwork/extensions/{id}");
+    match crate::workspace_fs::confined_target(root, &rel) {
+        Ok(path) => Ok(path),
+        Err(err) if err == "parent directory not found" => {
+            Ok(flashwork.join("extensions").join(id))
+        }
+        Err(err) => Err(err),
     }
-    let joined = parent.join(dest_name);
-    let lex_parent = parent.to_path_buf();
-    if !joined.starts_with(&lex_parent) {
-        return Err(PATH_ESCAPE.into());
-    }
-    Ok(joined)
 }
 
 fn package_from_dir(dir: &Path) -> Option<Value> {
@@ -379,7 +391,7 @@ async fn fetch_search(query: &str) -> Result<OpenVsxPage, String> {
     let body: Value = response
         .json()
         .await
-        .map_err(|_| "openvsx_malformed".to_string())?;
+        .map_err(|_| OPENVSX_MALFORMED.to_string())?;
     Ok(page_from(&body))
 }
 
@@ -402,18 +414,18 @@ fn package_json_from_zip<R: Read + io::Seek>(archive: &mut ZipArchive<R>) -> Res
             chosen = Some(index);
         }
     }
-    let index = chosen.ok_or_else(|| EXTENSION_INCOMPATIBLE.to_string())?;
+    let index = chosen.ok_or_else(|| OPENVSX_MALFORMED.to_string())?;
     let mut file = archive.by_index(index).map_err(|error| error.to_string())?;
     let mut raw = String::new();
     file.read_to_string(&mut raw)
         .map_err(|error| error.to_string())?;
-    serde_json::from_str(&raw).map_err(|_| "openvsx_malformed".to_string())
+    serde_json::from_str(&raw).map_err(|_| OPENVSX_MALFORMED.to_string())
 }
 
-fn extract_zip(vsix: &Path, dest: &Path) -> Result<(), String> {
-    fs::create_dir_all(dest).map_err(|error| error.to_string())?;
+fn extract_zip_into(dest: &Path, vsix: &Path, max_uncompressed: u64) -> Result<(), String> {
     let file = fs::File::open(vsix).map_err(|error| error.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let mut total: u64 = 0;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
         let Some(enclosed) = entry.enclosed_name() else {
@@ -427,13 +439,55 @@ fn extract_zip(vsix: &Path, dest: &Path) -> Result<(), String> {
             fs::create_dir_all(&out).map_err(|error| error.to_string())?;
             continue;
         }
+        if total >= max_uncompressed || entry.size() > max_uncompressed.saturating_sub(total) {
+            return Err(OPENVSX_TOO_LARGE.into());
+        }
         if let Some(parent) = out.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
         let mut target = fs::File::create(&out).map_err(|error| error.to_string())?;
-        io::copy(&mut entry, &mut target).map_err(|error| error.to_string())?;
+        let budget = max_uncompressed.saturating_sub(total);
+        let mut limited = Read::take(&mut entry, budget.saturating_add(1));
+        let copied = io::copy(&mut limited, &mut target).map_err(|error| error.to_string())?;
+        total = total.saturating_add(copied);
+        if total > max_uncompressed {
+            return Err(OPENVSX_TOO_LARGE.into());
+        }
     }
     Ok(())
+}
+
+fn confine_rel_prefixes(root: &str, rel: &str) -> Result<PathBuf, String> {
+    let mut acc = String::new();
+    let mut last = None;
+    for part in rel.split(['/', '\\']).filter(|part| !part.is_empty()) {
+        if acc.is_empty() {
+            acc.push_str(part);
+        } else {
+            acc.push('/');
+            acc.push_str(part);
+        }
+        last = Some(crate::workspace_fs::confined_target(root, &acc)?);
+    }
+    last.ok_or_else(|| PATH_ESCAPE.to_string())
+}
+
+fn extract_zip(root: &str, dest_rel: &str, vsix: &Path) -> Result<(), String> {
+    let dest = confine_rel_prefixes(root, dest_rel)?;
+    match fs::create_dir(&dest) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    let dest = crate::workspace_fs::confined_target(root, dest_rel)?;
+    if !dest.is_dir() {
+        return Err(PATH_ESCAPE.into());
+    }
+    let extracted = extract_zip_into(&dest, vsix, MAX_EXTRACT_UNCOMPRESSED_BYTES);
+    if extracted.is_err() {
+        remove_dir_if_exists(&dest);
+    }
+    extracted
 }
 
 fn replace_dir_atomic(dest: &Path, staging: &Path) -> Result<(), String> {
@@ -492,7 +546,7 @@ async fn download_vsix(namespace: &str, name: &str, dest: &Path) -> Result<(), S
         })?
         .json()
         .await
-        .map_err(|_| "openvsx_malformed".to_string())?;
+        .map_err(|_| OPENVSX_MALFORMED.to_string())?;
 
     let download = meta
         .get("files")
@@ -589,19 +643,20 @@ pub async fn extensions_install(
     namespace: String,
     name: String,
 ) -> Result<InstalledExtension, String> {
-    let dest = install_dir(&root, &namespace, &name)?;
     let id = extension_id(&namespace, &name)?;
+    confine_extensions_tree(&root)?;
+    let dest_rel = format!(".flashwork/extensions/{id}");
+    let staging_rel = format!(".flashwork/extensions/.{id}.staging");
+    let dest = crate::workspace_fs::confined_target(&root, &dest_rel)?;
+    let staging = crate::workspace_fs::confined_target(&root, &staging_rel)?;
     let vsix = std::env::temp_dir().join(format!("flashwork-{id}.vsix"));
     download_vsix(namespace.trim(), name.trim(), &vsix).await?;
 
-    let staging_parent = dest
-        .parent()
-        .ok_or_else(|| PATH_ESCAPE.to_string())?
-        .to_path_buf();
-    let staging = staging_parent.join(format!(".{id}.staging"));
     let vsix_for_task = vsix.clone();
     let staging_for_task = staging.clone();
     let dest_for_task = dest.clone();
+    let root_for_task = root.clone();
+    let staging_rel_for_task = staging_rel.clone();
     let result = tokio::task::spawn_blocking(move || {
         remove_dir_if_exists(&staging_for_task);
         let file = fs::File::open(&vsix_for_task).map_err(|error| error.to_string())?;
@@ -609,7 +664,7 @@ pub async fn extensions_install(
         let pkg = package_json_from_zip(&mut archive)?;
         classify_package(&pkg)?;
         drop(archive);
-        extract_zip(&vsix_for_task, &staging_for_task)?;
+        extract_zip(&root_for_task, &staging_rel_for_task, &vsix_for_task)?;
         if let Err(error) =
             classify_package(&package_from_dir(&staging_for_task).unwrap_or(Value::Null))
         {
@@ -618,7 +673,7 @@ pub async fn extensions_install(
         }
         replace_dir_atomic(&dest_for_task, &staging_for_task)?;
         remove_dir_if_exists(&staging_for_task);
-        installed_from_dir(&dest_for_task).ok_or_else(|| "openvsx_malformed".to_string())
+        installed_from_dir(&dest_for_task).ok_or_else(|| OPENVSX_MALFORMED.to_string())
     })
     .await
     .map_err(|error| error.to_string());
@@ -776,5 +831,108 @@ mod tests {
         // Forbidden kind wins even if a theme is present? Spec: refuse if extensionKind is only "ui".
         let err = classify_package(&pkg).expect_err("ui-only");
         assert!(err.contains(EXTENSION_INCOMPATIBLE));
+    }
+
+    fn write_zip(path: &Path, files: &[(&str, &[u8])]) {
+        use std::io::Write;
+        use zip::write::FileOptions;
+        use zip::{CompressionMethod, ZipWriter};
+
+        let file = fs::File::create(path).expect("zip file");
+        let mut zip = ZipWriter::new(file);
+        let opts = FileOptions::default().compression_method(CompressionMethod::Deflated);
+        for (name, bytes) in files {
+            zip.start_file(*name, opts).expect("start zip entry");
+            zip.write_all(bytes).expect("write zip entry");
+        }
+        zip.finish().expect("finish zip");
+    }
+
+    #[test]
+    fn missing_package_json_is_malformed() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let vsix = tmp.path().join("empty.vsix");
+        write_zip(&vsix, &[("extension/readme.md", b"no package json")]);
+        let file = fs::File::open(&vsix).expect("open vsix");
+        let mut archive = ZipArchive::new(file).expect("zip");
+        let err = package_json_from_zip(&mut archive).expect_err("missing package.json");
+        assert!(
+            err.contains(OPENVSX_MALFORMED),
+            "expected openvsx_malformed, got {err}"
+        );
+        assert!(
+            !err.contains(EXTENSION_INCOMPATIBLE),
+            "missing package.json must not toast as Electron-only, got {err}"
+        );
+    }
+
+    #[test]
+    fn extract_refuses_when_uncompressed_exceeds_cap() {
+        assert_eq!(MAX_EXTRACT_UNCOMPRESSED_BYTES, 32 * 1024 * 1024);
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let vsix = tmp.path().join("huge.vsix");
+        let payload = vec![0u8; 128];
+        write_zip(&vsix, &[("extension/blob.bin", &payload)]);
+        let dest = tmp.path().join("out");
+        fs::create_dir(&dest).expect("dest");
+        let err = extract_zip_into(&dest, &vsix, 64).expect_err("over cap");
+        assert!(
+            err.contains(OPENVSX_TOO_LARGE),
+            "expected openvsx_too_large, got {err}"
+        );
+        assert!(
+            !dest.join("extension").join("blob.bin").exists()
+                || fs::metadata(dest.join("extension").join("blob.bin"))
+                    .map(|meta| meta.len() <= 65)
+                    .unwrap_or(true),
+            "extract must stop streaming once the uncompressed cap is exceeded"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_refuses_flashwork_symlink_outside_root() {
+        let root_dir = tempfile::tempdir().expect("root");
+        let outside = tempfile::tempdir().expect("outside");
+        let root = root_dir.path();
+        std::os::unix::fs::symlink(outside.path(), root.join(".flashwork")).expect("symlink");
+        let marker = outside.path().join("pwned.txt");
+        let vsix = root.join("theme.vsix");
+        write_zip(
+            &vsix,
+            &[(
+                "extension/package.json",
+                br#"{"name":"theme","contributes":{"themes":[{}]}}"#,
+            )],
+        );
+
+        let root_s = root.to_str().expect("utf8 root");
+        let tree_err = confine_extensions_tree(root_s).expect_err("tree");
+        assert!(
+            tree_err.contains(PATH_ESCAPE),
+            "expected path_escape from confine_extensions_tree, got {tree_err}"
+        );
+
+        let dest_err = install_dir(root_s, "ns", "ext").expect_err("install_dir");
+        assert!(
+            dest_err.contains(PATH_ESCAPE),
+            "expected path_escape from install_dir, got {dest_err}"
+        );
+
+        let extract_err = extract_zip(root_s, ".flashwork/extensions/ns.ext", &vsix)
+            .expect_err("extract");
+        assert!(
+            extract_err.contains(PATH_ESCAPE),
+            "expected path_escape from extract, got {extract_err}"
+        );
+
+        assert!(
+            !marker.exists(),
+            "install must not create files outside the project"
+        );
+        assert!(
+            !outside.path().join("extensions").exists(),
+            "a planted .flashwork symlink must not receive extracted files"
+        );
     }
 }

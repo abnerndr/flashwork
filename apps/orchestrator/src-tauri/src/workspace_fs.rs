@@ -127,7 +127,8 @@ fn confined_unfollowed_leaf(canonical_root: &Path, joined: &Path) -> Result<Path
     Ok(canonical_parent.join(name))
 }
 
-fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
+/// Resolve `rel` under `root` without following a leaf symlink out of the project.
+pub(crate) fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
     let (canonical_root, joined) = confined_join(root, rel)?;
 
     match fs::canonicalize(&joined) {

@@ -21,7 +21,7 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P03 Visual refresh | `2860ea9` | done |
 | P05 GitHub source control | `33ae3bd` | done |
 | P06 IDE workbench | `c76bfb6` | done |
-| P08 Canvas beta | pending merge | done |
+| P08 Canvas beta | `1cda5d6` | done |
 
 ## Current slice
 

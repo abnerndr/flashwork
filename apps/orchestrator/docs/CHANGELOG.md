@@ -40,6 +40,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Source Control no longer reuses a typed origin URL from another project or repository when
+  publishing a branch.
 - Auto API replies are written into the run folder (`api-reply.md`) even when that file did not
   exist yet. A finished Auto API run shows a completion toast that names the agent and points at
   the reply in the run.

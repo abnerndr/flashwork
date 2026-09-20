@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { UiIcon } from '../ui/UiIcon'
 
+import { useGitOrigin } from '../../hooks/useGitOrigin'
 import { readableError } from '../../lib/errors'
 import { createPullRequestUrl } from '../../lib/git/githubCompareUrl'
 import { type MessageKey,useT } from '../../lib/i18n'
@@ -35,7 +36,6 @@ import {
   gitPull,
   gitPush,
   gitRemoteAdd,
-  gitRemoteGet,
   type GitRepositoryStatus,
   gitStage,
   gitStatus,
@@ -77,8 +77,6 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const [message, setMessage] = useState('')
   const [branches, setBranches] = useState<string[]>([])
   const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
-  const [originUrl, setOriginUrl] = useState<string | null>(null)
-  const [originInput, setOriginInput] = useState('')
   const requestId = useRef(0)
                                                                             
   // rajadas de eventos de foco que poderiam disparar git em loop. Refresh manual
@@ -146,22 +144,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
 
   const repoRoot = status?.repoRoot
   const currentBranch = status?.branch
-
-  const refreshOrigin = useCallback(async () => {
-    if (!repoRoot) {
-      setOriginUrl(null)
-      return
-    }
-    try {
-      setOriginUrl(await gitRemoteGet(repoRoot, 'origin'))
-    } catch {
-      setOriginUrl(null)
-    }
-  }, [repoRoot])
-
-  useEffect(() => {
-    void refreshOrigin()
-  }, [refreshOrigin])
+  const { originUrl, originInput, setOriginInput, refreshOrigin } = useGitOrigin(projectId, repoRoot)
 
   useEffect(() => {
     if (!repoRoot) {
@@ -261,12 +244,13 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
 
   const publish = async () => {
     if (!status || busy) return
+    const publishRoot = status.repoRoot
     await run(async () => {
       if (!originUrl) {
-        await gitRemoteAdd(status.repoRoot, 'origin', originInput)
-        await refreshOrigin()
+        await gitRemoteAdd(publishRoot, 'origin', originInput)
+        await refreshOrigin(publishRoot)
       }
-      await gitPush(status.repoRoot)
+      await gitPush(publishRoot)
     }, t('git.publish.done'))
   }
 

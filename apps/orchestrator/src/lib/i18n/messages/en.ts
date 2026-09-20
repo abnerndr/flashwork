@@ -1489,6 +1489,7 @@ export const en = {
   'git.github.denied': 'Authorization was denied.',
   'git.github.expired': 'The code expired. Try again.',
   'git.github.error': 'Could not start GitHub sign-in.',
+  'git.github.pollError': 'Could not check GitHub authorization.',
   'git.github.unconfigured': 'GitHub sign-in is not configured on this build.',
   'git.github.retry': 'Try again',
   'git.github.signedIn': 'Signed in to GitHub',

@@ -172,23 +172,96 @@ pub enum DevicePollStatus {
 #[serde(rename_all = "camelCase")]
 pub struct DevicePollResult {
     pub status: DevicePollStatus,
+    /// True when GitHub returned `slow_down`. The client must wait longer.
+    #[serde(default)]
+    pub slow_down: bool,
+    /// Next poll interval in seconds when GitHub sent one with `slow_down`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+}
+
+impl DevicePollResult {
+    fn from_status(status: DevicePollStatus) -> Self {
+        Self {
+            status,
+            slow_down: false,
+            interval: None,
+        }
+    }
+}
+
+/// Parsed device-flow poll body. `slow_down` is only set when GitHub sent that error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParsedDevicePoll {
+    pub status: DevicePollStatus,
+    pub slow_down: bool,
+}
+
+/// RFC 8628: after `slow_down`, the interval MUST increase by at least 5 seconds.
+pub const SLOW_DOWN_EXTRA_SECS: u64 = 5;
+
+/// Next poll interval after `slow_down`: GitHub's `interval` if larger, else `current + 5`.
+pub fn next_poll_interval(current: u64, github_interval: Option<u64>) -> u64 {
+    let bumped = current.saturating_add(SLOW_DOWN_EXTRA_SECS);
+    match github_interval {
+        Some(v) => v.max(bumped),
+        None => bumped,
+    }
 }
 
 /// Parses a GitHub device-flow poll JSON body. Never logs the body.
 pub fn parse_device_poll_body(value: &serde_json::Value) -> DevicePollStatus {
+    parse_device_poll(value).status
+}
+
+/// Parses status and whether the body was a `slow_down` pending response.
+pub fn parse_device_poll(value: &serde_json::Value) -> ParsedDevicePoll {
     if value
         .get("access_token")
         .and_then(|v| v.as_str())
         .map(str::trim)
         .is_some_and(|t| !t.is_empty())
     {
-        return DevicePollStatus::Complete;
+        return ParsedDevicePoll {
+            status: DevicePollStatus::Complete,
+            slow_down: false,
+        };
     }
     match value.get("error").and_then(|v| v.as_str()) {
-        Some("authorization_pending") | Some("slow_down") => DevicePollStatus::Pending,
-        Some("access_denied") => DevicePollStatus::Denied,
-        Some("expired_token") => DevicePollStatus::Expired,
-        _ => DevicePollStatus::Error,
+        Some("authorization_pending") => ParsedDevicePoll {
+            status: DevicePollStatus::Pending,
+            slow_down: false,
+        },
+        Some("slow_down") => ParsedDevicePoll {
+            status: DevicePollStatus::Pending,
+            slow_down: true,
+        },
+        Some("access_denied") => ParsedDevicePoll {
+            status: DevicePollStatus::Denied,
+            slow_down: false,
+        },
+        Some("expired_token") => ParsedDevicePoll {
+            status: DevicePollStatus::Expired,
+            slow_down: false,
+        },
+        _ => ParsedDevicePoll {
+            status: DevicePollStatus::Error,
+            slow_down: false,
+        },
+    }
+}
+
+/// Maps a GitHub poll body to the IPC result, including `slow_down` + interval.
+pub fn device_poll_result_from_body(value: &serde_json::Value) -> DevicePollResult {
+    let parsed = parse_device_poll(value);
+    DevicePollResult {
+        status: parsed.status,
+        slow_down: parsed.slow_down,
+        interval: if parsed.slow_down {
+            value.get("interval").and_then(|v| v.as_u64())
+        } else {
+            None
+        },
     }
 }
 
@@ -478,15 +551,11 @@ pub async fn github_repo_device_poll(session_id: String) -> Result<DevicePollRes
         })
     };
     let Some(session) = session else {
-        return Ok(DevicePollResult {
-            status: DevicePollStatus::Expired,
-        });
+        return Ok(DevicePollResult::from_status(DevicePollStatus::Expired));
     };
     if Instant::now() >= session.expires_at {
         let _ = forget_session(&session_id);
-        return Ok(DevicePollResult {
-            status: DevicePollStatus::Expired,
-        });
+        return Ok(DevicePollResult::from_status(DevicePollStatus::Expired));
     }
     let client_id = resolve_github_client_id(None);
     if client_id.is_empty() {
@@ -516,7 +585,9 @@ pub async fn github_repo_device_poll(session_id: String) -> Result<DevicePollRes
     ) {
         let _ = forget_session(&session_id);
     }
-    Ok(DevicePollResult { status })
+    let mut result = device_poll_result_from_body(&value);
+    result.status = status;
+    Ok(result)
 }
 
 fn forget_session(session_id: &str) -> Result<(), String> {
@@ -648,6 +719,26 @@ mod tests {
     fn device_poll_authorization_pending_is_pending() {
         let body = serde_json::json!({ "error": "authorization_pending" });
         assert_eq!(parse_device_poll_body(&body), DevicePollStatus::Pending);
+        let result = device_poll_result_from_body(&body);
+        assert_eq!(result.status, DevicePollStatus::Pending);
+        assert!(!result.slow_down);
+        assert_eq!(result.interval, None);
+    }
+
+    #[test]
+    fn device_poll_slow_down_is_pending_and_surfaces_interval() {
+        let body = serde_json::json!({ "error": "slow_down", "interval": 10 });
+        assert_eq!(parse_device_poll_body(&body), DevicePollStatus::Pending);
+        let parsed = parse_device_poll(&body);
+        assert_eq!(parsed.status, DevicePollStatus::Pending);
+        assert!(parsed.slow_down);
+        let result = device_poll_result_from_body(&body);
+        assert_eq!(result.status, DevicePollStatus::Pending);
+        assert!(result.slow_down);
+        assert_eq!(result.interval, Some(10));
+        assert_eq!(next_poll_interval(5, result.interval), 10);
+        assert_eq!(next_poll_interval(5, None), 10);
+        assert_eq!(next_poll_interval(5, Some(6)), 10);
     }
 
     #[test]

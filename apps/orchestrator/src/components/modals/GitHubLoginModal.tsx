@@ -47,11 +47,19 @@ export function GitHubLoginModal() {
   }, [open])
 
   useEffect(() => {
-    if (!open || !session || pollStatus === 'complete' || pollStatus === 'denied' || pollStatus === 'expired') {
+    if (
+      !open ||
+      !session ||
+      pollStatus === 'complete' ||
+      pollStatus === 'denied' ||
+      pollStatus === 'expired' ||
+      pollStatus === 'error'
+    ) {
       return
     }
-    const intervalMs = Math.max(session.interval, 1) * 1000
     let cancelled = false
+    let timeoutId = 0
+    let intervalSec = Math.max(session.interval, 1)
     const tick = async () => {
       try {
         const result = await githubRepoDevicePoll(session.sessionId)
@@ -60,18 +68,30 @@ export function GitHubLoginModal() {
         if (result.status === 'complete') {
           pushToast({ title: t('git.github.signedIn'), body: '' })
           closeModal()
+          return
         }
+        if (result.status === 'error') {
+          setError(t('git.github.pollError'))
+          return
+        }
+        if (result.status === 'denied' || result.status === 'expired') {
+          return
+        }
+        if (result.slowDown) {
+          const bumped = intervalSec + 5
+          intervalSec = Math.max(result.interval ?? 0, bumped)
+        }
+        timeoutId = window.setTimeout(() => void tick(), Math.max(intervalSec, 1) * 1000)
       } catch (cause) {
         if (cancelled || cancelledRef.current) return
         setPollStatus('error')
         setError(mapStartError(cause))
       }
     }
-    const id = window.setInterval(() => void tick(), intervalMs)
     void tick()
     return () => {
       cancelled = true
-      window.clearInterval(id)
+      window.clearTimeout(timeoutId)
     }
   }, [open, session, pollStatus, closeModal, pushToast, t])
 

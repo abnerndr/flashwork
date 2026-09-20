@@ -1508,6 +1508,7 @@ export const ptBR: Record<MessageKey, string> = {
   'git.github.denied': 'A autorização foi negada.',
   'git.github.expired': 'O código expirou. Tente de novo.',
   'git.github.error': 'Não foi possível iniciar o login no GitHub.',
+  'git.github.pollError': 'Não foi possível verificar a autorização do GitHub.',
   'git.github.unconfigured': 'O login no GitHub não está configurado nesta build.',
   'git.github.retry': 'Tentar de novo',
   'git.github.signedIn': 'Conectado ao GitHub',

@@ -20,6 +20,10 @@ export type GithubDevicePollStatus = 'pending' | 'complete' | 'denied' | 'expire
 
 export type GithubDevicePoll = {
   status: GithubDevicePollStatus
+  /** GitHub asked the client to wait longer before the next poll. */
+  slowDown?: boolean
+  /** Next interval in seconds when GitHub sent one with `slow_down`. */
+  interval?: number
 }
 
 export async function githubRepoAuthStatus(): Promise<GithubRepoAuthStatus> {

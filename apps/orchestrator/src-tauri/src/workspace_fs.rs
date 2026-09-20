@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::fs;
-use std::io::ErrorKind;
+use std::fs::{self, File};
+use std::io::{self, ErrorKind, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 const PATH_ESCAPE: &str = "path_escape";
@@ -61,7 +61,27 @@ fn is_rooted(path: &Path) -> bool {
     path.is_absolute() || path.has_root()
 }
 
-fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
+fn is_symlink_or_reparse(metadata: &fs::Metadata) -> bool {
+    if metadata.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        return metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0;
+    }
+    #[cfg(not(windows))]
+    false
+}
+
+fn path_is_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| is_symlink_or_reparse(&metadata))
+        .unwrap_or(false)
+}
+
+fn confined_join(root: &str, rel: &str) -> Result<(PathBuf, PathBuf), String> {
     let root_raw = PathBuf::from(root.trim());
     if root_raw.as_os_str().is_empty() {
         return Err("empty root".into());
@@ -85,6 +105,31 @@ fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
         return Err("root is not a directory".into());
     }
 
+    Ok((canonical_root, joined))
+}
+
+fn confined_unfollowed_leaf(canonical_root: &Path, joined: &Path) -> Result<PathBuf, String> {
+    let parent = joined.parent().ok_or_else(|| PATH_ESCAPE.to_string())?;
+    let canonical_parent = match fs::canonicalize(parent) {
+        Ok(path) => path,
+        Err(parent_error) if parent_error.kind() == ErrorKind::NotFound => {
+            return Err("parent directory not found".into());
+        }
+        Err(parent_error) => return Err(parent_error.to_string()),
+    };
+    if !is_within(canonical_root, &canonical_parent) {
+        return Err(PATH_ESCAPE.into());
+    }
+    let name = joined.file_name().ok_or_else(|| PATH_ESCAPE.to_string())?;
+    if matches!(name.to_str(), Some(".") | Some("..")) {
+        return Err(PATH_ESCAPE.into());
+    }
+    Ok(canonical_parent.join(name))
+}
+
+fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
+    let (canonical_root, joined) = confined_join(root, rel)?;
+
     match fs::canonicalize(&joined) {
         Ok(canonical) => {
             if !is_within(&canonical_root, &canonical) {
@@ -93,25 +138,25 @@ fn confined_target(root: &str, rel: &str) -> Result<PathBuf, String> {
             Ok(canonical)
         }
         Err(error) if error.kind() == ErrorKind::NotFound => {
-            let parent = joined.parent().ok_or_else(|| PATH_ESCAPE.to_string())?;
-            let canonical_parent = match fs::canonicalize(parent) {
-                Ok(path) => path,
-                Err(parent_error) if parent_error.kind() == ErrorKind::NotFound => {
-                    return Err("parent directory not found".into());
-                }
-                Err(parent_error) => return Err(parent_error.to_string()),
-            };
-            if !is_within(&canonical_root, &canonical_parent) {
+            if path_is_symlink(&joined) {
                 return Err(PATH_ESCAPE.into());
             }
-            let name = joined.file_name().ok_or_else(|| PATH_ESCAPE.to_string())?;
-            if matches!(name.to_str(), Some(".") | Some("..")) {
-                return Err(PATH_ESCAPE.into());
-            }
-            Ok(canonical_parent.join(name))
+            Ok(confined_unfollowed_leaf(&canonical_root, &joined)?)
         }
         Err(error) => Err(error.to_string()),
     }
+}
+
+fn read_text_capped<R: Read>(reader: R, max_bytes: u64) -> Result<String, String> {
+    let mut limited = reader.take(max_bytes.saturating_add(1));
+    let mut buf = Vec::new();
+    limited
+        .read_to_end(&mut buf)
+        .map_err(|error| error.to_string())?;
+    if buf.len() as u64 > max_bytes {
+        return Err(FILE_TOO_LARGE.into());
+    }
+    String::from_utf8(buf).map_err(|error| error.to_string())
 }
 
 fn read_file(root: &str, path: &str) -> Result<String, String> {
@@ -129,17 +174,118 @@ fn read_file(root: &str, path: &str) -> Result<String, String> {
     if metadata.len() > MAX_READ_BYTES {
         return Err(FILE_TOO_LARGE.into());
     }
-    fs::read_to_string(&target).map_err(|error| error.to_string())
+    let file = File::open(&target).map_err(|error| error.to_string())?;
+    read_text_capped(file, MAX_READ_BYTES)
 }
 
-fn write_file(root: &str, rel: &str, contents: &str) -> Result<(), String> {
-    let target = confined_target(root, rel)?;
-    if let Ok(metadata) = fs::symlink_metadata(&target) {
+#[cfg(unix)]
+fn write_bytes_no_follow(path: &Path, contents: &[u8]) -> Result<(), String> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    // O_NOFOLLOW: Linux/Android 0x20000, macOS/BSD 0x100.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    const O_NOFOLLOW: i32 = 0x20000;
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ))]
+    const O_NOFOLLOW: i32 = 0x0100;
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    )))]
+    const O_NOFOLLOW: i32 = 0;
+    opts.custom_flags(O_NOFOLLOW);
+    let mut file = match opts.open(path) {
+        Ok(file) => file,
+        Err(error) => {
+            if path_is_symlink(path) || is_loop_error(&error) {
+                return Err(PATH_ESCAPE.into());
+            }
+            return Err(error.to_string());
+        }
+    };
+    file.write_all(contents).map_err(|error| error.to_string())
+}
+
+#[cfg(unix)]
+fn is_loop_error(error: &io::Error) -> bool {
+    error.raw_os_error() == Some(libc_eloop())
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn libc_eloop() -> i32 {
+    40
+}
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+fn libc_eloop() -> i32 {
+    62
+}
+
+#[cfg(all(
+    unix,
+    not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ))
+))]
+fn libc_eloop() -> i32 {
+    -1
+}
+
+#[cfg(windows)]
+fn write_bytes_no_follow(path: &Path, contents: &[u8]) -> Result<(), String> {
+    if let Ok(metadata) = fs::symlink_metadata(path) {
+        if is_symlink_or_reparse(&metadata) {
+            return Err(PATH_ESCAPE.into());
+        }
         if metadata.is_dir() {
             return Err("path is a directory".into());
         }
     }
-    fs::write(&target, contents).map_err(|error| error.to_string())
+    fs::write(path, contents).map_err(|error| error.to_string())
+}
+
+fn write_file(root: &str, rel: &str, contents: &str) -> Result<(), String> {
+    let (canonical_root, joined) = confined_join(root, rel)?;
+    if path_is_symlink(&joined) {
+        return Err(PATH_ESCAPE.into());
+    }
+    let leaf = confined_unfollowed_leaf(&canonical_root, &joined)?;
+    if path_is_symlink(&leaf) {
+        return Err(PATH_ESCAPE.into());
+    }
+    if let Ok(metadata) = fs::symlink_metadata(&leaf) {
+        if metadata.is_dir() {
+            return Err("path is a directory".into());
+        }
+    }
+    write_bytes_no_follow(&leaf, contents.as_bytes())
 }
 
 fn list_dir(root: &str, rel: &str) -> Result<Vec<WorkspaceEntry>, String> {
@@ -280,6 +426,14 @@ mod tests {
         assert!(err.contains("file_too_large"));
     }
 
+    #[test]
+    fn capped_read_errors_when_stream_exceeds_limit() {
+        let data = vec![b'x'; 16];
+        let err = read_text_capped(data.as_slice(), 8).unwrap_err();
+        assert!(err.contains("file_too_large"));
+        assert_eq!(read_text_capped(b"hello".as_slice(), 8).unwrap(), "hello");
+    }
+
     #[cfg(unix)]
     #[test]
     fn symlink_escape_is_path_escape() {
@@ -291,5 +445,47 @@ mod tests {
         let root = dir.path().to_string_lossy().into_owned();
         let err = read_file(&root, "link.txt").unwrap_err();
         assert!(err.contains("path_escape"));
+        let err = write_file(&root, "link.txt", "pwned").unwrap_err();
+        assert!(
+            err.contains("path_escape"),
+            "write through an outside symlink must be path_escape, got {err}"
+        );
+        assert_eq!(fs::read_to_string(&secret).unwrap(), "classified");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_refuses_dangling_symlink_outside_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let outside_file = outside.path().join("escaped.txt");
+        assert!(!outside_file.exists());
+        std::os::unix::fs::symlink(&outside_file, dir.path().join("link.txt")).unwrap();
+        let root = dir.path().to_string_lossy().into_owned();
+        let err = write_file(&root, "link.txt", "pwned").unwrap_err();
+        assert!(
+            err.contains("path_escape"),
+            "dangling symlink write must be path_escape, got {err}"
+        );
+        assert!(
+            !outside_file.exists(),
+            "write must not create the dangling symlink target outside the root"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_refuses_symlink_even_when_target_is_inside_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let inside = dir.path().join("real.txt");
+        fs::write(&inside, "original").unwrap();
+        std::os::unix::fs::symlink(&inside, dir.path().join("link.txt")).unwrap();
+        let root = dir.path().to_string_lossy().into_owned();
+        let err = write_file(&root, "link.txt", "rewritten").unwrap_err();
+        assert!(
+            err.contains("path_escape"),
+            "write through an inside symlink must be path_escape, got {err}"
+        );
+        assert_eq!(fs::read_to_string(&inside).unwrap(), "original");
     }
 }

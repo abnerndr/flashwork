@@ -151,6 +151,8 @@ export function NormalProjectSidebar() {
       setSubTabCompletionUnread: s.setSubTabCompletionUnread,
       createFilePane: s.createFilePane,
       createGraphifyPane: s.createGraphifyPane,
+      createEditorPane: s.createEditorPane,
+      openPane: s.openPane,
       setFullscreenPane: s.setFullscreenPane,
     })),
   )

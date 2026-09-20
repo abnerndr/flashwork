@@ -252,7 +252,7 @@ export const UNRESTRICTED_FLAG: Record<AgentType, string | null> = {
 }
 
 export type PaneKind =
-  'terminal' | 'markdown' | 'file' | 'image' | 'video' | 'web' | 'graphify' | 'diff'
+  'terminal' | 'markdown' | 'file' | 'image' | 'video' | 'web' | 'graphify' | 'diff' | 'editor'
 
 export type BrowserResourceMode = 'app-first' | 'balanced' | 'keep-alive'
 

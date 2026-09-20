@@ -2219,6 +2219,25 @@ export const en = {
   'skills.errInvalidName': 'The folder or repository name is not a valid skill name.',
   'skills.errGitClone': 'Git clone failed. Check the URL and try again.',
   'skills.errGeneric': 'The skill could not be installed.',
+
+  /* ---- P06 editor pane ---- */
+  'editor.open': 'Open editor',
+  'editor.paneName': 'Editor',
+  'editor.loading': 'Loading editor…',
+  'editor.treeTitle': 'Files',
+  'editor.treeLoading': 'Loading…',
+  'editor.treeEmpty': 'This folder is empty',
+  'editor.tabs': 'Open files',
+  'editor.empty': 'Select a file to edit',
+  'editor.closeTab': 'Close',
+  'editor.dirty': 'Unsaved changes',
+  'editor.noCwdTitle': 'No project folder',
+  'editor.noCwdBody': 'Add a folder or a terminal to this project before opening the editor.',
+  'editor.errFileTooLarge': 'This file is larger than 2 MiB and cannot be opened in the editor.',
+  'editor.errPathEscape': 'That path is outside the project folder.',
+  'editor.errReadFailed': 'Could not read the file.',
+  'editor.errWriteFailed': 'Could not save the file.',
+  'editor.errListFailed': 'Could not list this folder.',
 } as const
 
 export type MessageKey = keyof typeof en

@@ -10,6 +10,11 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- Editor pane with a project file tree, tabs, and Monaco. Open it from the project menu; save with
+  Ctrl+S / Cmd+S. Files larger than 2 MiB stay closed with an error.
+
 ### Changed
 
 - Interface type uses a VS Code–like stack (Segoe UI Variable / Cascadia Code, Inter as fallback).

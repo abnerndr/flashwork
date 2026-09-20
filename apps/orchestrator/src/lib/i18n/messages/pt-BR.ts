@@ -2236,4 +2236,23 @@ export const ptBR: Record<MessageKey, string> = {
   'skills.errInvalidName': 'O nome da pasta ou do repositório não é um nome de skill válido.',
   'skills.errGitClone': 'O git clone falhou. Confira a URL e tente de novo.',
   'skills.errGeneric': 'Não foi possível instalar a skill.',
+
+  /* ---- P06 editor pane ---- */
+  'editor.open': 'Abrir editor',
+  'editor.paneName': 'Editor',
+  'editor.loading': 'Carregando editor…',
+  'editor.treeTitle': 'Arquivos',
+  'editor.treeLoading': 'Carregando…',
+  'editor.treeEmpty': 'Esta pasta está vazia',
+  'editor.tabs': 'Arquivos abertos',
+  'editor.empty': 'Selecione um arquivo para editar',
+  'editor.closeTab': 'Fechar',
+  'editor.dirty': 'Alterações não salvas',
+  'editor.noCwdTitle': 'Sem pasta do projeto',
+  'editor.noCwdBody': 'Adicione uma pasta ou um terminal a este projeto antes de abrir o editor.',
+  'editor.errFileTooLarge': 'Este arquivo é maior que 2 MiB e não pode ser aberto no editor.',
+  'editor.errPathEscape': 'Esse caminho está fora da pasta do projeto.',
+  'editor.errReadFailed': 'Não foi possível ler o arquivo.',
+  'editor.errWriteFailed': 'Não foi possível salvar o arquivo.',
+  'editor.errListFailed': 'Não foi possível listar esta pasta.',
 }

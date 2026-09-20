@@ -105,6 +105,20 @@ function classifyPaneKind(filePath: string): 'markdown' | 'video' | 'file' {
   return MARKDOWN_FILE_PATTERN.test(filePath) ? 'markdown' : 'file'
 }
 
+export function makeEditorPane(args: { cwd: string; name?: string }): Terminal {
+  return {
+    id: nanoid(),
+    name: args.name?.trim() || 'Editor',
+    cwd: args.cwd,
+    activeTabId: '',
+    disabled: false,
+    laneVisible: null,
+    lastUsedAt: Date.now(),
+    tabs: [],
+    kind: 'editor',
+  }
+}
+
 export function makeFilePane(args: { filePath: string; name?: string }): Terminal {
   const filePath = args.filePath.trim().replace(/:\d+(?::\d+)?$/, '')
   return {

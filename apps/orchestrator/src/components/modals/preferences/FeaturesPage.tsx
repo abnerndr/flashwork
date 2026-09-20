@@ -1,4 +1,4 @@
-import { BrainCircuit, FolderKanban, GitBranch, Globe2, ListTodo, Network, Plug } from 'lucide-react'
+import { BrainCircuit, FolderKanban, GitBranch, Globe2, ListTodo, Network, Plug, Workflow } from 'lucide-react'
 
 import { FEATURES } from '../../../lib/features'
 import { useT } from '../../../lib/i18n'
@@ -16,6 +16,7 @@ const FEATURE_ICONS = {
   graphify: Network,
   mcp: Plug,
   taskBoard: FolderKanban,
+  canvasFlows: Workflow,
 } as const
 
 export function FeaturesPage() {
@@ -62,6 +63,18 @@ export function FeaturesPage() {
           )
         })}
       </div>
+      {preferences.enabledFeatures.canvasFlows ? (
+        <button
+          type="button"
+          className={controls.btnLink}
+          onClick={() => setPreferences({ flowsAllowLoopback: !preferences.flowsAllowLoopback })}
+          aria-pressed={preferences.flowsAllowLoopback}
+        >
+          {preferences.flowsAllowLoopback
+            ? t('flows.loopbackOn')
+            : t('flows.loopbackOff')}
+        </button>
+      ) : null}
       {preferences.enabledFeatures.mcp ? (
         <button
           type="button"

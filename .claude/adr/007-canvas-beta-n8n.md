@@ -1,6 +1,6 @@
 # ADR 007 — Canvas beta is N8N-like, separate from Task Board
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: canvas, beta, n8n
 

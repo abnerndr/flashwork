@@ -74,6 +74,9 @@ const HomeView = lazy(() =>
 const TaskBoardView = lazy(() =>
   import('./components/TaskBoardView').then((module) => ({ default: module.TaskBoardView })),
 )
+const FlowsView = lazy(() =>
+  import('./components/FlowsView').then((module) => ({ default: module.FlowsView })),
+)
 const LayoutDesignerModal = lazy(() =>
   import('./components/modals/LayoutDesignerModal').then((module) => ({
     default: module.LayoutDesignerModal,
@@ -494,6 +497,8 @@ export default function App() {
                     <HomeView />
                   ) : activeView === 'tasks' ? (
                     <TaskBoardView />
+                  ) : activeView === 'flows' ? (
+                    <FlowsView />
                   ) : activeView === 'agentSandbox' && AGENT_SANDBOX_ENABLED ? (
                     <AgentSandbox />
                   ) : (

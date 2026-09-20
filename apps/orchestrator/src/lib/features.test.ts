@@ -12,6 +12,7 @@ describe('normalizeEnabledFeatures', () => {
       aiMemory: false,
       mcp: true,
       taskBoard: true,
+      canvasFlows: false,
     })
   })
 
@@ -24,6 +25,7 @@ describe('normalizeEnabledFeatures', () => {
       aiMemory: false,
       mcp: true,
       taskBoard: true,
+      canvasFlows: false,
     })
   })
 
@@ -36,6 +38,7 @@ describe('normalizeEnabledFeatures', () => {
       aiMemory: false,
       mcp: true,
       taskBoard: true,
+      canvasFlows: false,
     })
   })
 
@@ -50,10 +53,13 @@ describe('normalizeEnabledFeatures', () => {
       aiMemory: true,
       mcp: true,
       taskBoard: true,
+      canvasFlows: false,
     })
   })
 
-  it('preserves an explicit Graphify preference', () => {
-    expect(normalizeEnabledFeatures({ enabledFeatures: { graphify: false } }).graphify).toBe(false)
+  it('keeps Flows off unless explicitly enabled', () => {
+    expect(normalizeEnabledFeatures({ enabledFeatures: { canvasFlows: true } }).canvasFlows).toBe(
+      true,
+    )
   })
 })

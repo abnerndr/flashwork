@@ -1,0 +1,267 @@
+.view {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) 260px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.palette,
+.inspector {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inspector {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.kicker {
+  margin: 0;
+  color: var(--fg-muted);
+  font: 11px/1.4 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titleRow h1 {
+  margin: 0;
+  font: 600 16px/1.2 var(--font-sans);
+}
+
+.beta {
+  font: 9px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.lede {
+  margin: 0;
+  color: var(--fg-muted);
+  font: 12px/1.45 var(--font-sans);
+}
+
+.paletteItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--fg);
+  cursor: grab;
+  font: 13px var(--font-sans);
+}
+
+.paletteItem:hover {
+  background: var(--panel-hover);
+}
+
+.stageWrap {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar select,
+.toolbar button,
+.inspector input,
+.inspector textarea,
+.inspector select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--fg);
+  padding: 6px 8px;
+  font: 13px var(--font-sans);
+}
+
+.toolbar button,
+.inspector button {
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-on, var(--bg));
+  border-color: var(--accent);
+}
+
+.canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-sunken);
+  cursor: grab;
+}
+
+.canvasPanning {
+  cursor: grabbing;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--border-strong, var(--fg-muted));
+  stroke-width: 1.5;
+}
+
+.edgeHit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.node {
+  position: absolute;
+  width: 200px;
+  min-height: 112px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+}
+
+.nodeSelected {
+  border-color: var(--accent);
+}
+
+.nodeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font: 12px var(--font-mono);
+  color: var(--fg-muted);
+  cursor: grab;
+}
+
+.nodeBody {
+  padding: 8px 10px 12px;
+  font: 12px/1.4 var(--font-sans);
+  color: var(--fg);
+  min-height: 48px;
+}
+
+.output {
+  margin: 0;
+  color: var(--fg-muted);
+  font: 11px/1.35 var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 72px;
+  overflow: auto;
+}
+
+.port {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 0;
+  cursor: pointer;
+}
+
+.portIn {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.portOut {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.portPending {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.error {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--status-offline);
+  font: 12px var(--font-mono);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 11px var(--font-mono);
+  color: var(--fg-muted);
+}
+
+.field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.empty {
+  color: var(--fg-muted);
+  font: 12px var(--font-sans);
+}
+
+.badgeWrap {
+  position: relative;
+}
+
+.toolbarBeta {
+  font: 9px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}

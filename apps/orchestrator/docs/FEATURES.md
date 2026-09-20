@@ -176,3 +176,8 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 ## Agent Planning
 
 Agent Planning / Agent Canvas is experimental. It provides a visual control surface for coordinating agent sessions and workers from inside Flashwork.
+
+## Flows (beta)
+
+A separate **Flows** tab (Preferences → optional features, default off) graphs agents, text, filters, HTTP, and MCP tools. When one node finishes, its output feeds the next. Graphs persist under the project's `.flashwork/history/flows/`. Agent Canvas stays as the live-session inspector.
+

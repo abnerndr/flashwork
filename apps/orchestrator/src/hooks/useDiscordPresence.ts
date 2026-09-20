@@ -13,6 +13,7 @@ const VIEW_LABELS = {
   agentCanvas: 'Orchestrating AI agents',
   agentSandbox: 'Testing agent orchestration',
   tasks: 'Planning the task board',
+  flows: 'Editing a flow canvas',
 } as const
 
 export function useDiscordPresence() {

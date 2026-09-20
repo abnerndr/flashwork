@@ -106,6 +106,7 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     enabledAgents: { ...DEFAULT_PREFERENCES.enabledAgents, ...preferences.enabledAgents },
                                                                                  
     enabledFeatures: normalizeEnabledFeatures(raw),
+    flowsAllowLoopback: Boolean(raw?.flowsAllowLoopback),
     leftSidebarVisible: raw?.leftSidebarVisible ?? true,
     rightSidebarVisible: raw?.rightSidebarVisible ?? true,
     leftSidebarWidth: Math.min(380, Math.max(220, Math.round(raw?.leftSidebarWidth ?? 286))),

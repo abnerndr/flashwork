@@ -225,7 +225,7 @@ fn scan_agent(
     snapshot
 }
 
-fn scan_inner(
+pub(crate) fn scan_inner(
     scope: McpScope,
     repo: Option<String>,
     agents: Option<Vec<String>>,
@@ -242,6 +242,35 @@ fn scan_inner(
         .into_iter()
         .map(|agent| scan_agent(agent, scope, repo_ref, &imports))
         .collect()
+}
+
+pub(crate) fn find_enabled_server(repo: Option<String>, name: &str) -> Option<McpServer> {
+    let wanted = name.trim();
+    if wanted.is_empty() {
+        return None;
+    }
+    let repo = repo_path(repo);
+    let repo_ref = repo.as_deref();
+    for scope in [McpScope::Project, McpScope::Global] {
+        for agent in ALL_MCP_AGENTS {
+            for source in adapter(agent).config_sources(scope, repo_ref) {
+                let Ok(metadata) = fs::metadata(&source.path) else {
+                    continue;
+                };
+                let mtime_ms = file_modified_ms(&metadata) as u64;
+                let Ok(servers) = read_servers(agent, &source, mtime_ms, metadata.len()) else {
+                    continue;
+                };
+                if let Some(server) = servers
+                    .into_iter()
+                    .find(|server| server.enabled && server.name == wanted)
+                {
+                    return Some(server);
+                }
+            }
+        }
+    }
+    None
 }
 
 fn config_paths_inner(scope: McpScope, repo: Option<String>) -> Vec<McpConfigPath> {

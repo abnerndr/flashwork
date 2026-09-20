@@ -64,6 +64,8 @@ export async function submitAutoPromptRun(args: {
   cwd: string
   prompt: string
   unrestricted: boolean
+  attachmentsDir?: string
+  toolsJsonPath?: string
 }): Promise<StartPromptRunResult> {
   const preferences = useProjectsStore.getState().preferences
   const existing = args.project
@@ -131,6 +133,8 @@ export async function submitAutoPromptRun(args: {
     skills,
     lanes: lanesFromRoutedChoice(routed, args.prompt),
     includeOrchestrator: false,
+    attachmentsDir: args.attachmentsDir,
+    toolsJsonPath: args.toolsJsonPath,
     ensureContextDir: ensurePromptRunContext,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),

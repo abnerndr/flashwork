@@ -239,6 +239,7 @@ pub fn ensure_history_layout(folder: &str) -> Result<(), String> {
     let (_, home) = resolved_project_home(folder)?;
     let _ = read_project_meta(&home)?;
     ensure_directory(&home.join("history/tasks"), &home)?;
+    ensure_directory(&home.join("history/flows"), &home)?;
     ensure_directory(&home.join("history/runs"), &home)?;
     write_if_missing(
         &home.join("history/runs/README.md"),
@@ -488,6 +489,7 @@ mod tests {
         crate::project_home::ensure_history_layout(&folder).unwrap();
 
         assert!(home.join("history/tasks").is_dir());
+        assert!(home.join("history/flows").is_dir());
         assert_eq!(
             fs::read_to_string(home.join("history/runs/README.md")).unwrap(),
             "Run hubs remain under the app profile until the hub plan ships.\n"

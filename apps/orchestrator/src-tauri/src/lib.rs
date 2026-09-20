@@ -22,6 +22,7 @@ mod discord_presence;
 mod economy_agents;
 mod event_bus;
 mod filesystem;
+mod flows;
 mod gemini_sessions;
 mod ghostty_bridge;
 #[cfg(all(target_os = "macos", ghostty_linked))]
@@ -387,6 +388,7 @@ pub fn run() {
             prompt_run::list_prompt_runs,
             prompt_run::append_prompt_run_journal,
             prompt_run::write_prompt_run_file,
+            prompt_run::read_prompt_run_file,
             prompt_run::write_prompt_run_board,
             prompt_run::append_prompt_run_board,
             prompt_run::ensure_prompt_run_context,
@@ -398,6 +400,13 @@ pub fn run() {
             task_board::run_planner_cli,
             task_board::task_attach_markdown,
             task_board::task_write_tools_json,
+            flows::save_flow_graph,
+            flows::list_flow_graphs,
+            flows::delete_flow_graph,
+            flows::flow_http,
+            flows::flow_http_allowlist,
+            flows::flow_http_allowlist_set,
+            flows::flow_mcp_call,
             antigravity_sessions::snapshot_antigravity_sessions,
             gemini_sessions::snapshot_gemini_sessions,
             gemini_sessions::get_gemini_usage,

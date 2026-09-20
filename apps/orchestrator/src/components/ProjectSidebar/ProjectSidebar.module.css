@@ -1181,6 +1181,7 @@
   background: transparent;
   border-radius: 4px;
   cursor: pointer;
+  position: relative;
 }
 
 .toolbarButton:hover,
@@ -1194,6 +1195,18 @@
   height: 14px;
   margin: 0 5px;
   background: var(--border);
+}
+
+.betaMark {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  font: 7px var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .toolbarSpacer {

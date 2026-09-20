@@ -88,9 +88,10 @@ Creating a project requires a destination folder. Flashwork writes `<folder>/.fl
 
 GitHub SCM shipped in P05. Editor workbench shipped in P06 (Monaco + Open VSX subset; monaco-vscode-api not adopted).
 
-## Canvas (experimental, not N8N)
+## Canvas (P08 shipped)
 
-`AgentCanvasPOC` is an agent-session graph (nodes = subagents/teammates, cost, workers). It is **not** a general workflow canvas (HTTP, filters, text blocks, API fan-out).
+`AgentCanvasPOC` remains the live agent-session inspector. **Flows (beta)** is a separate tab (`canvasFlows`, default off): agent, text, filter, HTTP, and MCP tool nodes. Graphs persist under `.flashwork/history/flows/`. HTTP requires a per-run host confirmation; `http://127.0.0.1` needs `flowsAllowLoopback`.
+
 
 ## Editor (P06 shipped)
 
@@ -114,5 +115,5 @@ GitHub SCM shipped in P05. Editor workbench shipped in P06 (Monaco + Open VSX su
 | 6 | ~~GitHub SCM below VS Code quality~~ **P05 shipped.** Remaining: device flow needs `FLASHWORK_GITHUB_CLIENT_ID` when `gh` is not logged in |
 | 7 | ~~No IDE editor behind the orchestrator~~ **P06 shipped.** Remaining: monaco-vscode-api not adopted (installed VSIX not applied in Monaco); Windows write TOCTOU on reparse points |
 | 8 | ~~Model/token/agent choice still leaks to the developer~~ **P07 shipped.** Remaining: pin-CLI still available behind Choose agent; API runs have no streaming pane (reply file + toast); HUD expand is session-local until remount |
-| 9 | No N8N-like flow canvas (beta) |
+| 9 | ~~No N8N-like flow canvas (beta)~~ **P08 shipped.** Remaining: MCP nodes are stdio JSON-RPC only; HTTPS still needs a per-run confirm even for known hosts |
 | 13 | API-path token metering for Auto-without-CLI — `provider_chat` + `api:*` spawn exist (P11/P07); HUD still does not ingest vendor usage JSON |

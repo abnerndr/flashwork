@@ -34,6 +34,10 @@ export function writePromptRunFile(
   return invoke('write_prompt_run_file', { runId, fileName, contents })
 }
 
+export function readPromptRunFile(runId: string, fileName: string): Promise<string> {
+  return invoke('read_prompt_run_file', { runId, fileName })
+}
+
 export function appendPromptRunBoard(
   runId: string,
   heading: string,

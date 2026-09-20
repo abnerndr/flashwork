@@ -60,8 +60,6 @@ regex = "1"
 # required to change one `[mcp_servers.*]` table inside a user's ~/.codex/config.toml
 # without rewriting the credentials, hooks and project tables around it.
 toml_edit = "0.22"
-
-[dev-dependencies]
 tempfile = "3"
 
 # Impede execuções paralelas do Flashwork (pré-requisito da guarda de

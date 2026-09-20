@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -53,10 +53,25 @@ fn download_client() -> &'static reqwest::Client {
     DOWNLOAD_CLIENT.get_or_init(|| {
         reqwest::Client::builder()
             .timeout(DOWNLOAD_TIMEOUT)
+            // Do not follow redirects: the JSON download URL is allowlisted, but a
+            // 302 could otherwise send the VSIX GET to an arbitrary host.
+            .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("Flashwork/", env!("CARGO_PKG_VERSION")))
             .build()
             .unwrap_or_default()
     })
+}
+
+fn is_open_vsx_https(url: &reqwest::Url) -> bool {
+    url.scheme() == "https" && url.host_str() == Some("open-vsx.org")
+}
+
+fn is_allowed_download_url(url: &str) -> bool {
+    url.starts_with("https://open-vsx.org/")
+        && url
+            .parse::<reqwest::Url>()
+            .ok()
+            .is_some_and(|parsed| is_open_vsx_https(&parsed))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -415,11 +430,42 @@ fn package_json_from_zip<R: Read + io::Seek>(archive: &mut ZipArchive<R>) -> Res
         }
     }
     let index = chosen.ok_or_else(|| OPENVSX_MALFORMED.to_string())?;
+    read_zip_json_capped(archive, index, MAX_EXTRACT_UNCOMPRESSED_BYTES)
+}
+
+fn read_zip_json_capped<R: Read + io::Seek>(
+    archive: &mut ZipArchive<R>,
+    index: usize,
+    max_bytes: u64,
+) -> Result<Value, String> {
     let mut file = archive.by_index(index).map_err(|error| error.to_string())?;
-    let mut raw = String::new();
-    file.read_to_string(&mut raw)
-        .map_err(|error| error.to_string())?;
+    if file.size() > max_bytes {
+        return Err(OPENVSX_TOO_LARGE.into());
+    }
+    let mut buf = Vec::new();
+    let mut limited = Read::take(&mut file, max_bytes.saturating_add(1));
+    limited
+        .read_to_end(&mut buf)
+        .map_err(|_| OPENVSX_MALFORMED.to_string())?;
+    if buf.len() as u64 > max_bytes {
+        return Err(OPENVSX_TOO_LARGE.into());
+    }
+    let raw = String::from_utf8(buf).map_err(|_| OPENVSX_MALFORMED.to_string())?;
     serde_json::from_str(&raw).map_err(|_| OPENVSX_MALFORMED.to_string())
+}
+
+#[cfg(test)]
+fn write_reader_capped<R: Read, W: Write>(
+    reader: &mut R,
+    dest: &mut W,
+    max_bytes: u64,
+) -> Result<(), String> {
+    let mut limited = Read::take(reader, max_bytes.saturating_add(1));
+    let copied = io::copy(&mut limited, dest).map_err(|error| error.to_string())?;
+    if copied > max_bytes {
+        return Err(OPENVSX_TOO_LARGE.into());
+    }
+    Ok(())
 }
 
 fn extract_zip_into(dest: &Path, vsix: &Path, max_uncompressed: u64) -> Result<(), String> {
@@ -552,24 +598,52 @@ async fn download_vsix(namespace: &str, name: &str, dest: &Path) -> Result<(), S
         .get("files")
         .and_then(|files| files.get("download"))
         .and_then(Value::as_str)
-        .filter(|url| url.starts_with("https://open-vsx.org/"))
+        .filter(|url| is_allowed_download_url(url))
         .ok_or_else(|| "openvsx_no_download".to_string())?;
 
-    let bytes = download_client()
+    let mut response = download_client()
         .get(download)
         .send()
         .await
         .map_err(|_| "openvsx_offline".to_string())?
         .error_for_status()
-        .map_err(|_| "openvsx_offline".to_string())?
-        .bytes()
-        .await
         .map_err(|_| "openvsx_offline".to_string())?;
+
+    if !is_open_vsx_https(response.url()) {
+        return Err("openvsx_no_download".to_string());
+    }
+    if let Some(len) = response.content_length() {
+        if len > MAX_EXTRACT_UNCOMPRESSED_BYTES {
+            return Err(OPENVSX_TOO_LARGE.into());
+        }
+    }
 
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    fs::write(dest, bytes).map_err(|error| error.to_string())
+    let mut file = fs::File::create(dest).map_err(|error| error.to_string())?;
+    let mut written = 0u64;
+    loop {
+        let chunk = response
+            .chunk()
+            .await
+            .map_err(|_| "openvsx_offline".to_string())?;
+        let Some(bytes) = chunk else {
+            break;
+        };
+        written = written.saturating_add(bytes.len() as u64);
+        if written > MAX_EXTRACT_UNCOMPRESSED_BYTES {
+            drop(file);
+            let _ = fs::remove_file(dest);
+            return Err(OPENVSX_TOO_LARGE.into());
+        }
+        if let Err(error) = file.write_all(&bytes) {
+            drop(file);
+            let _ = fs::remove_file(dest);
+            return Err(error.to_string());
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -649,10 +723,16 @@ pub async fn extensions_install(
     let staging_rel = format!(".flashwork/extensions/.{id}.staging");
     let dest = crate::workspace_fs::confined_target(&root, &dest_rel)?;
     let staging = crate::workspace_fs::confined_target(&root, &staging_rel)?;
-    let vsix = std::env::temp_dir().join(format!("flashwork-{id}.vsix"));
-    download_vsix(namespace.trim(), name.trim(), &vsix).await?;
+    let tmp = tempfile::Builder::new()
+        .prefix("flashwork-")
+        .suffix(".vsix")
+        .tempfile()
+        .map_err(|error| error.to_string())?;
+    if let Err(error) = download_vsix(namespace.trim(), name.trim(), tmp.path()).await {
+        return Err(error);
+    }
 
-    let vsix_for_task = vsix.clone();
+    let vsix_for_task = tmp.path().to_path_buf();
     let staging_for_task = staging.clone();
     let dest_for_task = dest.clone();
     let root_for_task = root.clone();
@@ -678,7 +758,7 @@ pub async fn extensions_install(
     .await
     .map_err(|error| error.to_string());
 
-    let _ = fs::remove_file(&vsix);
+    drop(tmp);
     match result {
         Ok(Ok(installed)) => Ok(installed),
         Ok(Err(error)) => {
@@ -889,6 +969,77 @@ mod tests {
         );
     }
 
+    #[test]
+    fn package_json_refuses_when_entry_size_exceeds_cap() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let vsix = tmp.path().join("fat-pkg.vsix");
+        let payload = vec![b'x'; 128];
+        write_zip(&vsix, &[("extension/package.json", &payload)]);
+        let file = fs::File::open(&vsix).expect("open vsix");
+        let mut archive = ZipArchive::new(file).expect("zip");
+        let index = (0..archive.len())
+            .find(|index| {
+                archive
+                    .by_index(*index)
+                    .unwrap()
+                    .name()
+                    .ends_with("package.json")
+            })
+            .expect("package.json entry");
+        let err = read_zip_json_capped(&mut archive, index, 64).expect_err("over cap");
+        assert!(
+            err.contains(OPENVSX_TOO_LARGE),
+            "expected openvsx_too_large, got {err}"
+        );
+    }
+
+    #[test]
+    fn package_json_reads_when_under_cap() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let vsix = tmp.path().join("ok.vsix");
+        write_zip(
+            &vsix,
+            &[(
+                "extension/package.json",
+                br#"{"name":"theme","contributes":{"themes":[{}]}}"#,
+            )],
+        );
+        let file = fs::File::open(&vsix).expect("open vsix");
+        let mut archive = ZipArchive::new(file).expect("zip");
+        let pkg = package_json_from_zip(&mut archive).expect("pkg");
+        assert_eq!(pkg["name"], "theme");
+    }
+
+    #[test]
+    fn download_write_refuses_when_bytes_exceed_cap() {
+        let mut src = std::io::Cursor::new(vec![0u8; 128]);
+        let mut dest = Vec::new();
+        let err = write_reader_capped(&mut src, &mut dest, 64).expect_err("over cap");
+        assert!(
+            err.contains(OPENVSX_TOO_LARGE),
+            "expected openvsx_too_large, got {err}"
+        );
+        assert!(
+            dest.len() <= 65,
+            "capped copy must not collect an unbounded buffer, got {}",
+            dest.len()
+        );
+    }
+
+    #[test]
+    fn download_url_allowlist_rejects_off_host() {
+        assert!(is_allowed_download_url(
+            "https://open-vsx.org/api/ns/name/file/ext.vsix"
+        ));
+        assert!(!is_allowed_download_url(
+            "https://evil.example/open-vsx.org/ext.vsix"
+        ));
+        assert!(!is_allowed_download_url("http://open-vsx.org/ext.vsix"));
+        assert!(!is_allowed_download_url(
+            "https://open-vsx.org.evil.example/ext.vsix"
+        ));
+    }
+
     #[cfg(unix)]
     #[test]
     fn install_refuses_flashwork_symlink_outside_root() {
@@ -919,8 +1070,8 @@ mod tests {
             "expected path_escape from install_dir, got {dest_err}"
         );
 
-        let extract_err = extract_zip(root_s, ".flashwork/extensions/ns.ext", &vsix)
-            .expect_err("extract");
+        let extract_err =
+            extract_zip(root_s, ".flashwork/extensions/ns.ext", &vsix).expect_err("extract");
         assert!(
             extract_err.contains(PATH_ESCAPE),
             "expected path_escape from extract, got {extract_err}"

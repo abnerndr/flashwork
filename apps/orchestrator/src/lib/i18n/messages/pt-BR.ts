@@ -2220,6 +2220,8 @@ export const ptBR: Record<MessageKey, string> = {
   'extensions.uninstalled': '{name} removida',
   'extensions.uninstallFailed': 'Não deu para remover a extensão',
   'extensions.errGeneric': 'A operação da extensão falhou.',
+  'extensions.errMalformed': 'O VSIX não é um pacote de extensão válido.',
+  'extensions.errTooLarge': 'O VSIX ultrapassa o limite de 32 MiB.',
   'skills.loading': 'Lendo as pastas de skills…',
   'skills.emptyTitle': 'Nenhuma skill instalada',
   'skills.emptyDescription':

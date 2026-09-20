@@ -304,6 +304,10 @@ export function createTerminalsSlice({ get, update, updateTerminal }: SliceCtx):
     },
 
     createEditorPane: (projectId, cwd) => {
+      const existing = get()
+        .projects.find((project) => project.id === projectId)
+        ?.terminals.find((term) => term.kind === 'editor')
+      if (existing) return existing
       const pane = makeEditorPane({ cwd, name: t('editor.paneName') })
       update((state) => {
         const projects = state.projects.map((p) =>

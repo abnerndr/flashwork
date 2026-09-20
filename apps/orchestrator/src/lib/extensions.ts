@@ -10,3 +10,11 @@ export function isExtensionIncompatible(error: unknown): boolean {
 export function isExtensionPathEscape(error: unknown): boolean {
   return extensionErrorMessage(error).includes('path_escape')
 }
+
+export function isExtensionMalformed(error: unknown): boolean {
+  return extensionErrorMessage(error).includes('openvsx_malformed')
+}
+
+export function isExtensionTooLarge(error: unknown): boolean {
+  return extensionErrorMessage(error).includes('openvsx_too_large')
+}

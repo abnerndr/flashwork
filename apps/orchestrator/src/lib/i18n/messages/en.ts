@@ -2205,6 +2205,8 @@ export const en = {
   'extensions.uninstalled': '{name} removed',
   'extensions.uninstallFailed': 'Could not remove the extension',
   'extensions.errGeneric': 'The extension operation failed.',
+  'extensions.errMalformed': 'The VSIX is not a valid extension package.',
+  'extensions.errTooLarge': 'The VSIX is larger than the 32 MiB limit.',
   'skills.loading': 'Reading the skill folders…',
   'skills.emptyTitle': 'No skill installed',
   'skills.emptyDescription':

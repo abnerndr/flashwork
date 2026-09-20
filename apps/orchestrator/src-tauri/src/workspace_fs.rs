@@ -261,6 +261,8 @@ fn libc_eloop() -> i32 {
 
 #[cfg(windows)]
 fn write_bytes_no_follow(path: &Path, contents: &[u8]) -> Result<(), String> {
+    // TOCTOU: symlink_metadata then fs::write can race with a reparse-point swap.
+    // Opening with FILE_FLAG_OPEN_REPARSE_POINT needs a CreateFileW rewrite; skip for now.
     if let Ok(metadata) = fs::symlink_metadata(path) {
         if is_symlink_or_reparse(&metadata) {
             return Err(PATH_ESCAPE.into());

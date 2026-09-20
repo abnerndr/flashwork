@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 
 import {
   isExtensionIncompatible,
+  isExtensionMalformed,
   isExtensionPathEscape,
+  isExtensionTooLarge,
 } from '../../../lib/extensions'
 import { useT } from '../../../lib/i18n'
 import {
@@ -93,9 +95,13 @@ export function ExtensionsBrowser({ root, layout = 'panel', reloadToken = 0 }: P
     }
     pushToast({
       title: t('extensions.installFailed'),
-      body: isExtensionPathEscape(error)
-        ? t('editor.errPathEscape')
-        : t('extensions.errGeneric'),
+      body: isExtensionMalformed(error)
+        ? t('extensions.errMalformed')
+        : isExtensionTooLarge(error)
+          ? t('extensions.errTooLarge')
+          : isExtensionPathEscape(error)
+            ? t('editor.errPathEscape')
+            : t('extensions.errGeneric'),
     })
   }
 

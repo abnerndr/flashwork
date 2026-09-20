@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Search,
   Users,
+  Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -499,6 +500,21 @@ export function NormalProjectSidebar() {
           >
             <FolderKanban size={16} />
             <span>{t('ui.sidebar.tasks')}</span>
+          </button>
+        ) : null}
+        {preferences.enabledFeatures.canvasFlows ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'flows'}
+            className={`${styles.sidebarTab} ${activeView === 'flows' ? styles.sidebarTabActive : ''}`}
+            onClick={() => setActiveView('flows')}
+            title={t('ui.sidebar.flowsTitle')}
+            aria-label={t('ui.sidebar.flows')}
+          >
+            <Workflow size={16} />
+            <span>{t('ui.sidebar.flows')}</span>
+            <span className={styles.betaMark}>{t('flows.beta')}</span>
           </button>
         ) : null}
         <button

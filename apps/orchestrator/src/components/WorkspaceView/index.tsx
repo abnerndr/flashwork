@@ -949,6 +949,7 @@ function NoWorkspace({
     } catch (error) {
       useUiStore.getState().pushToast({
         title: t('common.errorPrefix', { message: String(error) }),
+        body: String(error),
       })
     }
   }

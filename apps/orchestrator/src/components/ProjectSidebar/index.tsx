@@ -24,6 +24,7 @@ import {
   Settings,
   SquareTerminal,
   Users,
+  Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -503,6 +504,18 @@ function CleanProjectSidebar() {
             aria-label={t('ui.sidebar.tasks')}
           >
             <FolderKanban size={16} />
+          </button>
+        ) : null}
+        {preferences.enabledFeatures.canvasFlows ? (
+          <button
+            type="button"
+            className={`${styles.toolbarButton} ${styles.toolbarBeta} ${activeView === 'flows' ? styles.toolbarButtonActive : ''}`}
+            onClick={() => setActiveView('flows')}
+            title={t('ui.sidebar.flowsTitle')}
+            aria-label={t('ui.sidebar.flows')}
+          >
+            <Workflow size={16} />
+            <span className={styles.betaMark}>{t('flows.beta')}</span>
           </button>
         ) : null}
         <span className={styles.toolbarDivider} />

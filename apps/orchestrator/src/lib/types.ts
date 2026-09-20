@@ -94,7 +94,15 @@ export type AppIconTheme =
 
 export type VisualStyle = 'normal' | 'clean'
 
-export type FeatureId = 'todos' | 'git' | 'browser' | 'graphify' | 'aiMemory' | 'mcp' | 'taskBoard'
+export type FeatureId =
+  | 'todos'
+  | 'git'
+  | 'browser'
+  | 'graphify'
+  | 'aiMemory'
+  | 'mcp'
+  | 'taskBoard'
+  | 'canvasFlows'
 
 export type TodoItem = {
   id: string
@@ -527,6 +535,8 @@ export type Preferences = {
   remoteAllowShellInput: boolean
 
   enabledFeatures: Record<FeatureId, boolean>
+  /** Allow Flow HTTP nodes to call http://127.0.0.1 when confirmed for that run. */
+  flowsAllowLoopback: boolean
   /** Folder configured as the base location for the global Todo list. */
   todoStoragePath: string
   /** Scope the MCP panel opens on. */
@@ -673,7 +683,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
     aiMemory: false,
     mcp: true,
     taskBoard: true,
+    canvasFlows: false,
   },
+  flowsAllowLoopback: false,
   todoStoragePath: '',
   mcpDefaultScope: 'global',
   mcpOnboardingSeen: false,

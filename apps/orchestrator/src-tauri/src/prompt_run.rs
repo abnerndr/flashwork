@@ -244,6 +244,22 @@ fn write_prompt_run_file_inner(
     write_named_markdown(&run_dir, &file_name, &contents)
 }
 
+fn read_prompt_run_file_inner(
+    runs: PathBuf,
+    run_id: String,
+    file_name: String,
+) -> Result<String, String> {
+    validate_prompt_run_file_name(&file_name)?;
+    let Some(run_dir) = confined_existing_run_dir(&runs, &run_id)? else {
+        return Err("prompt run not found".to_string());
+    };
+    let path = run_dir.join(&file_name);
+    if path.parent() != Some(run_dir.as_path()) {
+        return Err("prompt run file escapes run dir".to_string());
+    }
+    fs::read_to_string(&path).map_err(|error| error.to_string())
+}
+
 fn write_prompt_run_board_inner(runs: PathBuf, run_id: String, contents: String) -> Result<String, String> {
     let run_dir = confined_run_dir(&runs, &run_id)?;
     let truncated = truncate_journal(&contents, JOURNAL_CHAR_LIMIT);
@@ -328,6 +344,18 @@ pub async fn write_prompt_run_file(
     })
     .await
     .map_err(|error| format!("write_prompt_run_file task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn read_prompt_run_file(
+    app: AppHandle,
+    run_id: String,
+    file_name: String,
+) -> Result<String, String> {
+    let runs = crate::paths::runs_dir(&app)?;
+    tokio::task::spawn_blocking(move || read_prompt_run_file_inner(runs, run_id, file_name))
+        .await
+        .map_err(|error| format!("read_prompt_run_file task failed: {error}"))?
 }
 
 #[tauri::command]

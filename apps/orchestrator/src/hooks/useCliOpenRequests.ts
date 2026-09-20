@@ -81,6 +81,7 @@ export function useCliOpenRequests(hydrated: boolean) {
           if (disposed) return
           useUiStore.getState().pushToast({
             title: t('common.errorPrefix', { message: String(error) }),
+            body: String(error),
           })
         }
       })()

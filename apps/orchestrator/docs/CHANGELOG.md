@@ -12,6 +12,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- **Flows (beta)** tab: graph agents, text, filters, HTTP, and MCP tools so one node's output feeds the next. Off until enabled in Preferences. HTTP calls need a per-run host confirmation; `http://127.0.0.1` is opt-in.
 - Marketplace tab **Extensions (beta)**: search Open VSX and install themes, grammars, and language
   packs into the project folder `.flashwork/extensions`. Electron-only VSIX (debuggers, views, custom
   editors, and similar) is refused.

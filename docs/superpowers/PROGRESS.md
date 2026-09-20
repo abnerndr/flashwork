@@ -21,13 +21,19 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P03 Visual refresh | `2860ea9` | done |
 | P05 GitHub source control | `33ae3bd` | done |
 | P06 IDE workbench | `c76bfb6` | done |
+| P08 Canvas beta | `1cda5d6` | done |
 
 ## Current slice
 
-**Plan:** P08 — `docs/superpowers/plans/2026-09-17-08-canvas-beta.md`  
-**ADR:** `.claude/adr/007-canvas-beta-n8n.md`  
-**Branch:** start `feat/p08-canvas-beta` from `master`  
-**Status:** not started.
+All numbered plans P01–P12 are complete. Stop unless the owner names more work.
+
+## P08 notes (for later slices)
+
+- Feature flag `canvasFlows` defaults off. Sidebar item shows a Beta badge. `AgentCanvasPOC` is unchanged.
+- Graphs persist as `{cwd}/.flashwork/history/flows/<id>.json`. HTTP allowlist is `.flashwork/harness/http-allowlist.json`.
+- HTTP: `https` after a per-run host confirm; `http://127.0.0.1` only with `flowsAllowLoopback`; other `http` hosts need the allowlist. `file:` / `javascript:` / non-http schemes are denied. No redirects.
+- MCP tool nodes call a project-configured **stdio** server (JSON-RPC `tools/call`). HTTP/SSE MCP transports return `mcp_not_stdio`.
+- Agent nodes reuse `submitAutoPromptRun` / `routeOpenTask` (no model picker). Output is `api-reply.md` when present, otherwise `run:<id>`. Downstream HTTP defaults to `{"text": output}`. One prompt-run per project (`run-active` if another run is live).
 
 ## After P08
 

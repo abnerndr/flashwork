@@ -38,6 +38,11 @@ export const FEATURES: readonly FeatureDefinition[] = [
     titleKey: 'features.taskBoard.title',
     descriptionKey: 'features.taskBoard.description',
   },
+  {
+    id: 'canvasFlows',
+    titleKey: 'features.canvasFlows.title',
+    descriptionKey: 'features.canvasFlows.description',
+  },
 ]
 
 type StoredFeaturePreferences = {
@@ -57,6 +62,7 @@ export function normalizeEnabledFeatures(
       mcp: raw.enabledFeatures.mcp ?? true,
       aiMemory: raw.enabledFeatures.aiMemory ?? false,
       taskBoard: raw.enabledFeatures.taskBoard ?? true,
+      canvasFlows: raw.enabledFeatures.canvasFlows ?? false,
     }
   }
   return {
@@ -67,5 +73,6 @@ export function normalizeEnabledFeatures(
     aiMemory: false,
     mcp: true,
     taskBoard: true,
+    canvasFlows: false,
   }
 }

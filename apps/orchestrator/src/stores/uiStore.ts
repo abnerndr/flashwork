@@ -52,7 +52,7 @@ type ModalKind =
   | 'githubLogin'
   | null
 
-export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks'
+export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks' | 'flows'
 export type RightSidebarMode = 'todo' | 'markdown' | 'git' | 'mcp'
 export type MarkdownSidebarTab = { path: string; title: string }
 

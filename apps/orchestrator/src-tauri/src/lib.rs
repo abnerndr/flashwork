@@ -69,6 +69,7 @@ mod validation;
 mod window_style;
 #[cfg(windows)]
 mod windows_webview;
+mod workspace_fs;
 mod worktrees;
 
 use crate::pty::{PtySession, PtySessions};
@@ -261,6 +262,9 @@ pub fn run() {
             filesystem::ensure_todo_template,
             filesystem::watch_file,
             filesystem::unwatch_file,
+            workspace_fs::workspace_list,
+            workspace_fs::workspace_read,
+            workspace_fs::workspace_write,
             pty::pty_exists,
             pty::spawn_pty,
             pty::attach_pty,

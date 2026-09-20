@@ -5,6 +5,7 @@
 export * from './agents'
 export * from './cli'
 export * from './filesystem'
+export * from './workspaceFs'
 export * from './git'
 export * from './githubAuth'
 export * from './graphify'

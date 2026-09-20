@@ -333,6 +333,8 @@ pub fn run() {
             git_control::git_push,
             git_control::git_pull,
             git_control::git_list_branches,
+            git_control::git_checkout,
+            git_control::git_fetch,
             git_control::git_diff_summary,
             diagnostics::open_data_folder,
             diagnostics::open_spawn_log,

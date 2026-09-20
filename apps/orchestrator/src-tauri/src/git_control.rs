@@ -639,6 +639,35 @@ pub async fn git_list_branches(repo_root: String) -> Result<Vec<String>, String>
         .map_err(|error| format!("git_list_branches: falha na task bloqueante: {error}"))?
 }
 
+fn git_checkout_inner(repo_root: String, branch: String) -> Result<String, String> {
+    let root = validated_root(&repo_root)?;
+    let status = git_status_inner(root.to_string_lossy().into_owned())?;
+    if !status.conflicts.is_empty() {
+        return Err("checkout_blocked_conflicts".to_string());
+    }
+    let output = checked_output(&root, &["checkout", &branch])?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[tauri::command]
+pub async fn git_checkout(repo_root: String, branch: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || git_checkout_inner(repo_root, branch))
+        .await
+        .map_err(|error| format!("git_checkout: blocking task failed: {error}"))?
+}
+
+fn git_fetch_inner(repo_root: String) -> Result<String, String> {
+    let root = validated_root(&repo_root)?;
+    remote_command(&root, &["fetch"])
+}
+
+#[tauri::command]
+pub async fn git_fetch(repo_root: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || git_fetch_inner(repo_root))
+        .await
+        .map_err(|error| format!("git_fetch: blocking task failed: {error}"))?
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffSummaryEntry {
@@ -781,9 +810,11 @@ pub async fn git_pull(repo_root: String) -> Result<String, String> {
 mod tests {
     use super::*;
 
+    use super::git_checkout_inner as git_checkout;
     use super::git_commit_inner as git_commit;
     use super::git_diff_summary_inner as git_diff_summary;
     use super::git_discard_inner as git_discard;
+    use super::git_fetch_inner as git_fetch;
     use super::git_init_inner as git_init;
     use super::git_stage_inner as git_stage;
     use super::git_status_inner as git_status;
@@ -1164,5 +1195,93 @@ mod tests {
         );
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_checkout_switches_to_the_requested_branch() {
+        let root = temp_dir("checkout-switch");
+        checked_output(&root, &["init", "-b", "main"]).unwrap();
+        checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
+        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        fs::write(root.join("tracked.txt"), "base\n").unwrap();
+        checked_output(&root, &["add", "-A"]).unwrap();
+        checked_output(&root, &["commit", "-m", "base"]).unwrap();
+        checked_output(&root, &["branch", "feature"]).unwrap();
+
+        let root_string = root.to_string_lossy().into_owned();
+        git_checkout(root_string.clone(), "feature".to_string()).unwrap();
+
+        let status = git_status(root_string).unwrap();
+        assert_eq!(status.branch, "feature");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_checkout_is_rejected_when_conflicts_exist() {
+        let root = temp_dir("checkout-conflicts");
+        checked_output(&root, &["init", "-b", "main"]).unwrap();
+        checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
+        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        fs::write(root.join("file.txt"), "base\n").unwrap();
+        checked_output(&root, &["add", "-A"]).unwrap();
+        checked_output(&root, &["commit", "-m", "base"]).unwrap();
+
+        checked_output(&root, &["checkout", "-b", "other"]).unwrap();
+        fs::write(root.join("file.txt"), "other\n").unwrap();
+        checked_output(&root, &["add", "-A"]).unwrap();
+        checked_output(&root, &["commit", "-m", "other"]).unwrap();
+
+        checked_output(&root, &["checkout", "main"]).unwrap();
+        fs::write(root.join("file.txt"), "main\n").unwrap();
+        checked_output(&root, &["add", "-A"]).unwrap();
+        checked_output(&root, &["commit", "-m", "main"]).unwrap();
+
+        let merge = git_command(&root, &["merge", "other"]).unwrap();
+        assert!(
+            !merge.status.success(),
+            "merge must produce a conflict so checkout can be rejected"
+        );
+
+        let root_string = root.to_string_lossy().into_owned();
+        let status = git_status(root_string.clone()).unwrap();
+        assert!(
+            !status.conflicts.is_empty(),
+            "setup must leave the repo in conflict: {status:?}"
+        );
+
+        let error = git_checkout(root_string, "other".to_string()).unwrap_err();
+        assert_eq!(error, "checkout_blocked_conflicts");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_fetch_updates_from_a_local_remote() {
+        let origin = temp_dir("fetch-origin");
+        checked_output(&origin, &["init", "-b", "main"]).unwrap();
+        checked_output(&origin, &["config", "user.name", "Flashwork Test"]).unwrap();
+        checked_output(&origin, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        fs::write(origin.join("file.txt"), "one\n").unwrap();
+        checked_output(&origin, &["add", "-A"]).unwrap();
+        checked_output(&origin, &["commit", "-m", "one"]).unwrap();
+
+        let clone = temp_dir("fetch-clone");
+        checked_output(&clone, &["clone", origin.to_str().unwrap(), "."]).unwrap();
+        checked_output(&clone, &["config", "user.name", "Flashwork Test"]).unwrap();
+        checked_output(&clone, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+
+        fs::write(origin.join("file.txt"), "two\n").unwrap();
+        checked_output(&origin, &["add", "-A"]).unwrap();
+        checked_output(&origin, &["commit", "-m", "two"]).unwrap();
+
+        let clone_string = clone.to_string_lossy().into_owned();
+        git_fetch(clone_string).unwrap();
+
+        let behind = checked_output(&clone, &["rev-list", "--count", "HEAD..origin/main"]).unwrap();
+        assert_eq!(String::from_utf8_lossy(&behind.stdout).trim(), "1");
+
+        fs::remove_dir_all(origin).unwrap();
+        fs::remove_dir_all(clone).unwrap();
     }
 }

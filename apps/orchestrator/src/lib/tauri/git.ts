@@ -63,6 +63,14 @@ export async function gitListBranches(repoRoot: string): Promise<string[]> {
   return invoke<string[]>('git_list_branches', { repoRoot })
 }
 
+export async function gitCheckout(repoRoot: string, branch: string): Promise<string> {
+  return invoke<string>('git_checkout', { repoRoot, branch })
+}
+
+export async function gitFetch(repoRoot: string): Promise<string> {
+  return invoke<string>('git_fetch', { repoRoot })
+}
+
 export async function cloneGithubRepo(url: string, targetDir: string): Promise<string> {
   return invoke<string>('clone_github_repo', { url, targetDir })
 }

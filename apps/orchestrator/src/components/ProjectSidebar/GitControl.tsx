@@ -21,10 +21,13 @@ import { readableError } from '../../lib/errors'
 import { type MessageKey,useT } from '../../lib/i18n'
 import {
   getPtyCwd,
+  gitCheckout,
   gitCommit,
   gitDiscard,
+  gitFetch,
   type GitFileChange,
   gitInit,
+  gitListBranches,
   gitPull,
   gitPush,
   type GitRepositoryStatus,
@@ -61,6 +64,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [branches, setBranches] = useState<string[]>([])
   const requestId = useRef(0)
                                                                             
   // rajadas de eventos de foco que poderiam disparar git em loop. Refresh manual
@@ -125,6 +129,33 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
       requestId.current += 1
     }
   }, [refresh])
+
+  const repoRoot = status?.repoRoot
+  const currentBranch = status?.branch
+
+  useEffect(() => {
+    if (!repoRoot) {
+      setBranches([])
+      return
+    }
+    let cancelled = false
+    void gitListBranches(repoRoot)
+      .then((next) => {
+        if (!cancelled) setBranches(next)
+      })
+      .catch(() => {
+        if (!cancelled) setBranches([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [repoRoot, currentBranch])
+
+  const branchOptions = useMemo(() => {
+    if (!currentBranch) return branches
+    if (branches.includes(currentBranch)) return branches
+    return [currentBranch, ...branches]
+  }, [branches, currentBranch])
 
   const run = async (action: () => Promise<unknown>, success?: string) => {
     if (busy) return
@@ -271,8 +302,34 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
 
       <div className={styles.branchRow}>
         <UiIcon icon={GitBranch} />
-        <span>{status.branch}</span>
+        <select
+          className={styles.branchSelect}
+          value={status.branch}
+          disabled={busy || status.conflicts.length > 0}
+          aria-label={t('git.branch.label')}
+          onChange={(event) => {
+            const branch = event.target.value
+            if (branch === status.branch) return
+            void run(() => gitCheckout(status.repoRoot, branch))
+          }}
+        >
+          {branchOptions.map((branch) => (
+            <option key={branch} value={branch}>
+              {branch}
+            </option>
+          ))}
+        </select>
         {status.detached ? <small>{t('git.detached')}</small> : null}
+        <button
+          type="button"
+          className={styles.fetchButton}
+          onClick={() => void run(() => gitFetch(status.repoRoot), t('git.fetch.done'))}
+          disabled={busy}
+          title={t('git.fetch.title')}
+          aria-label={t('git.fetch.action')}
+        >
+          {t('git.fetch.action')}
+        </button>
         <button
           type="button"
           className={styles.syncButton}

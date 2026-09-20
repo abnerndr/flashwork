@@ -79,6 +79,41 @@
   white-space: nowrap;
   color: var(--fg);
 }
+.branchSelect {
+  min-width: 0;
+  flex: 1;
+  max-width: 200px;
+  height: 22px;
+  padding: 0 6px;
+  color: var(--fg);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.branchSelect:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.branchSelect:disabled {
+  opacity: 0.4;
+}
+.fetchButton {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.fetchButton:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--panel-hover);
+}
+.fetchButton:disabled {
+  opacity: 0.4;
+}
 .branchRow small {
   color: var(--fg-faint);
   font: inherit;

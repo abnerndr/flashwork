@@ -39,6 +39,7 @@ export default function EditorPane({ projectId, terminal }: EditorPaneProps) {
   const uiTheme = useProjectsStore((state) => state.preferences.uiTheme)
   const pushToast = useUiStore((state) => state.pushToast)
   const editorOpenRequest = useUiStore((state) => state.editorOpenRequest)
+  const focusRequest = useUiStore((state) => state.focusRequest)
   const [buffers, setBuffers] = useState<EditorBuffer[]>([])
   const [activeRel, setActiveRel] = useState<string | null>(null)
   const [readError, setReadError] = useState<ReadError | null>(null)
@@ -110,6 +111,11 @@ export default function EditorPane({ projectId, terminal }: EditorPaneProps) {
     lastOpenTs.current = editorOpenRequest.ts
     void openFile(editorOpenRequest.rel)
   }, [editorOpenRequest, openFile, projectId])
+
+  useEffect(() => {
+    if (!focusRequest || focusRequest.terminalId !== terminal.id) return
+    paneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+  }, [focusRequest, terminal.id])
 
   const saveActive = useCallback(async () => {
     if (!active || active.value === active.savedValue) return

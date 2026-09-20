@@ -30,4 +30,17 @@ describe('workspaceRelFromAbs', () => {
   it('returns null for the root itself', () => {
     expect(workspaceRelFromAbs('/proj', '/proj')).toBeNull()
   })
+
+  it('maps a git-relative path after joining it to the repository root', () => {
+    const repoRoot = '/work/repo'
+    const gitRel = 'src/lib/main.ts'
+    const abs = `${repoRoot}/${gitRel}`
+    expect(workspaceRelFromAbs(repoRoot, abs)).toBe(gitRel)
+  })
+
+  it('returns null when the joined repo path sits outside a nested editor cwd', () => {
+    const repoRoot = '/work/repo'
+    const editorCwd = '/work/repo/apps/orchestrator'
+    expect(workspaceRelFromAbs(editorCwd, `${repoRoot}/package.json`)).toBeNull()
+  })
 })

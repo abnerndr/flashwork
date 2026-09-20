@@ -12,6 +12,15 @@ function isEscapingRel(rel: string): boolean {
   return !rel || rel.split('/').some((segment) => segment === '..')
 }
 
+/** Map `absOrRel` onto the editor pane cwd. Absolute paths must sit under cwd. */
+export function resolveEditorOpenRel(cwd: string, absOrRel: string): string | null {
+  if (isAbsoluteFsPath(absOrRel)) {
+    return workspaceRelFromAbs(cwd, absOrRel)
+  }
+  const normalized = posixRel(absOrRel.trim())
+  return isEscapingRel(normalized) ? null : normalized
+}
+
 /** Ensure an editor pane exists and open `absOrRel` as a tab. Reuses a single editor pane per project. */
 export function openSourceInEditor(projectId: string, absOrRel: string): void {
   const projects = useProjectsStore.getState()
@@ -30,13 +39,7 @@ export function openSourceInEditor(projectId: string, absOrRel: string): void {
     return
   }
 
-  let rel: string | null
-  if (isAbsoluteFsPath(absOrRel)) {
-    rel = workspaceRelFromAbs(cwd, absOrRel)
-  } else {
-    const normalized = posixRel(absOrRel.trim())
-    rel = isEscapingRel(normalized) ? null : normalized
-  }
+  const rel = resolveEditorOpenRel(cwd, absOrRel)
 
   if (!rel) {
     ui.pushToast({

@@ -1444,7 +1444,7 @@ export const ptBR: Record<MessageKey, string> = {
   'files.preview': 'Visualizar',
   'files.loadingPreview': 'Carregando visualização...',
   'files.previewTooLarge':
-    'Este arquivo é grande demais para uma visualização rápida. Adicione-o ao grid para abrir.',
+    'Este arquivo é grande demais para uma visualização rápida. Abra-o no editor.',
   'files.rename': 'Renomear',
   'files.renamePrompt': 'Renomear “{name}”',
   'files.renameDone': 'Arquivo renomeado',

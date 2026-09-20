@@ -1426,7 +1426,7 @@ export const en = {
   'files.preview': 'Preview',
   'files.loadingPreview': 'Loading preview...',
   'files.previewTooLarge':
-    'This file is too large for a quick preview. Add it to the grid to open it.',
+    'This file is too large for a quick preview. Open it in the editor instead.',
   'files.rename': 'Rename',
   'files.renamePrompt': 'Rename “{name}”',
   'files.renameDone': 'File renamed',

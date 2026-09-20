@@ -52,6 +52,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Source Control opens files from the Git repository root in the editor, not relative to a nested editor cwd.
 - Open VSX install refuses a planted `.flashwork` symlink, caps VSIX extract at 32 MiB, and treats a missing `package.json` as malformed instead of Electron-only.
 - The editor file tree no longer collapses or reloads when typing in the editor.
 - Closing an editor tab with unsaved changes asks for confirmation.

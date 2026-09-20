@@ -5,12 +5,12 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  FileCode,
   Folder,
   FolderSearch,
   GitBranch,
   GitPullRequest,
   Github,
-  LayoutGrid,
   Minus,
   MoreHorizontal,
   Plus,
@@ -684,7 +684,7 @@ function TreeNodeView({
   }
 
   const openFile = (filePath: string) => {
-    openSourceInEditor(projectId, filePath)
+    openSourceInEditor(projectId, absoluteRepoPath(repoRoot, filePath))
   }
 
   if (node.type === 'file') {
@@ -716,7 +716,7 @@ function TreeNodeView({
             aria-label={t('files.openInEditor')}
             onClick={() => openFile(change.path)}
           >
-            <UiIcon icon={LayoutGrid} />
+            <UiIcon icon={FileCode} />
           </button>
           {onDiscard ? (
             <button

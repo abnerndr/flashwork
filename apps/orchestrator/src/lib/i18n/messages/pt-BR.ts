@@ -2247,6 +2247,7 @@ export const ptBR: Record<MessageKey, string> = {
   'editor.tabs': 'Arquivos abertos',
   'editor.empty': 'Selecione um arquivo para editar',
   'editor.closeTab': 'Fechar',
+  'editor.confirmCloseDirty': '"{name}" tem alterações não salvas. Fechar mesmo assim?',
   'editor.dirty': 'Alterações não salvas',
   'editor.noCwdTitle': 'Sem pasta do projeto',
   'editor.noCwdBody': 'Adicione uma pasta ou um terminal a este projeto antes de abrir o editor.',

@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, File, Folder, FolderOpen } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useT } from '../../lib/i18n'
+import { getLocale, translate, useT } from '../../lib/i18n'
 import { type WorkspaceEntry, workspaceList } from '../../lib/tauri'
 import styles from './EditorPane.module.css'
 import { workspaceErrorKey } from './workspaceError'
@@ -39,18 +39,23 @@ export function FileTree({ root, activeRel, onOpenFile }: FileTreeProps) {
       } catch (error) {
         setDirs((current) => ({
           ...current,
-          [rel]: { loading: false, error: t(workspaceErrorKey(error, 'editor.errListFailed')) },
+          [rel]: {
+            loading: false,
+            error: translate(getLocale(), workspaceErrorKey(error, 'editor.errListFailed')),
+          },
         }))
       }
     },
-    [root, t],
+    [root],
   )
+  const loadDirRef = useRef(loadDir)
+  loadDirRef.current = loadDir
 
   useEffect(() => {
     setExpanded(new Set(['']))
     setDirs({})
-    void loadDir('')
-  }, [root, loadDir])
+    void loadDirRef.current('')
+  }, [root])
 
   const toggleDir = (rel: string) => {
     setExpanded((current) => {

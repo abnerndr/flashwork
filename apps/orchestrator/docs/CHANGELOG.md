@@ -45,6 +45,10 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- The editor file tree no longer collapses or reloads when typing in the editor.
+- Closing an editor tab with unsaved changes asks for confirmation.
+- A file larger than 2 MiB no longer shows its error on a different open tab.
+
 - Fetch now signs in to GitHub HTTPS remotes the same way as push and pull, so private
   remotes work after device-flow login.
 - Source Control no longer reuses a typed origin URL from another project or repository when

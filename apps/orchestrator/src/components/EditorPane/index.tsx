@@ -6,6 +6,12 @@ import type { Terminal } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './EditorPane.module.css'
+import {
+  type ReadError,
+  readErrorPlacement,
+  resolveFailedOpen,
+  shouldCloseBuffer,
+} from './editorPaneLogic'
 import { EditorTabs } from './EditorTabs'
 import { FileTree } from './FileTree'
 import { languageForPath } from './languageForPath'
@@ -33,10 +39,11 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
   const pushToast = useUiStore((state) => state.pushToast)
   const [buffers, setBuffers] = useState<EditorBuffer[]>([])
   const [activeRel, setActiveRel] = useState<string | null>(null)
-  const [readError, setReadError] = useState<string | null>(null)
+  const [readError, setReadError] = useState<ReadError | null>(null)
   const paneRef = useRef<HTMLElement | null>(null)
 
   const active = buffers.find((buffer) => buffer.rel === activeRel) ?? null
+  const errorPlacement = readErrorPlacement(readError, activeRel)
 
   const updateBuffer = useCallback((rel: string, patch: Partial<EditorBuffer>) => {
     setBuffers((current) =>
@@ -70,13 +77,23 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
       } catch (error) {
         const key = workspaceErrorKey(error, 'editor.errReadFailed')
         const message = t(key)
-        setReadError(message)
-        if (!isFileTooLarge(error)) {
-          pushToast({ title: t('editor.errReadFailed'), body: message })
+        const tooLarge = isFileTooLarge(error)
+        const result = resolveFailedOpen({
+          failedRel: entry.rel,
+          message,
+          tooLarge,
+          activeRel,
+        })
+        setReadError(result.readError)
+        if (result.toast) {
+          pushToast({
+            title: t(tooLarge ? 'editor.errFileTooLarge' : 'editor.errReadFailed'),
+            body: message,
+          })
         }
       }
     },
-    [buffers, pushToast, root, t],
+    [activeRel, buffers, pushToast, root, t],
   )
 
   const saveActive = useCallback(async () => {
@@ -107,12 +124,20 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
   }, [saveActive])
 
   const closeTab = (rel: string) => {
+    const buffer = buffers.find((item) => item.rel === rel)
+    if (
+      !shouldCloseBuffer(buffer, () =>
+        window.confirm(t('editor.confirmCloseDirty', { name: buffer?.name ?? rel })),
+      )
+    ) {
+      return
+    }
     setBuffers((current) => {
-      const next = current.filter((buffer) => buffer.rel !== rel)
+      const next = current.filter((item) => item.rel !== rel)
       if (activeRel === rel) setActiveRel(next[next.length - 1]?.rel ?? null)
       return next
     })
-    if (readError) setReadError(null)
+    setReadError((current) => (current?.rel === rel ? null : current))
   }
 
   return (
@@ -132,10 +157,12 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
           }}
           onClose={closeTab}
         />
-        {readError && active ? <div className={styles.inlineBanner}>{readError}</div> : null}
+        {errorPlacement === 'banner' && readError ? (
+          <div className={styles.inlineBanner}>{readError.message}</div>
+        ) : null}
         <div className={styles.editor}>
-          {readError && !active ? (
-            <div className={styles.inlineError}>{readError}</div>
+          {errorPlacement === 'inline' && readError ? (
+            <div className={styles.inlineError}>{readError.message}</div>
           ) : active ? (
             <Suspense fallback={<div className={styles.placeholder}>{t('editor.loading')}</div>}>
               <MonacoHost

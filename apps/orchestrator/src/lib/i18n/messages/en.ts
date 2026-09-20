@@ -2230,6 +2230,7 @@ export const en = {
   'editor.tabs': 'Open files',
   'editor.empty': 'Select a file to edit',
   'editor.closeTab': 'Close',
+  'editor.confirmCloseDirty': '"{name}" has unsaved changes. Close it anyway?',
   'editor.dirty': 'Unsaved changes',
   'editor.noCwdTitle': 'No project folder',
   'editor.noCwdBody': 'Add a folder or a terminal to this project before opening the editor.',

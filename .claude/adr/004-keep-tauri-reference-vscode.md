@@ -1,6 +1,6 @@
 # ADR 004 — Keep Tauri; reference VS Code, do not fork it
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-09-17
 - Tags: ide, vscode, extensions
 

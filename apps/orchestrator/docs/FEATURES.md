@@ -79,6 +79,14 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 - List local Claude session metadata when available.
 - Open history modals from agent panes.
 
+## Editor
+
+- Open an editor pane from the project context menu (file tree, tabs, Monaco).
+- Save the active file with Ctrl+S / Cmd+S. Files larger than 2 MiB are not opened.
+- Explorer opens source files in the editor; markdown still uses the right-sidebar history.
+- Source Control opens a file in the editor. Open in VS Code remains available on terminals.
+- Marketplace **Extensions (beta)** searches Open VSX and installs themes, grammars, and language packs into `.flashwork/extensions`. Electron-only extensions are refused.
+
 ## Project Sidebar
 
 - Home, groups, subgroups, projects, and terminals in one navigation tree.

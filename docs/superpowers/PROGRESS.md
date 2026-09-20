@@ -1,6 +1,6 @@
 # Flashwork IDE program — execution progress
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Resume here if the session context runs out. Implement **one numbered plan at a time**. Default order: **P09 → P10 → P12 → P11 → P01 → P02 → P04 → P07 → P03 → P05 → P06 → P08**.
 
@@ -20,17 +20,26 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P07 Opaque model router | `4fd97fb` | done |
 | P03 Visual refresh | `2860ea9` | done |
 | P05 GitHub source control | `33ae3bd` | done |
+| P06 IDE workbench | `c76bfb6` | done |
 
 ## Current slice
 
-**Plan:** P06 — `docs/superpowers/plans/2026-09-17-06-ide-workbench.md`  
-**ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
-**Branch:** start `feat/p06-ide-workbench` from `master`  
+**Plan:** P08 — `docs/superpowers/plans/2026-09-17-08-canvas-beta.md`  
+**ADR:** `.claude/adr/007-canvas-beta-n8n.md`  
+**Branch:** start `feat/p08-canvas-beta` from `master`  
 **Status:** not started.
 
-## After P06
+## After P08
 
-Start P08 (`docs/superpowers/plans/2026-09-17-08-canvas-beta.md`) unless the P06 plan or owner says otherwise.
+Program slices P01–P12 are complete except remaining notes below. Stop unless the owner names more work.
+
+## P06 notes (for later slices)
+
+- Editor pane: Monaco (`monaco-editor` lazy), tree via confined `workspace_*` IO, Ctrl+S, 2 MiB read cap. One editor pane per project (`createEditorPane` reuses).
+- Workspace writes refuse leaf/dangling symlinks (`path_escape`). Windows `fs::write` still has a TOCTOU vs reparse points (commented, not rewritten).
+- Open VSX install into `{cwd}/.flashwork/extensions/<publisher>.<name>`. Electron-only VSIX → `extension_incompatible`. Download/extract capped at 32 MiB. No redirect off `open-vsx.org`.
+- `@codingame/monaco-vscode-api` was **not** adopted; installed themes/grammars sit on disk and are not applied in Monaco.
+- Explorer: markdown → right-sidebar history; source → editor. SCM Open file joins `absoluteRepoPath`. Open in VS Code unchanged.
 
 ## P07 notes (for later slices)
 

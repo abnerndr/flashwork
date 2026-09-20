@@ -1,4 +1,4 @@
-# Context snapshot — what already exists (2026-09-17)
+# Context snapshot — what already exists (2026-09-20)
 
 This is a read of the current `flashwork` tree, not a wish list. Gaps for the IDE program are listed at the end.
 
@@ -86,15 +86,18 @@ Creating a project requires a destination folder. Flashwork writes `<folder>/.fl
 - Icons: lucide-react via `UiIcon` (16 px, stroke 1.75) + agent brand images at min 16×16. Inactive agent marks stay at opacity ≥ 0.7.
 - Workbench chrome: `--workbench-tab-height` 35 px on the title bar and pane headers; focused Normal panes use a 1 px `--accent` border.
 
-Owner still wants the editor workbench (P06) at VS Code quality. GitHub SCM shipped in P05.
+GitHub SCM shipped in P05. Editor workbench shipped in P06 (Monaco + Open VSX subset; monaco-vscode-api not adopted).
 
 ## Canvas (experimental, not N8N)
 
 `AgentCanvasPOC` is an agent-session graph (nodes = subagents/teammates, cost, workers). It is **not** a general workflow canvas (HTTP, filters, text blocks, API fan-out).
 
-## Editor (almost none)
+## Editor (P06 shipped)
 
-Flashwork orchestrates terminals. Markdown panes and a private browser exist. There is no workbench editor, file tree editor, or extension host.
+- Pane kind `editor`: lazy file tree, tabs, Monaco (`monaco-editor`, dynamically imported). Open from the project context menu. Save with Ctrl+S / Cmd+S. Files larger than 2 MiB are refused (`file_too_large`).
+- Workspace IO is confined to the project folder (`workspace_list` / `workspace_read` / `workspace_write`); escape is `path_escape`. Writes refuse leaf/dangling symlinks.
+- Explorer: markdown stays in the right-sidebar history; source files open in the editor. Source Control “Open file” focuses the editor. **Open in VS Code** is unchanged.
+- Marketplace tab **Extensions (beta)** installs a subset from Open VSX into `{cwd}/.flashwork/extensions/<publisher>.<name>`. Electron-only VSIX is refused (`extension_incompatible`). Installed themes/grammars are on disk; they are not loaded into Monaco yet (`@codingame/monaco-vscode-api` not adopted).
 
 ## Docs already in the app
 
@@ -106,10 +109,10 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 
 | # | Gap |
 | --- | --- |
-| 4 | ~~Visual polish: icons + type, VS Code–like workbench chrome~~ **P03 shipped.** Remaining: editor workbench still below VS Code (P06) |
+| 4 | ~~Visual polish: icons + type, VS Code–like workbench chrome~~ **P03 shipped.** |
 | 5 | ~~Project = folder + isolated harness/RAG/history~~ **P04 shipped.** Remaining: attachment files still profile-scoped; 09-04 project hub not under `.flashwork/` |
-| 6 | ~~GitHub SCM below VS Code quality~~ **P05 shipped.** Remaining: no VS Code extension install |
-| 7 | No IDE editor behind the orchestrator |
+| 6 | ~~GitHub SCM below VS Code quality~~ **P05 shipped.** Remaining: device flow needs `FLASHWORK_GITHUB_CLIENT_ID` when `gh` is not logged in |
+| 7 | ~~No IDE editor behind the orchestrator~~ **P06 shipped.** Remaining: monaco-vscode-api not adopted (installed VSIX not applied in Monaco); Windows write TOCTOU on reparse points |
 | 8 | ~~Model/token/agent choice still leaks to the developer~~ **P07 shipped.** Remaining: pin-CLI still available behind Choose agent; API runs have no streaming pane (reply file + toast); HUD expand is session-local until remount |
 | 9 | No N8N-like flow canvas (beta) |
 | 13 | API-path token metering for Auto-without-CLI — `provider_chat` + `api:*` spawn exist (P11/P07); HUD still does not ingest vendor usage JSON |

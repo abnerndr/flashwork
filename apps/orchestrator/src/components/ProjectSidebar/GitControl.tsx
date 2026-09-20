@@ -26,6 +26,7 @@ import { useGitOrigin } from '../../hooks/useGitOrigin'
 import { readableError } from '../../lib/errors'
 import { createPullRequestUrl } from '../../lib/git/githubCompareUrl'
 import { type MessageKey, useT } from '../../lib/i18n'
+import { openSourceInEditor } from '../../lib/openInEditor'
 import {
   getPtyCwd,
   gitCheckout,
@@ -668,7 +669,6 @@ function TreeNodeView({
   const indent = { paddingLeft: 8 + depth * 12 }
 
   const createDiffPane = useProjectsStore((s) => s.createDiffPane)
-  const createFilePane = useProjectsStore((s) => s.createFilePane)
   const openPane = useProjectsStore((s) => s.openPane)
   const requestPaneFocus = useUiStore((s) => s.requestPaneFocus)
 
@@ -684,9 +684,7 @@ function TreeNodeView({
   }
 
   const openFile = (filePath: string) => {
-    const pane = createFilePane(projectId, { filePath: absoluteRepoPath(repoRoot, filePath) })
-    openPane(projectId, pane.id)
-    requestPaneFocus(pane.id)
+    openSourceInEditor(projectId, filePath)
   }
 
   if (node.type === 'file') {
@@ -714,8 +712,8 @@ function TreeNodeView({
           </button>
           <button
             type="button"
-            title={t('files.addToGrid')}
-            aria-label={t('files.addToGrid')}
+            title={t('files.openInEditor')}
+            aria-label={t('files.openInEditor')}
             onClick={() => openFile(change.path)}
           >
             <UiIcon icon={LayoutGrid} />

@@ -1421,6 +1421,7 @@ export const en = {
   'files.reveal': 'Reveal in File Explorer',
   'files.revealFolder': 'Open folder in File Explorer',
   'files.addToGrid': 'Add to grid',
+  'files.openInEditor': 'Open in editor',
   'files.openMarkdownSidebar': 'Open in right Markdown viewer',
   'files.preview': 'Preview',
   'files.loadingPreview': 'Loading preview...',
@@ -1436,7 +1437,7 @@ export const en = {
   'files.deleteDone': 'Deleted',
   'files.actionFailed': 'File operation failed',
   'files.dragHint':
-    '{path} — drag to the workspace, click to preview, or double-click to add to the grid',
+    '{path} — drag to the workspace, click to preview, or double-click to open',
   'files.dropToGrid': 'Drop to add this file to the grid',
   'git.loading': 'Reading repository...',
   'git.refresh': 'Refresh repository',

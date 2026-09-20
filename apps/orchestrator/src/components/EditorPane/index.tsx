@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import { useT } from '../../lib/i18n'
+import { basename } from '../../lib/paths'
 import { type WorkspaceEntry, workspaceRead, workspaceWrite } from '../../lib/tauri'
 import type { Terminal } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -32,15 +33,17 @@ export type EditorPaneProps = {
   terminal: Terminal
 }
 
-export default function EditorPane({ terminal }: EditorPaneProps) {
+export default function EditorPane({ projectId, terminal }: EditorPaneProps) {
   const t = useT()
   const root = terminal.cwd
   const uiTheme = useProjectsStore((state) => state.preferences.uiTheme)
   const pushToast = useUiStore((state) => state.pushToast)
+  const editorOpenRequest = useUiStore((state) => state.editorOpenRequest)
   const [buffers, setBuffers] = useState<EditorBuffer[]>([])
   const [activeRel, setActiveRel] = useState<string | null>(null)
   const [readError, setReadError] = useState<ReadError | null>(null)
   const paneRef = useRef<HTMLElement | null>(null)
+  const lastOpenTs = useRef<number | null>(null)
 
   const active = buffers.find((buffer) => buffer.rel === activeRel) ?? null
   const errorPlacement = readErrorPlacement(readError, activeRel)
@@ -52,8 +55,12 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
   }, [])
 
   const openFile = useCallback(
-    async (entry: WorkspaceEntry) => {
-      if (entry.isDir) return
+    async (target: WorkspaceEntry | string) => {
+      const entry: WorkspaceEntry =
+        typeof target === 'string'
+          ? { rel: target.replace(/\\/g, '/'), name: basename(target) || target, isDir: false }
+          : target
+      if (entry.isDir || !entry.rel) return
       const existing = buffers.find((buffer) => buffer.rel === entry.rel)
       if (existing) {
         setReadError(null)
@@ -95,6 +102,14 @@ export default function EditorPane({ terminal }: EditorPaneProps) {
     },
     [activeRel, buffers, pushToast, root, t],
   )
+
+  useEffect(() => {
+    if (!editorOpenRequest) return
+    if (editorOpenRequest.projectId !== projectId) return
+    if (lastOpenTs.current === editorOpenRequest.ts) return
+    lastOpenTs.current = editorOpenRequest.ts
+    void openFile(editorOpenRequest.rel)
+  }, [editorOpenRequest, openFile, projectId])
 
   const saveActive = useCallback(async () => {
     if (!active || active.value === active.savedValue) return

@@ -20,6 +20,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- Explorer and Source Control open source files in the editor pane. Markdown still opens in the
+  right-sidebar history. Open in VS Code is unchanged.
 - Open VSX install is live; `@codingame/monaco-vscode-api` was **not** adopted because it would
   replace the Monaco host. Electron-only VSIX is refused with `extension_incompatible`.
 - Interface type uses a VS Code–like stack (Segoe UI Variable / Cascadia Code, Inter as fallback).

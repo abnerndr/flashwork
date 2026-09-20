@@ -1439,6 +1439,7 @@ export const ptBR: Record<MessageKey, string> = {
   'files.reveal': 'Mostrar no Explorador de Arquivos',
   'files.revealFolder': 'Abrir pasta no Explorador de Arquivos',
   'files.addToGrid': 'Adicionar ao grid',
+  'files.openInEditor': 'Abrir no editor',
   'files.openMarkdownSidebar': 'Abrir no visualizador Markdown à direita',
   'files.preview': 'Visualizar',
   'files.loadingPreview': 'Carregando visualização...',
@@ -1454,7 +1455,7 @@ export const ptBR: Record<MessageKey, string> = {
   'files.deleteDone': 'Apagado',
   'files.actionFailed': 'A operação no arquivo falhou',
   'files.dragHint':
-    '{path} — arraste para a área de trabalho, clique para visualizar ou dê dois cliques para adicionar ao grid',
+    '{path} — arraste para a área de trabalho, clique para visualizar ou dê dois cliques para abrir',
   'files.dropToGrid': 'Solte para adicionar este arquivo ao grid',
   'git.loading': 'Lendo repositório...',
   'git.refresh': 'Atualizar repositório',

@@ -32,6 +32,7 @@ import { ProfilesModal } from './components/modals/ProfilesModal'
 import { RecentChatsModal } from './components/modals/RecentChatsModal'
 import { RemoteControlModal } from './components/modals/RemoteControlModal'
 import { SuspendGroupModal } from './components/modals/SuspendGroupModal'
+import { GitHubLoginModal } from './components/modals/GitHubLoginModal'
 import { SyncModal } from './components/modals/SyncModal'
 import { ThemePickerModal } from './components/modals/ThemePickerModal'
 import { TodoSettingsModal } from './components/modals/TodoSettingsModal'
@@ -593,6 +594,7 @@ export default function App() {
         <PreferencesModal />
         <ProfilesModal />
         <SyncModal />
+        <GitHubLoginModal />
         <FindJumpModal />
         <OnboardingModal />
         <WelcomeModal />

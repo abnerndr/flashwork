@@ -49,6 +49,7 @@ type ModalKind =
   | 'handoff'
   | 'mcpManager'
   | 'mcpIntro'
+  | 'githubLogin'
   | null
 
 export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks'

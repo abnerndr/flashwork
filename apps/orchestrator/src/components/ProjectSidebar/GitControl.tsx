@@ -7,6 +7,7 @@ import {
   Folder,
   FolderSearch,
   GitBranch,
+  Github,
   LayoutGrid,
   Minus,
   Plus,
@@ -34,6 +35,8 @@ import {
   gitStage,
   gitStatus,
   gitUnstage,
+  githubRepoAuthStatus,
+  looksLikeGitAuthError,
   openInFileExplorer,
 } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -58,6 +61,8 @@ const ERROR_KEYS: Record<string, MessageKey> = {
 export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlProps) {
   const t = useT()
   const pushToast = useUiStore((state) => state.pushToast)
+  const openModal_ = useUiStore((state) => state.openModal_)
+  const githubLoginOpen = useUiStore((state) => state.openModal === 'githubLogin')
   const [liveCwd, setLiveCwd] = useState(cwd)
   const [status, setStatus] = useState<GitRepositoryStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +70,7 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [branches, setBranches] = useState<string[]>([])
+  const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
   const requestId = useRef(0)
                                                                             
   // rajadas de eventos de foco que poderiam disparar git em loop. Refresh manual
@@ -151,6 +157,23 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
     }
   }, [repoRoot, currentBranch])
 
+  const refreshGithubAuth = useCallback(async () => {
+    try {
+      const next = await githubRepoAuthStatus()
+      setGithubConnected(next.connected)
+    } catch {
+      setGithubConnected(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshGithubAuth()
+  }, [refreshGithubAuth, repoRoot])
+
+  useEffect(() => {
+    if (!githubLoginOpen) void refreshGithubAuth()
+  }, [githubLoginOpen, refreshGithubAuth])
+
   const branchOptions = useMemo(() => {
     if (!currentBranch) return branches
     if (branches.includes(currentBranch)) return branches
@@ -165,6 +188,11 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
       if (success) pushToast({ title: success, body: '' })
       await refresh(true)
     } catch (cause) {
+      if (looksLikeGitAuthError(cause)) {
+        const auth = await githubRepoAuthStatus().catch(() => null)
+        setGithubConnected(auth?.connected ?? false)
+        if (!auth?.connected) openModal_('githubLogin')
+      }
       pushToast({ title: t('git.error.action'), body: readableError(cause) })
     } finally {
       setBusy(false)
@@ -320,6 +348,19 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           ))}
         </select>
         {status.detached ? <small>{t('git.detached')}</small> : null}
+        {githubConnected === false ? (
+          <button
+            type="button"
+            className={styles.fetchButton}
+            onClick={() => openModal_('githubLogin')}
+            disabled={busy}
+            title={t('git.github.signIn')}
+            aria-label={t('git.github.signIn')}
+          >
+            <UiIcon icon={Github} />
+            {t('git.github.signIn')}
+          </button>
+        ) : null}
         <button
           type="button"
           className={styles.fetchButton}

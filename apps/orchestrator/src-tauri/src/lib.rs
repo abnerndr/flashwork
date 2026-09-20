@@ -27,6 +27,7 @@ mod ghostty_bridge;
 #[cfg(all(target_os = "macos", ghostty_linked))]
 mod ghostty_ffi;
 mod git_control;
+mod github_auth;
 mod github_sync;
 mod graphify;
 mod handoff;
@@ -323,6 +324,10 @@ pub fn run() {
             github_sync::github_sync_logout,
             github_sync::github_sync_push,
             github_sync::github_sync_pull,
+            github_auth::github_repo_auth_status,
+            github_auth::github_repo_device_start,
+            github_auth::github_repo_device_poll,
+            github_auth::github_repo_auth_logout,
             git_control::git_init,
             git_control::git_status,
             git_control::git_diff,

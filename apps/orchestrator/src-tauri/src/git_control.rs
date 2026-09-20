@@ -445,7 +445,12 @@ fn git_init_inner(path: String) -> Result<String, String> {
 
     if checked_output(&dir, &commit_args).is_err() {
         let mut empty_args: Vec<&str> = identity.to_vec();
-        empty_args.extend(["commit", "--allow-empty", "-m", "Commit inicial (Flashwork)"]);
+        empty_args.extend([
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Commit inicial (Flashwork)",
+        ]);
         checked_output(&dir, &empty_args)?;
     }
     repository_root(&path).map(|root| root.to_string_lossy().into_owned())
@@ -574,15 +579,58 @@ pub async fn git_commit(repo_root: String, message: String) -> Result<String, St
         .map_err(|error| format!("git_commit: falha na task bloqueante: {error}"))?
 }
 
-/// Comando git que fala com o remoto (push/pull). `GIT_TERMINAL_PROMPT=0` faz o
+fn origin_remote_url(root: &Path) -> Option<String> {
+    let output = git_command(root, &["remote", "get-url", "origin"]).ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        None
+    } else {
+        Some(url)
+    }
+}
+
+/// Extraheader env for push/pull. Empty unless origin is GitHub HTTPS and a
+/// token is available. Values are applied via process environment only.
+fn github_https_auth_env_for_repo(root: &Path) -> crate::github_auth::AuthEnv {
+    let Some(url) = origin_remote_url(root) else {
+        return crate::github_auth::AuthEnv::default();
+    };
+    match crate::github_auth::resolve_repo_token() {
+        Ok(Some(resolved)) => {
+            crate::github_auth::github_https_extraheader_auth_env(&url, resolved.secret())
+        }
+        _ => crate::github_auth::AuthEnv::default(),
+    }
+}
 
 fn remote_command(root: &Path, args: &[&str]) -> Result<String, String> {
+    remote_command_inner(root, args, None)
+}
+
+fn remote_command_with_github_auth(root: &Path, args: &[&str]) -> Result<String, String> {
+    let auth = github_https_auth_env_for_repo(root);
+    remote_command_inner(root, args, Some(&auth))
+}
+
+/// Git remote command. `GIT_TERMINAL_PROMPT=0` prevents credential prompts.
+/// Optional GitHub HTTPS extraheader is applied via env, never `git -c` argv.
+fn remote_command_inner(
+    root: &Path,
+    args: &[&str],
+    github_auth: Option<&crate::github_auth::AuthEnv>,
+) -> Result<String, String> {
     with_lock_awareness(root, || {
         let mut command = Command::new("git");
         command
             .current_dir(root)
             .args(args)
             .env("GIT_TERMINAL_PROMPT", "0");
+        if let Some(auth) = github_auth {
+            auth.apply_to(&mut command);
+        }
         hide_console(&mut command);
         let output = command.output().map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
@@ -606,9 +654,9 @@ fn remote_command(root: &Path, args: &[&str]) -> Result<String, String> {
 
 fn git_push_inner(repo_root: String) -> Result<String, String> {
     let root = validated_root(&repo_root)?;
-    match remote_command(&root, &["push"]) {
+    match remote_command_with_github_auth(&root, &["push"]) {
         Err(error) if error.contains("no upstream") || error.contains("has no upstream") => {
-            remote_command(&root, &["push", "--set-upstream", "origin", "HEAD"])
+            remote_command_with_github_auth(&root, &["push", "--set-upstream", "origin", "HEAD"])
         }
         other => other,
     }
@@ -796,7 +844,7 @@ pub async fn git_diff_summary(
 fn git_pull_inner(repo_root: String) -> Result<String, String> {
     let root = validated_root(&repo_root)?;
 
-    remote_command(&root, &["pull", "--ff-only"])
+    remote_command_with_github_auth(&root, &["pull", "--ff-only"])
 }
 
 #[tauri::command]
@@ -851,7 +899,11 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         checked_output(&root, &["init", "-b", "main"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("a.txt"), "a\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
         checked_output(&root, &["commit", "-m", "base"]).unwrap();
@@ -982,7 +1034,11 @@ mod tests {
         let root = temp_dir("init-idempotent");
         checked_output(&root, &["init"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("a.txt"), "a\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
         checked_output(&root, &["commit", "-m", "first"]).unwrap();
@@ -1001,7 +1057,11 @@ mod tests {
         let root = temp_dir("diff-summary");
         checked_output(&root, &["init", "-b", "main"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("kept.txt"), "same on both\n").unwrap();
         fs::write(root.join("old-name.txt"), "will be renamed\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
@@ -1038,7 +1098,11 @@ mod tests {
         let root = temp_dir("diff-summary-uncommitted");
         checked_output(&root, &["init", "-b", "main"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("base.txt"), "base\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
         checked_output(&root, &["commit", "-m", "base"]).unwrap();
@@ -1202,7 +1266,11 @@ mod tests {
         let root = temp_dir("checkout-switch");
         checked_output(&root, &["init", "-b", "main"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("tracked.txt"), "base\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
         checked_output(&root, &["commit", "-m", "base"]).unwrap();
@@ -1222,7 +1290,11 @@ mod tests {
         let root = temp_dir("checkout-conflicts");
         checked_output(&root, &["init", "-b", "main"]).unwrap();
         checked_output(&root, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&root, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &root,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(root.join("file.txt"), "base\n").unwrap();
         checked_output(&root, &["add", "-A"]).unwrap();
         checked_output(&root, &["commit", "-m", "base"]).unwrap();
@@ -1261,7 +1333,11 @@ mod tests {
         let origin = temp_dir("fetch-origin");
         checked_output(&origin, &["init", "-b", "main"]).unwrap();
         checked_output(&origin, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&origin, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &origin,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
         fs::write(origin.join("file.txt"), "one\n").unwrap();
         checked_output(&origin, &["add", "-A"]).unwrap();
         checked_output(&origin, &["commit", "-m", "one"]).unwrap();
@@ -1269,7 +1345,11 @@ mod tests {
         let clone = temp_dir("fetch-clone");
         checked_output(&clone, &["clone", origin.to_str().unwrap(), "."]).unwrap();
         checked_output(&clone, &["config", "user.name", "Flashwork Test"]).unwrap();
-        checked_output(&clone, &["config", "user.email", "flashwork@example.invalid"]).unwrap();
+        checked_output(
+            &clone,
+            &["config", "user.email", "flashwork@example.invalid"],
+        )
+        .unwrap();
 
         fs::write(origin.join("file.txt"), "two\n").unwrap();
         checked_output(&origin, &["add", "-A"]).unwrap();
@@ -1283,5 +1363,47 @@ mod tests {
 
         fs::remove_dir_all(origin).unwrap();
         fs::remove_dir_all(clone).unwrap();
+    }
+
+    #[test]
+    fn origin_remote_url_reads_https_github_origin() {
+        let root = temp_dir("origin-url");
+        checked_output(&root, &["init", "-b", "main"]).unwrap();
+        checked_output(
+            &root,
+            &["remote", "add", "origin", "https://github.com/acme/app.git"],
+        )
+        .unwrap();
+        assert_eq!(
+            origin_remote_url(&root).as_deref(),
+            Some("https://github.com/acme/app.git")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn extraheader_helper_used_by_push_pull_skips_ssh_and_empty_token() {
+        let token = "gho_git_control_extraheader_token";
+        let ssh = crate::github_auth::github_https_extraheader_auth_env(
+            "git@github.com:acme/app.git",
+            token,
+        );
+        let empty = crate::github_auth::github_https_extraheader_auth_env(
+            "https://github.com/acme/app.git",
+            "",
+        );
+        let ok = crate::github_auth::github_https_extraheader_auth_env(
+            "https://github.com/acme/app.git",
+            token,
+        );
+        assert!(ssh.is_empty());
+        assert!(empty.is_empty());
+        assert!(!ok.is_empty());
+        let err = format!(
+            "git_command_failed:{}",
+            crate::github_auth::format_auth_helper_error("authentication_failed",)
+        );
+        assert!(!err.contains(token));
+        assert!(!format!("{ok:?}").contains(token));
     }
 }

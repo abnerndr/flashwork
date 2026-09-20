@@ -39,14 +39,23 @@
 .danger .itemIcon {
   color: inherit;
 }
-.item:hover {
+.item:hover:not(:disabled) {
   background: var(--panel-hover);
+}
+
+.item:disabled {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.item:disabled .itemIcon {
+  color: var(--fg-muted);
 }
 
 .danger {
   color: var(--status-offline);
 }
-.danger:hover {
+.danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.12);
 }
 

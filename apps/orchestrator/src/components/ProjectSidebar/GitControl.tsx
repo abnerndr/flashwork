@@ -383,10 +383,13 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const moreMenuItems: MenuItem[] = scmMoreMenuEntries({
     showOpenPullRequest: Boolean(pullRequestUrl),
     showSignIn: githubConnected === false,
+    detached: status.detached,
+    canPublish,
+    busy,
   }).map((entry) =>
     entry.kind === 'separator'
       ? { kind: 'separator' }
-      : { kind: 'item', ...moreItemSpec[entry.id] },
+      : { kind: 'item', ...moreItemSpec[entry.id], disabled: entry.disabled },
   )
 
   return (

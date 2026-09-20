@@ -18,24 +18,81 @@ describe('scmMoreMenuEntries', () => {
 
   it('appends Open pull request and Sign in after a separator', () => {
     expect(scmMoreMenuEntries({ showOpenPullRequest: true, showSignIn: true })).toEqual([
-      { kind: 'item', id: 'fetch' },
-      { kind: 'item', id: 'pull' },
-      { kind: 'item', id: 'push' },
-      { kind: 'item', id: 'publish' },
+      { kind: 'item', id: 'fetch', disabled: false },
+      { kind: 'item', id: 'pull', disabled: false },
+      { kind: 'item', id: 'push', disabled: false },
+      { kind: 'item', id: 'publish', disabled: false },
       { kind: 'separator' },
-      { kind: 'item', id: 'openPullRequest' },
-      { kind: 'item', id: 'signIn' },
+      { kind: 'item', id: 'openPullRequest', disabled: false },
+      { kind: 'item', id: 'signIn', disabled: false },
     ])
   })
 
   it('omits extras that are not available', () => {
     expect(scmMoreMenuEntries({ showOpenPullRequest: true, showSignIn: false })).toEqual([
-      { kind: 'item', id: 'fetch' },
-      { kind: 'item', id: 'pull' },
-      { kind: 'item', id: 'push' },
-      { kind: 'item', id: 'publish' },
+      { kind: 'item', id: 'fetch', disabled: false },
+      { kind: 'item', id: 'pull', disabled: false },
+      { kind: 'item', id: 'push', disabled: false },
+      { kind: 'item', id: 'publish', disabled: false },
       { kind: 'separator' },
-      { kind: 'item', id: 'openPullRequest' },
+      { kind: 'item', id: 'openPullRequest', disabled: false },
     ])
+  })
+
+  it('disables Pull, Push, and Publish on detached HEAD; Fetch stays enabled', () => {
+    const flags = Object.fromEntries(
+      scmMoreMenuEntries({
+        showOpenPullRequest: false,
+        showSignIn: false,
+        detached: true,
+        canPublish: true,
+      })
+        .filter((entry) => entry.kind === 'item')
+        .map((entry) => [entry.id, entry.disabled]),
+    )
+    expect(flags).toEqual({
+      fetch: false,
+      pull: true,
+      push: true,
+      publish: true,
+    })
+  })
+
+  it('disables Publish when the branch cannot be published', () => {
+    const flags = Object.fromEntries(
+      scmMoreMenuEntries({
+        showOpenPullRequest: false,
+        showSignIn: false,
+        canPublish: false,
+      })
+        .filter((entry) => entry.kind === 'item')
+        .map((entry) => [entry.id, entry.disabled]),
+    )
+    expect(flags).toEqual({
+      fetch: false,
+      pull: false,
+      push: false,
+      publish: true,
+    })
+  })
+
+  it('disables every action while busy, including Fetch', () => {
+    const flags = Object.fromEntries(
+      scmMoreMenuEntries({
+        showOpenPullRequest: true,
+        showSignIn: true,
+        busy: true,
+      })
+        .filter((entry) => entry.kind === 'item')
+        .map((entry) => [entry.id, entry.disabled]),
+    )
+    expect(flags).toEqual({
+      fetch: true,
+      pull: true,
+      push: true,
+      publish: true,
+      openPullRequest: true,
+      signIn: true,
+    })
   })
 })

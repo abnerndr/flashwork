@@ -7,7 +7,14 @@ import { createPortal } from 'react-dom'
 import styles from './ContextMenu.module.css'
 
 export type MenuItem =
-  | { kind: 'item'; label: string; onClick: () => void; danger?: boolean; icon?: ReactNode }
+  | {
+      kind: 'item'
+      label: string
+      onClick: () => void
+      danger?: boolean
+      icon?: ReactNode
+      disabled?: boolean
+    }
   | { kind: 'separator' }
 
 type Props = {
@@ -50,8 +57,11 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             key={i}
             type="button"
             role="menuitem"
+            disabled={item.disabled}
+            aria-disabled={item.disabled || undefined}
             className={`${styles.item} ${item.danger ? styles.danger : ''}`}
             onClick={() => {
+              if (item.disabled) return
               item.onClick()
               onClose()
             }}

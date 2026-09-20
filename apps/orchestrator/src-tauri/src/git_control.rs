@@ -592,7 +592,7 @@ fn origin_remote_url(root: &Path) -> Option<String> {
     }
 }
 
-/// Extraheader env for push/pull. Empty unless origin is GitHub HTTPS and a
+/// Extraheader env for push/pull/fetch. Empty unless origin is GitHub HTTPS and a
 /// token is available. Values are applied via process environment only.
 fn github_https_auth_env_for_repo(root: &Path) -> crate::github_auth::AuthEnv {
     let Some(url) = origin_remote_url(root) else {
@@ -604,10 +604,6 @@ fn github_https_auth_env_for_repo(root: &Path) -> crate::github_auth::AuthEnv {
         }
         _ => crate::github_auth::AuthEnv::default(),
     }
-}
-
-fn remote_command(root: &Path, args: &[&str]) -> Result<String, String> {
-    remote_command_inner(root, args, None)
 }
 
 fn remote_command_with_github_auth(root: &Path, args: &[&str]) -> Result<String, String> {
@@ -706,7 +702,7 @@ pub async fn git_checkout(repo_root: String, branch: String) -> Result<String, S
 
 fn git_fetch_inner(repo_root: String) -> Result<String, String> {
     let root = validated_root(&repo_root)?;
-    remote_command(&root, &["fetch"])
+    remote_command_with_github_auth(&root, &["fetch"])
 }
 
 #[tauri::command]
@@ -1489,6 +1485,36 @@ mod tests {
             Some("https://github.com/acme/app.git")
         );
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn extraheader_helper_used_by_fetch_attaches_for_github_https_not_other_remotes() {
+        let token = "gho_git_control_fetch_extraheader_token";
+        let github = crate::github_auth::github_https_extraheader_auth_env(
+            "https://github.com/acme/app.git",
+            token,
+        );
+        let gitlab = crate::github_auth::github_https_extraheader_auth_env(
+            "https://gitlab.com/acme/app.git",
+            token,
+        );
+        let ssh = crate::github_auth::github_https_extraheader_auth_env(
+            "git@github.com:acme/app.git",
+            token,
+        );
+        assert!(!github.is_empty());
+        assert!(gitlab.is_empty());
+        assert!(ssh.is_empty());
+        let map = github.into_map();
+        assert_eq!(
+            map.get("GIT_CONFIG_KEY_0").map(String::as_str),
+            Some("http.https://github.com/.extraheader")
+        );
+        assert_eq!(
+            map.get("GIT_CONFIG_VALUE_0").map(String::as_str),
+            Some("AUTHORIZATION: bearer gho_git_control_fetch_extraheader_token")
+        );
+        assert!(!format!("{gitlab:?}").contains(token));
     }
 
     #[test]

@@ -40,6 +40,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Fetch now signs in to GitHub HTTPS remotes the same way as push and pull, so private
+  remotes work after device-flow login.
 - Source Control no longer reuses a typed origin URL from another project or repository when
   publishing a branch.
 - Auto API replies are written into the run folder (`api-reply.md`) even when that file did not

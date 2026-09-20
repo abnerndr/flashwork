@@ -72,6 +72,10 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Source Control can switch branches, fetch remotes, sign in to GitHub for repository push and pull
+  (separate from gist backup), publish a branch, and open a pull request. The Git view follows VS
+  Code Source Control: header with refresh and more actions (Fetch, Pull, Push, Publish), commit box
+  above the file lists, then Staged, Changes, Untracked, and Conflicts.
 - Flashwork routes Auto and Task Board (UI vs architecture) without asking which model to pick; cheap first-party API when a key is saved, else the classifier; Token HUD stays collapsed unless enabled in Preferences.
 - Skills can be installed from a local folder or a git URL into the shared store (`~/.agents/skills`), with optional links into each agent's skills folder. The MCP sidebar is titled **Marketplace**, with equal **Add MCP server** and **Install skill** actions.
 - Task board cards can attach one or more markdown handoff files (**Attach handoff**) and, when

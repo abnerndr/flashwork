@@ -10,9 +10,14 @@
   min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px 7px 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 8px 7px 12px;
   border-bottom: 1px solid var(--border);
+}
+.repoHeader > svg {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
 }
 .repoContext {
   min-width: 0;
@@ -61,35 +66,18 @@
   opacity: 0.4;
 }
 
-.branchRow {
-  min-height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px 0 12px;
-  color: var(--fg-muted);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 10px;
-}
-.branchRow > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--fg);
-}
 .branchSelect {
   min-width: 0;
-  flex: 1;
-  max-width: 200px;
+  flex: 0 1 140px;
+  max-width: 160px;
   height: 22px;
   padding: 0 6px;
   color: var(--fg);
   background: var(--bg-sunken);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 .branchSelect:focus {
   border-color: var(--accent);
@@ -98,51 +86,44 @@
 .branchSelect:disabled {
   opacity: 0.4;
 }
-.fetchButton {
-  display: flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 7px;
-  color: var(--fg-muted);
-  border-radius: var(--radius-sm);
-  font: inherit;
-}
-.fetchButton:hover:not(:disabled) {
-  color: var(--fg);
-  background: var(--panel-hover);
-}
-.fetchButton:disabled {
-  opacity: 0.4;
-}
-.branchRow small {
+.repoHeader small {
   color: var(--fg-faint);
-  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
-
-/* Sync (push/pull) — estilo barra de status do VSCode */
-.syncButton {
-  margin-left: auto;
+.headerActions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.signInButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   height: 22px;
   padding: 0 7px;
   color: var(--fg-muted);
   border-radius: var(--radius-sm);
+  font-size: 10px;
 }
-.syncButton:hover:not(:disabled) {
+.signInButton:hover:not(:disabled) {
   color: var(--fg);
   background: var(--panel-hover);
 }
-.syncButton:disabled {
+.signInButton:disabled {
   opacity: 0.4;
 }
-.syncCounts {
+.syncStatus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
-.syncCounts > span {
+.syncStatus > span {
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -199,29 +180,8 @@
 .commitButton:disabled {
   opacity: 0.42;
 }
-.syncWide {
-  min-height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 12px;
-  color: var(--fg);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 600;
-}
-.syncWide:hover:not(:disabled) {
-  background: var(--panel-hover);
-  border-color: var(--accent);
-}
-.syncWide:disabled {
-  opacity: 0.42;
-}
 
-.publishRow {
+.originField {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -249,13 +209,6 @@
 }
 .originInput:disabled {
   opacity: 0.42;
-}
-.publishActions {
-  display: flex;
-  gap: 6px;
-}
-.publishActions .syncWide {
-  flex: 1;
 }
 
 .groups {
@@ -315,7 +268,6 @@
   height: 28px;
 }
 
-                        
 .tree {
   padding: 0 4px 4px;
 }
@@ -379,7 +331,6 @@
   color: var(--fg-muted);
 }
 
-                                                    
 .stAdded {
   color: var(--status-working);
 }

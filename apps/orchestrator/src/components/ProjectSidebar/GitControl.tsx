@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Download,
   Folder,
   FolderSearch,
   GitBranch,
@@ -11,6 +12,7 @@ import {
   Github,
   LayoutGrid,
   Minus,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -23,7 +25,7 @@ import { UiIcon } from '../ui/UiIcon'
 import { useGitOrigin } from '../../hooks/useGitOrigin'
 import { readableError } from '../../lib/errors'
 import { createPullRequestUrl } from '../../lib/git/githubCompareUrl'
-import { type MessageKey,useT } from '../../lib/i18n'
+import { type MessageKey, useT } from '../../lib/i18n'
 import {
   getPtyCwd,
   gitCheckout,
@@ -47,7 +49,16 @@ import {
 } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
+import { ContextMenu, type MenuItem } from './ContextMenu'
 import styles from './GitControl.module.css'
+import {
+  SCM_GROUP_ORDER,
+  scmMoreMenuEntries,
+  type ScmGroupKind,
+  type ScmMoreMenuItemId,
+} from './scmLayout'
+
+type GroupKind = ScmGroupKind
 
 type GitControlProps = {
   projectId: string
@@ -55,8 +66,6 @@ type GitControlProps = {
   ptyId: string | null
   terminalName: string
 }
-
-type GroupKind = 'staged' | 'changes' | 'untracked' | 'conflicts'
 
 const ERROR_KEYS: Record<string, MessageKey> = {
   git_not_found: 'git.error.notFound',
@@ -77,10 +86,9 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const [message, setMessage] = useState('')
   const [branches, setBranches] = useState<string[]>([])
   const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
+  const [moreMenu, setMoreMenu] = useState<{ x: number; y: number } | null>(null)
   const requestId = useRef(0)
-                                                                            
-  // rajadas de eventos de foco que poderiam disparar git em loop. Refresh manual
-  // (quiet=false) ignora o throttle.
+  // Focus bursts can retrigger git in a loop. Manual refresh (quiet=false) ignores the throttle.
   const lastAutoRefreshRef = useRef(0)
 
   useEffect(() => {
@@ -144,7 +152,10 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
 
   const repoRoot = status?.repoRoot
   const currentBranch = status?.branch
-  const { originUrl, originInput, setOriginInput, refreshOrigin } = useGitOrigin(projectId, repoRoot)
+  const { originUrl, originInput, setOriginInput, refreshOrigin } = useGitOrigin(
+    projectId,
+    repoRoot,
+  )
 
   useEffect(() => {
     if (!repoRoot) {
@@ -232,18 +243,18 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
     }, t('git.commit.done'))
   }
 
-                                                                            
-                                                                       
-  const sync = async () => {
-    if (!status || busy) return
-    await run(async () => {
-      if (status.behind > 0) await gitPull(status.repoRoot)
-      await gitPush(status.repoRoot)
-    }, t('git.sync.done'))
+  const pull = async () => {
+    if (!status || busy || status.detached) return
+    await run(() => gitPull(status.repoRoot), t('git.pull.done'))
+  }
+
+  const push = async () => {
+    if (!status || busy || status.detached) return
+    await run(() => gitPush(status.repoRoot), t('git.push.done'))
   }
 
   const publish = async () => {
-    if (!status || busy) return
+    if (!status || busy || status.detached || !canPublish) return
     const publishRoot = status.repoRoot
     await run(async () => {
       if (!originUrl) {
@@ -328,6 +339,55 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const total =
     status.staged.length + status.changes.length + status.untracked.length + status.conflicts.length
   const syncTitle = t('git.sync.title', { ahead: status.ahead, behind: status.behind })
+  const groupLabel: Record<GroupKind, string> = {
+    staged: t('git.group.staged'),
+    changes: t('git.group.changes'),
+    untracked: t('git.group.untracked'),
+    conflicts: t('git.group.conflicts'),
+  }
+  const moreItemSpec: Record<
+    ScmMoreMenuItemId,
+    Omit<Extract<MenuItem, { kind: 'item' }>, 'kind'>
+  > = {
+    fetch: {
+      label: t('git.fetch.action'),
+      icon: <UiIcon icon={Download} />,
+      onClick: () => void run(() => gitFetch(status.repoRoot), t('git.fetch.done')),
+    },
+    pull: {
+      label: t('git.pull.action'),
+      icon: <UiIcon icon={ArrowDown} />,
+      onClick: () => void pull(),
+    },
+    push: {
+      label: t('git.push.action'),
+      icon: <UiIcon icon={ArrowUp} />,
+      onClick: () => void push(),
+    },
+    publish: {
+      label: t('git.publish.action'),
+      icon: <UiIcon icon={Upload} />,
+      onClick: () => void publish(),
+    },
+    openPullRequest: {
+      label: t('git.pullRequest.action'),
+      icon: <UiIcon icon={GitPullRequest} />,
+      onClick: openPullRequest,
+    },
+    signIn: {
+      label: t('git.github.signIn'),
+      icon: <UiIcon icon={Github} />,
+      onClick: () => openModal_('githubLogin'),
+    },
+  }
+  const moreMenuItems: MenuItem[] = scmMoreMenuEntries({
+    showOpenPullRequest: Boolean(pullRequestUrl),
+    showSignIn: githubConnected === false,
+  }).map((entry) =>
+    entry.kind === 'separator'
+      ? { kind: 'separator' }
+      : { kind: 'item', ...moreItemSpec[entry.id] },
+  )
 
   return (
     <div className={styles.panel} aria-busy={busy}>
@@ -336,28 +396,6 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           <strong>{terminalName}</strong>
           <span>{status.repoRoot}</span>
         </div>
-        <button
-          type="button"
-          className={styles.iconButton}
-          onClick={() => void openInFileExplorer(status.repoRoot)}
-          title={t('files.revealFolder')}
-          aria-label={t('files.revealFolder')}
-        >
-          <UiIcon icon={FolderSearch} />
-        </button>
-        <button
-          type="button"
-          className={styles.iconButton}
-          onClick={() => void refresh()}
-          disabled={loading || busy}
-          title={t('git.refresh')}
-          aria-label={t('git.refresh')}
-        >
-          <UiIcon icon={RefreshCw} className={loading ? styles.spinning : undefined} />
-        </button>
-      </div>
-
-      <div className={styles.branchRow}>
         <UiIcon icon={GitBranch} />
         <select
           className={styles.branchSelect}
@@ -377,87 +415,75 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
           ))}
         </select>
         {status.detached ? <small>{t('git.detached')}</small> : null}
-        {githubConnected === false ? (
-          <button
-            type="button"
-            className={styles.fetchButton}
-            onClick={() => openModal_('githubLogin')}
-            disabled={busy}
-            title={t('git.github.signIn')}
-            aria-label={t('git.github.signIn')}
-          >
-            <UiIcon icon={Github} />
-            {t('git.github.signIn')}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={styles.fetchButton}
-          onClick={() => void run(() => gitFetch(status.repoRoot), t('git.fetch.done'))}
-          disabled={busy}
-          title={t('git.fetch.title')}
-          aria-label={t('git.fetch.action')}
-        >
-          {t('git.fetch.action')}
-        </button>
-        <button
-          type="button"
-          className={styles.syncButton}
-          onClick={() => void sync()}
-          disabled={busy || status.detached}
-          title={syncTitle}
-          aria-label={syncTitle}
-        >
-          <UiIcon icon={RefreshCw} className={busy ? styles.spinning : undefined} />
-          <span className={styles.syncCounts}>
-            <span>
-              <UiIcon icon={ArrowDown} />
-              {status.behind}
-            </span>
-            <span>
-              <UiIcon icon={ArrowUp} />
-              {status.ahead}
-            </span>
+        <span className={styles.syncStatus} title={syncTitle} aria-label={syncTitle}>
+          <span>
+            <UiIcon icon={ArrowDown} />
+            {status.behind}
           </span>
-        </button>
-      </div>
-
-      <div className={styles.publishRow}>
-        {!originUrl ? (
-          <input
-            className={styles.originInput}
-            value={originInput}
-            onChange={(event) => setOriginInput(event.target.value)}
-            placeholder={t('git.origin.placeholder')}
-            aria-label={t('git.origin.label')}
-            disabled={busy}
-          />
-        ) : null}
-        <div className={styles.publishActions}>
+          <span>
+            <UiIcon icon={ArrowUp} />
+            {status.ahead}
+          </span>
+        </span>
+        <div className={styles.headerActions}>
+          {githubConnected === false ? (
+            <button
+              type="button"
+              className={styles.signInButton}
+              onClick={() => openModal_('githubLogin')}
+              disabled={busy}
+              title={t('git.github.signIn')}
+              aria-label={t('git.github.signIn')}
+            >
+              <UiIcon icon={Github} />
+              {t('git.github.signIn')}
+            </button>
+          ) : null}
           <button
             type="button"
-            className={styles.syncWide}
-            onClick={() => void publish()}
-            disabled={busy || status.detached || !canPublish}
-            title={t('git.publish.title')}
-            aria-label={t('git.publish.action')}
+            className={styles.iconButton}
+            onClick={() => void openInFileExplorer(status.repoRoot)}
+            title={t('files.revealFolder')}
+            aria-label={t('files.revealFolder')}
           >
-            <UiIcon icon={Upload} />
-            {t('git.publish.action')}
+            <UiIcon icon={FolderSearch} />
           </button>
           <button
             type="button"
-            className={styles.syncWide}
-            onClick={openPullRequest}
-            disabled={busy || !pullRequestUrl}
-            title={t('git.pullRequest.title')}
-            aria-label={t('git.pullRequest.action')}
+            className={styles.iconButton}
+            onClick={() => void refresh()}
+            disabled={loading || busy}
+            title={t('git.refresh')}
+            aria-label={t('git.refresh')}
           >
-            <UiIcon icon={GitPullRequest} />
-            {t('git.pullRequest.action')}
+            <UiIcon icon={RefreshCw} className={loading ? styles.spinning : undefined} />
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            disabled={busy}
+            title={t('ui.sidebar.moreActions')}
+            aria-label={t('ui.sidebar.moreActions')}
+            aria-haspopup="menu"
+            aria-expanded={moreMenu !== null}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect()
+              setMoreMenu({ x: rect.right - 8, y: rect.bottom + 4 })
+            }}
+          >
+            <UiIcon icon={MoreHorizontal} />
           </button>
         </div>
       </div>
+
+      {moreMenu ? (
+        <ContextMenu
+          x={moreMenu.x}
+          y={moreMenu.y}
+          items={moreMenuItems}
+          onClose={() => setMoreMenu(null)}
+        />
+      ) : null}
 
       <div className={styles.commitBox}>
         <textarea
@@ -480,58 +506,44 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
             <UiIcon icon={Check} />
             {busy ? t('git.commit.busy') : t('git.commit.action')}
           </button>
-          <button
-            type="button"
-            className={styles.syncWide}
-            disabled={busy || status.detached}
-            onClick={() => void sync()}
-            title={syncTitle}
-          >
-            <UiIcon icon={RefreshCw} className={busy ? styles.spinning : undefined} />
-            {t('git.sync.action')}
-          </button>
         </div>
       </div>
 
+      {!originUrl ? (
+        <div className={styles.originField}>
+          <input
+            className={styles.originInput}
+            value={originInput}
+            onChange={(event) => setOriginInput(event.target.value)}
+            placeholder={t('git.origin.placeholder')}
+            aria-label={t('git.origin.label')}
+            disabled={busy}
+          />
+        </div>
+      ) : null}
+
       <div className={styles.groups}>
-        <ChangeGroup
-          projectId={projectId}
-          repoRoot={status.repoRoot}
-          kind="staged"
-          label={t('git.group.staged')}
-          items={status.staged}
-          disabled={busy}
-          onPrimary={(paths) => run(() => gitUnstage(status.repoRoot, paths))}
-        />
-        <ChangeGroup
-          projectId={projectId}
-          repoRoot={status.repoRoot}
-          kind="conflicts"
-          label={t('git.group.conflicts')}
-          items={status.conflicts}
-          disabled={busy}
-          onPrimary={(paths) => run(() => gitStage(status.repoRoot, paths))}
-        />
-        <ChangeGroup
-          projectId={projectId}
-          repoRoot={status.repoRoot}
-          kind="changes"
-          label={t('git.group.changes')}
-          items={status.changes}
-          disabled={busy}
-          onPrimary={(paths) => run(() => gitStage(status.repoRoot, paths))}
-          onDiscard={(paths) => run(() => gitDiscard(status.repoRoot, paths, false))}
-        />
-        <ChangeGroup
-          projectId={projectId}
-          repoRoot={status.repoRoot}
-          kind="untracked"
-          label={t('git.group.untracked')}
-          items={status.untracked}
-          disabled={busy}
-          onPrimary={(paths) => run(() => gitStage(status.repoRoot, paths))}
-          onDiscard={(paths) => run(() => gitDiscard(status.repoRoot, paths, true))}
-        />
+        {SCM_GROUP_ORDER.map((kind) => (
+          <ChangeGroup
+            key={kind}
+            projectId={projectId}
+            repoRoot={status.repoRoot}
+            kind={kind}
+            label={groupLabel[kind]}
+            items={status[kind]}
+            disabled={busy}
+            onPrimary={(paths) =>
+              run(() => (kind === 'staged' ? gitUnstage : gitStage)(status.repoRoot, paths))
+            }
+            onDiscard={
+              kind === 'changes'
+                ? (paths) => run(() => gitDiscard(status.repoRoot, paths, false))
+                : kind === 'untracked'
+                  ? (paths) => run(() => gitDiscard(status.repoRoot, paths, true))
+                  : undefined
+            }
+          />
+        ))}
         {total === 0 ? (
           <div className={styles.clean}>
             <Check size={18} />
@@ -805,8 +817,6 @@ function GitMessage({
   )
 }
 
-                                                                       
-
 type DirNode = { type: 'dir'; name: string; path: string; children: TreeNode[] }
 type FileNode = { type: 'file'; name: string; change: GitFileChange }
 type TreeNode = DirNode | FileNode
@@ -834,7 +844,6 @@ function buildTree(items: GitFileChange[]): TreeNode[] {
   return root.children.map(compress).sort(compareNodes)
 }
 
-                                                                                   
 function compress(node: TreeNode): TreeNode {
   if (node.type === 'file') return node
   let current = node
@@ -851,7 +860,6 @@ function compress(node: TreeNode): TreeNode {
   return current
 }
 
-                                                                
 function compareNodes(a: TreeNode, b: TreeNode): number {
   if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
   return a.name.localeCompare(b.name)

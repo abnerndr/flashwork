@@ -58,15 +58,14 @@ Key files: `src/components/McpPanel/`, `src/components/modals/mcp/AddServerFlow.
 
 Commands: `skills_scan`, `skills_detail`, `skills_install`, `skills_uninstall`. No official skills registry in v1.
 
-## Git / GitHub (partial)
+## Git / GitHub (shipped — P05 / ADR 004)
 
-- Sidebar `GitControl.tsx`: status, stage/unstage, discard, commit, push, pull, init
-- Backend: `src/lib/tauri/git.ts` + worktrees (`worktree_provision`, lock, cleanup)
-- Clone: `clone_github_repo`
-- App-data GitHub gist sync: `github_sync.rs` (token + gist push/pull of app state — **not** repo SCM)
-- Open folder in VS Code: `open_in_vscode`
+- Sidebar `GitControl.tsx`: VS Code–like Source Control — branch checkout, fetch, commit-first, more menu (Fetch / Pull / Push / Publish), groups Staged → Changes → Untracked → Conflicts
+- GitHub **repo** auth: prefer `gh auth token`, else device flow stored in keyring `flashwork.github.repo`. HTTPS `github.com` push/pull/fetch get `Authorization: Bearer` via process env. Gist backup (`github_sync.rs`) stays separate.
+- Publish: add HTTPS `origin` when missing, then `git push -u origin HEAD`. Open pull request opens the GitHub compare URL in the system browser.
+- Backend: `git.ts` + `git_control.rs` + `github_auth.rs`. Worktrees unchanged. Clone: `clone_github_repo`. Open folder in VS Code: `open_in_vscode`.
 
-**Missing:** GitHub auth for repo operations, PR flow, branch UI like VS Code SCM, installing VS Code extensions.
+**Missing:** installing VS Code extensions; device flow needs `FLASHWORK_GITHUB_CLIENT_ID` when `gh` is not logged in.
 
 ## Project creation (shipped — P04 / ADR 005)
 
@@ -87,7 +86,7 @@ Creating a project requires a destination folder. Flashwork writes `<folder>/.fl
 - Icons: lucide-react via `UiIcon` (16 px, stroke 1.75) + agent brand images at min 16×16. Inactive agent marks stay at opacity ≥ 0.7.
 - Workbench chrome: `--workbench-tab-height` 35 px on the title bar and pane headers; focused Normal panes use a 1 px `--accent` border.
 
-Owner still wants GitHub SCM and the editor workbench (P05 / P06) at VS Code quality.
+Owner still wants the editor workbench (P06) at VS Code quality. GitHub SCM shipped in P05.
 
 ## Canvas (experimental, not N8N)
 
@@ -107,9 +106,9 @@ Flashwork orchestrates terminals. Markdown panes and a private browser exist. Th
 
 | # | Gap |
 | --- | --- |
-| 4 | ~~Visual polish: icons + type, VS Code–like workbench chrome~~ **P03 shipped.** Remaining: GitHub SCM and editor workbench still below VS Code |
+| 4 | ~~Visual polish: icons + type, VS Code–like workbench chrome~~ **P03 shipped.** Remaining: editor workbench still below VS Code (P06) |
 | 5 | ~~Project = folder + isolated harness/RAG/history~~ **P04 shipped.** Remaining: attachment files still profile-scoped; 09-04 project hub not under `.flashwork/` |
-| 6 | GitHub SCM below VS Code quality; no extension install |
+| 6 | ~~GitHub SCM below VS Code quality~~ **P05 shipped.** Remaining: no VS Code extension install |
 | 7 | No IDE editor behind the orchestrator |
 | 8 | ~~Model/token/agent choice still leaks to the developer~~ **P07 shipped.** Remaining: pin-CLI still available behind Choose agent; API runs have no streaming pane (reply file + toast); HUD expand is session-local until remount |
 | 9 | No N8N-like flow canvas (beta) |

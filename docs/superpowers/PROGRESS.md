@@ -19,17 +19,18 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P04 Per-project harness/RAG | `ff198a9` | done |
 | P07 Opaque model router | `4fd97fb` | done |
 | P03 Visual refresh | `2860ea9` | done |
+| P05 GitHub source control | `33ae3bd` | done |
 
 ## Current slice
 
-**Plan:** P05 — `docs/superpowers/plans/2026-09-17-05-github-source-control.md`  
+**Plan:** P06 — `docs/superpowers/plans/2026-09-17-06-ide-workbench.md`  
 **ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
-**Branch:** start `feat/p05-github-source-control` from `master`  
+**Branch:** start `feat/p06-ide-workbench` from `master`  
 **Status:** not started.
 
-## After P05
+## After P06
 
-Start P06 (`docs/superpowers/plans/2026-09-17-06-ide-workbench.md`) unless the P05 plan or owner says otherwise.
+Start P08 (`docs/superpowers/plans/2026-09-17-08-canvas-beta.md`) unless the P06 plan or owner says otherwise.
 
 ## P07 notes (for later slices)
 
@@ -59,6 +60,14 @@ Start P06 (`docs/superpowers/plans/2026-09-17-06-ide-workbench.md`) unless the P
 - Task Board cards for folder-backed projects: `<folder>/.flashwork/history/tasks/<id>.json`. Profile `task-board.json` is the fallback. Listing binds filename stem + `project_id` to that home.
 - Run hubs stay under the app profile; `.flashwork/history/runs/README.md` is a one-line pointer. 09-04 hub is not implemented under `.flashwork/`.
 - Attachments were not migrated in this slice.
+
+## P05 notes (for later slices)
+
+- Checkout refuses when the working tree has conflicts (`checkout_blocked_conflicts`); no force in v1.
+- Repo SCM auth is `github_auth.rs` + keyring `flashwork.github.repo`, not gist `github_sync.rs`. Prefers `gh auth token`; else device flow.
+- Device flow is fail-closed until `FLASHWORK_GITHUB_CLIENT_ID` is set (OAuth App with Device Flow). `gh` logged-in users do not need it.
+- GitHub HTTPS extraheader (push/pull/fetch) uses process env, not `git -c`. SSH remotes are unchanged.
+- Combined Sync CTA was replaced by Fetch / Pull / Push / Publish in the SCM more menu.
 
 ## P03 notes (for later slices)
 

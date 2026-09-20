@@ -340,6 +340,8 @@ pub fn run() {
             git_control::git_list_branches,
             git_control::git_checkout,
             git_control::git_fetch,
+            git_control::git_remote_get,
+            git_control::git_remote_add,
             git_control::git_diff_summary,
             diagnostics::open_data_folder,
             diagnostics::open_spawn_log,

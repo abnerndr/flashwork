@@ -71,6 +71,14 @@ export async function gitFetch(repoRoot: string): Promise<string> {
   return invoke<string>('git_fetch', { repoRoot })
 }
 
+export async function gitRemoteGet(repoRoot: string, name: string): Promise<string | null> {
+  return invoke<string | null>('git_remote_get', { repoRoot, name })
+}
+
+export async function gitRemoteAdd(repoRoot: string, name: string, url: string): Promise<void> {
+  return invoke('git_remote_add', { repoRoot, name, url })
+}
+
 export async function cloneGithubRepo(url: string, targetDir: string): Promise<string> {
   return invoke<string>('clone_github_repo', { url, targetDir })
 }

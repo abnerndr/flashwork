@@ -7,18 +7,21 @@ import {
   Folder,
   FolderSearch,
   GitBranch,
+  GitPullRequest,
   Github,
   LayoutGrid,
   Minus,
   Plus,
   RefreshCw,
   RotateCcw,
+  Upload,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { UiIcon } from '../ui/UiIcon'
 
 import { readableError } from '../../lib/errors'
+import { createPullRequestUrl } from '../../lib/git/githubCompareUrl'
 import { type MessageKey,useT } from '../../lib/i18n'
 import {
   getPtyCwd,
@@ -31,12 +34,15 @@ import {
   gitListBranches,
   gitPull,
   gitPush,
+  gitRemoteAdd,
+  gitRemoteGet,
   type GitRepositoryStatus,
   gitStage,
   gitStatus,
   gitUnstage,
   githubRepoAuthStatus,
   looksLikeGitAuthError,
+  openInBrowser,
   openInFileExplorer,
 } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
@@ -71,6 +77,8 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const [message, setMessage] = useState('')
   const [branches, setBranches] = useState<string[]>([])
   const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
+  const [originUrl, setOriginUrl] = useState<string | null>(null)
+  const [originInput, setOriginInput] = useState('')
   const requestId = useRef(0)
                                                                             
   // rajadas de eventos de foco que poderiam disparar git em loop. Refresh manual
@@ -139,6 +147,22 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
   const repoRoot = status?.repoRoot
   const currentBranch = status?.branch
 
+  const refreshOrigin = useCallback(async () => {
+    if (!repoRoot) {
+      setOriginUrl(null)
+      return
+    }
+    try {
+      setOriginUrl(await gitRemoteGet(repoRoot, 'origin'))
+    } catch {
+      setOriginUrl(null)
+    }
+  }, [repoRoot])
+
+  useEffect(() => {
+    void refreshOrigin()
+  }, [refreshOrigin])
+
   useEffect(() => {
     if (!repoRoot) {
       setBranches([])
@@ -179,6 +203,9 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
     if (branches.includes(currentBranch)) return branches
     return [currentBranch, ...branches]
   }, [branches, currentBranch])
+
+  const pullRequestUrl = createPullRequestUrl(originUrl, currentBranch)
+  const canPublish = Boolean(originUrl) || originInput.trim().startsWith('https://')
 
   const run = async (action: () => Promise<unknown>, success?: string) => {
     if (busy) return
@@ -230,6 +257,24 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
       if (status.behind > 0) await gitPull(status.repoRoot)
       await gitPush(status.repoRoot)
     }, t('git.sync.done'))
+  }
+
+  const publish = async () => {
+    if (!status || busy) return
+    await run(async () => {
+      if (!originUrl) {
+        await gitRemoteAdd(status.repoRoot, 'origin', originInput)
+        await refreshOrigin()
+      }
+      await gitPush(status.repoRoot)
+    }, t('git.publish.done'))
+  }
+
+  const openPullRequest = () => {
+    if (!pullRequestUrl || busy) return
+    void openInBrowser(pullRequestUrl).catch((cause) => {
+      pushToast({ title: t('git.error.action'), body: readableError(cause) })
+    })
   }
 
   const handleInitGit = async () => {
@@ -391,6 +436,43 @@ export function GitControl({ projectId, cwd, ptyId, terminalName }: GitControlPr
             </span>
           </span>
         </button>
+      </div>
+
+      <div className={styles.publishRow}>
+        {!originUrl ? (
+          <input
+            className={styles.originInput}
+            value={originInput}
+            onChange={(event) => setOriginInput(event.target.value)}
+            placeholder={t('git.origin.placeholder')}
+            aria-label={t('git.origin.label')}
+            disabled={busy}
+          />
+        ) : null}
+        <div className={styles.publishActions}>
+          <button
+            type="button"
+            className={styles.syncWide}
+            onClick={() => void publish()}
+            disabled={busy || status.detached || !canPublish}
+            title={t('git.publish.title')}
+            aria-label={t('git.publish.action')}
+          >
+            <UiIcon icon={Upload} />
+            {t('git.publish.action')}
+          </button>
+          <button
+            type="button"
+            className={styles.syncWide}
+            onClick={openPullRequest}
+            disabled={busy || !pullRequestUrl}
+            title={t('git.pullRequest.title')}
+            aria-label={t('git.pullRequest.action')}
+          >
+            <UiIcon icon={GitPullRequest} />
+            {t('git.pullRequest.action')}
+          </button>
+        </div>
       </div>
 
       <div className={styles.commitBox}>

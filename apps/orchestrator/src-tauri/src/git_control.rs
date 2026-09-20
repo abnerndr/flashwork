@@ -716,6 +716,60 @@ pub async fn git_fetch(repo_root: String) -> Result<String, String> {
         .map_err(|error| format!("git_fetch: blocking task failed: {error}"))?
 }
 
+fn validate_https_remote_url(url: &str) -> Result<String, String> {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err("empty_remote_url".to_string());
+    }
+    if !trimmed.starts_with("https://") {
+        return Err("remote_url_must_be_https".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn git_remote_get_inner(repo_root: String, name: String) -> Result<Option<String>, String> {
+    let root = validated_root(&repo_root)?;
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("empty_remote_name".to_string());
+    }
+    let output = git_command(&root, &["remote", "get-url", name])?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(url))
+    }
+}
+
+#[tauri::command]
+pub async fn git_remote_get(repo_root: String, name: String) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || git_remote_get_inner(repo_root, name))
+        .await
+        .map_err(|error| format!("git_remote_get: blocking task failed: {error}"))?
+}
+
+fn git_remote_add_inner(repo_root: String, name: String, url: String) -> Result<(), String> {
+    let root = validated_root(&repo_root)?;
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("empty_remote_name".to_string());
+    }
+    let url = validate_https_remote_url(&url)?;
+    checked_output(&root, &["remote", "add", name, &url])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_remote_add(repo_root: String, name: String, url: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || git_remote_add_inner(repo_root, name, url))
+        .await
+        .map_err(|error| format!("git_remote_add: blocking task failed: {error}"))?
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffSummaryEntry {
@@ -864,6 +918,8 @@ mod tests {
     use super::git_discard_inner as git_discard;
     use super::git_fetch_inner as git_fetch;
     use super::git_init_inner as git_init;
+    use super::git_remote_add_inner as git_remote_add;
+    use super::git_remote_get_inner as git_remote_get;
     use super::git_stage_inner as git_stage;
     use super::git_status_inner as git_status;
     use super::git_unstage_inner as git_unstage;
@@ -1363,6 +1419,60 @@ mod tests {
 
         fs::remove_dir_all(origin).unwrap();
         fs::remove_dir_all(clone).unwrap();
+    }
+
+    #[test]
+    fn git_remote_add_then_get_returns_the_url() {
+        let root = temp_dir("remote-add");
+        checked_output(&root, &["init", "-b", "main"]).unwrap();
+        let root_string = root.to_string_lossy().into_owned();
+        git_remote_add(
+            root_string.clone(),
+            "origin".to_string(),
+            "https://github.com/acme/app.git".to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            git_remote_get(root_string, "origin".to_string())
+                .unwrap()
+                .as_deref(),
+            Some("https://github.com/acme/app.git")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_remote_add_rejects_empty_and_non_https() {
+        let root = temp_dir("remote-add-reject");
+        checked_output(&root, &["init", "-b", "main"]).unwrap();
+        let root_string = root.to_string_lossy().into_owned();
+        assert_eq!(
+            git_remote_add(root_string.clone(), "origin".to_string(), "   ".to_string()).unwrap_err(),
+            "empty_remote_url"
+        );
+        assert_eq!(
+            git_remote_add(
+                root_string.clone(),
+                "origin".to_string(),
+                "git@github.com:acme/app.git".to_string(),
+            )
+            .unwrap_err(),
+            "remote_url_must_be_https"
+        );
+        assert_eq!(
+            git_remote_add(
+                root_string.clone(),
+                "origin".to_string(),
+                "http://github.com/acme/app.git".to_string(),
+            )
+            .unwrap_err(),
+            "remote_url_must_be_https"
+        );
+        assert_eq!(
+            git_remote_get(root_string, "origin".to_string()).unwrap(),
+            None
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

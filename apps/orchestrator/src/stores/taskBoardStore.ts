@@ -23,11 +23,15 @@ type TaskBoardState = {
 }
 
 const persistTimers = new Map<string, number>()
+const pendingById = new Map<string, TaskCard>()
 
 function persist(card: TaskCard): void {
+  pendingById.set(card.id, card)
   const write = () => {
     persistTimers.delete(card.id)
-    void saveTaskCard(card).catch((cause) => {
+    const latest = pendingById.get(card.id) ?? card
+    pendingById.delete(card.id)
+    void saveTaskCard(latest).catch((cause) => {
       console.warn('[task-board] persist failed:', cause)
     })
   }
@@ -38,6 +42,23 @@ function persist(card: TaskCard): void {
   const previous = persistTimers.get(card.id)
   if (previous != null) window.clearTimeout(previous)
   persistTimers.set(card.id, window.setTimeout(write, 250))
+}
+
+/** Flush debounced card writes (app quit). */
+export async function flushTaskBoardState(): Promise<void> {
+  const pending = [...pendingById.values()]
+  for (const timer of persistTimers.values()) {
+    if (typeof window !== 'undefined') window.clearTimeout(timer)
+  }
+  persistTimers.clear()
+  pendingById.clear()
+  await Promise.all(
+    pending.map((card) =>
+      saveTaskCard(card).catch((cause) => {
+        console.warn('[task-board] flush failed:', cause)
+      }),
+    ),
+  )
 }
 
 export const useTaskBoardStore = create<TaskBoardState>((set, get) => ({

@@ -77,4 +77,65 @@ describe('projects file migration', () => {
     expect(migrated.groups[0].gridLayoutHistory).toEqual([])
     expect(migrated.preferences.workspaceGridLayoutHistory).toEqual([])
   })
+
+  it('drops persisted editor panes and Open VSX theme', () => {
+    const migrated = migrate({
+      ...EMPTY_PROJECTS_FILE,
+      version: 7,
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        appliedVsxTheme: {
+          extensionId: 'pub.theme',
+          path: 'themes/dark.json',
+          label: 'Dark',
+          uiTheme: 'vs-dark',
+        },
+      },
+      projects: [
+        {
+          id: 'project',
+          terminals: [
+            {
+              id: 'editor-pane',
+              kind: 'editor',
+              name: 'Editor',
+              cwd: '/repo',
+              tabs: [],
+              activeTabId: '',
+              disabled: false,
+              laneVisible: null,
+              lastUsedAt: 1,
+            },
+            {
+              id: 'shell-pane',
+              kind: 'terminal',
+              name: 'Shell',
+              cwd: '/repo',
+              tabs: [],
+              activeTabId: '',
+              disabled: false,
+              laneVisible: null,
+              lastUsedAt: 1,
+            },
+          ],
+        },
+      ],
+      workspace: {
+        ...EMPTY_PROJECTS_FILE.workspace,
+        containers: [
+          {
+            projectId: 'project',
+            paneIds: ['editor-pane', 'shell-pane'],
+            size: 0,
+            internalLayout: 'auto',
+            collapsed: false,
+          },
+        ],
+      },
+    })
+
+    expect(migrated.projects[0].terminals.map((term) => term.id)).toEqual(['shell-pane'])
+    expect(migrated.workspace.containers[0].paneIds).toEqual(['shell-pane'])
+    expect(migrated.preferences.appliedVsxTheme).toBeNull()
+  })
 })

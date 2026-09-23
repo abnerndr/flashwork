@@ -2,7 +2,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 260px);
   background: var(--bg);
   color: var(--fg);
 }
@@ -178,6 +178,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  min-width: 0;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   font: 12px var(--font-mono);
@@ -185,11 +186,20 @@
   cursor: grab;
 }
 
+.nodeHead span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nodeBody {
   padding: 8px 10px 12px;
   font: 12px/1.4 var(--font-sans);
   color: var(--fg);
   min-height: 48px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .output {

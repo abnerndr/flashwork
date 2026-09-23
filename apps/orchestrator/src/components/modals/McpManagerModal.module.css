@@ -4,7 +4,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: minmax(0, 232px) minmax(0, 1fr);
   gap: 14px;
   min-height: 380px;
   max-height: 60vh;
@@ -196,6 +196,7 @@
 
 .agentCard {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 9px 11px;

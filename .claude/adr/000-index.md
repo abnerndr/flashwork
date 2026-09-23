@@ -13,5 +13,7 @@
 | [009](009-remove-omniroute.md) | Remove OmniRoute/9router (no OpenRouter gateway) | accepted |
 | [010](010-provider-apis.md) | First-party Anthropic / OpenAI / Gemini APIs | proposed |
 | [011](011-token-metrics-all-agents.md) | Token metrics and identity for every CLI | proposed |
+| [011](011-withdraw-in-app-ide.md) | Withdraw the in-app IDE workbench | accepted |
+| [012](012-interrupted-auto-resume.md) | Continuity after quit/crash via disk ledger + Auto resume | accepted |
 
 Status meaning: **accepted** = already true in the running product. **proposed** = decided for this planning cycle, not implemented.

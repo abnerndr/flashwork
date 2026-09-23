@@ -50,6 +50,7 @@ type ModalKind =
   | 'mcpManager'
   | 'mcpIntro'
   | 'githubLogin'
+  | 'interruptedResume'
   | null
 
 export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks' | 'flows'
@@ -104,8 +105,6 @@ type UiState = {
   mountedPaneIds: string[]
   /** Pulse that requests focus for a specific pane. */
   focusRequest: { terminalId: string; ts: number } | null
-  /** Pulse that asks the editor pane to open a project-relative file. */
-  editorOpenRequest: { projectId: string; rel: string; ts: number } | null
   activeTerminal: { projectId: string; terminalId: string } | null
   selectedPanes: { projectId: string; terminalId: string }[]
   /** View principal sendo exibida no main. */
@@ -147,7 +146,6 @@ type UiState = {
   setOpencodeUsage: (value: OpenCodeUsageSummary | null) => void
   setFocusedTerminal: (id: string | null) => void
   requestPaneFocus: (terminalId: string) => void
-  requestEditorOpen: (projectId: string, rel: string) => void
   setActiveTerminal: (projectId: string, terminalId: string) => void
   selectPane: (projectId: string, terminalId: string, extend: boolean) => void
   clearPaneSelection: () => void
@@ -193,7 +191,6 @@ export const useUiStore = create<UiState>((set) => ({
   keptAlivePaneIds: [],
   mountedPaneIds: [],
   focusRequest: null,
-  editorOpenRequest: null,
   activeTerminal: null,
   selectedPanes: [],
   activeView: 'workspace',
@@ -244,8 +241,6 @@ export const useUiStore = create<UiState>((set) => ({
   setOpencodeUsage: (value) => set({ opencodeUsage: value }),
   setFocusedTerminal: (id) => set({ focusedTerminalId: id }),
   requestPaneFocus: (terminalId) => set({ focusRequest: { terminalId, ts: Date.now() } }),
-  requestEditorOpen: (projectId, rel) =>
-    set({ editorOpenRequest: { projectId, rel, ts: Date.now() } }),
   setActiveTerminal: (projectId, terminalId) => set({ activeTerminal: { projectId, terminalId } }),
   selectPane: (projectId, terminalId, extend) =>
     set((state) => {

@@ -25,8 +25,10 @@
 | 7 | `2026-09-17-07-opaque-model-router.md` | 9, 11, 10 rec. | Auto without model picker |
 | 3 | `2026-09-17-03-visual-refresh.md` | — | Readable icons, stronger type |
 | 5 | `2026-09-17-05-github-source-control.md` | 3 rec. | Commit/push/PR closer to VS Code SCM |
-| 6 | `2026-09-17-06-ide-workbench.md` | 4, 5 | Editor + Open VSX subset |
+| 6 | `2026-09-17-06-ide-workbench.md` | 4, 5 | Editor + Open VSX subset (**withdrawn P13**) |
 | 8 | `2026-09-17-08-canvas-beta.md` | 1, 2, 4, 7 | Beta Flows tab (n8n-like) |
+| 13 | `2026-09-20-13-withdraw-in-app-ide.md` | 6 | Remove Monaco / Open VSX; files open in VS Code |
+| 14 | `2026-09-23-14-interrupted-auto-resume.md` | Auto / Task Board | 7-day interrupted ledger + Resume in Auto |
 
 ## Definition of done (program)
 

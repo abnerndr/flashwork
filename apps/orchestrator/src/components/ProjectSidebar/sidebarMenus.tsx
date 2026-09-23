@@ -1,6 +1,5 @@
 import {
   Archive,
-  FileCode,
   FileText,
   FolderOpen,
   Globe2,
@@ -42,7 +41,6 @@ type MenuActions = Pick<
   | 'setProjectDisabled'
   | 'deleteProject'
   | 'createGraphifyPane'
-  | 'createEditorPane'
   | 'openPane'
   | 'openGroupWorkspace'
   | 'renameGroup'
@@ -158,34 +156,6 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
       label: t('ui.sidebar.designLayout'),
       icon: <Layout size={16} />,
       onClick: () => openModal('layoutDesigner', { kind: 'project', id: project.id }),
-    },
-    {
-      kind: 'item',
-      label: t('editor.open'),
-      icon: <FileCode size={16} />,
-      onClick: () => {
-        const cwd =
-          project.defaultCwd?.trim() ||
-          project.terminals.find((term) => term.cwd?.trim())?.cwd?.trim() ||
-          ''
-        if (!cwd) {
-          useUiStore.getState().pushToast({
-            title: t('editor.noCwdTitle'),
-            body: t('editor.noCwdBody'),
-          })
-          return
-        }
-        const existing = project.terminals.find((term) => term.kind === 'editor')
-        if (existing) {
-          actions.openPane(project.id, existing.id)
-          requestPaneFocus(existing.id)
-          setActiveView('workspace')
-          return
-        }
-        const pane = actions.createEditorPane(project.id, cwd)
-        requestPaneFocus(pane.id)
-        setActiveView('workspace')
-      },
     },
     ...(graphifyEnabled
       ? [

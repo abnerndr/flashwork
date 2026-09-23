@@ -18,7 +18,6 @@ import { GridCellHandles } from '../GridCellHandles'
 
 const GraphifyView = lazy(() => import('../GraphifyView').then(m => ({ default: m.GraphifyView })))
 const MarkdownPane = lazy(() => import('../MarkdownPane').then(m => ({ default: m.MarkdownPane })))
-const EditorPane = lazy(() => import('../EditorPane'))
 import { TerminalPane } from '../TerminalPane'
 import { VideoPane } from '../VideoPane'
 import { WebPane } from '../WebPane'
@@ -38,19 +37,11 @@ function Pane({
   paneDragEnabled?: boolean
   grouped?: boolean
 }) {
-  const t = useT()
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId))
   const group = !grouped
     ? project?.paneGroups?.find((candidate) => candidate.paneIds[0] === terminal.id)
     : undefined
   if (group) return <PaneGroupView projectId={projectId} group={group} />
-  if (terminal.kind === 'editor') {
-    return (
-      <Suspense fallback={<div className={styles.paneLoading}>{t('editor.loading')}</div>}>
-        <EditorPane projectId={projectId} terminal={terminal} />
-      </Suspense>
-    )
-  }
   if (terminal.kind === 'graphify') {
     return (
       <Suspense fallback={<div className={styles.paneLoading}>Loading graph...</div>}>

@@ -1,6 +1,6 @@
 .layout {
   display: grid;
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: minmax(0, 210px) minmax(0, 1fr);
   gap: 14px;
   min-height: 380px;
   max-height: 60vh;
@@ -52,6 +52,7 @@
 
 .agentRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 11px;

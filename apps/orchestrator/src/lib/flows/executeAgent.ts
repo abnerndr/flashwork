@@ -8,7 +8,7 @@ import type { PromptRun, PromptRunStatus, Project, TaskToolSelection } from '../
 import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 
-const TERMINAL: PromptRunStatus[] = ['done', 'failed', 'cancelled']
+const TERMINAL: PromptRunStatus[] = ['done', 'failed', 'cancelled', 'interrupted']
 const WAIT_MS = 15 * 60 * 1000
 const POLL_MS = 400
 

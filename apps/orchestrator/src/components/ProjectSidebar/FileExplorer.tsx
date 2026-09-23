@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Eye,
   File,
-  FileCode,
   Folder,
   FolderOpen,
   FolderSearch,
@@ -19,7 +18,6 @@ import { useEffect, useRef, useState } from 'react'
 import { readableError } from '../../lib/errors'
 import { writeFileDragPayload } from '../../lib/fileDrag'
 import { useT } from '../../lib/i18n'
-import { openSourceInEditor } from '../../lib/openInEditor'
 import { basename } from '../../lib/paths'
 import {
   deleteFilesystemEntry,
@@ -27,6 +25,7 @@ import {
   getPtyCwd,
   listDirectory,
   openInFileExplorer,
+  openInVscode,
   readTextFile,
   renameFilesystemEntry,
 } from '../../lib/tauri'
@@ -106,17 +105,13 @@ export function FileExplorer({ projectId, cwd, ptyId, terminalName }: FileExplor
 
   const openEntry = (entry: DirectoryEntry) => {
     if (entry.is_dir) return
-    if (MARKDOWN_PATTERN.test(entry.path)) {
-      openMarkdownInSidebar(entry)
-      return
-    }
+    setMenu(null)
+    setPreview(null)
     if (isMediaPath(entry.path)) {
       addToGrid(entry)
       return
     }
-    setMenu(null)
-    setPreview(null)
-    openSourceInEditor(projectId, entry.path)
+    void openInVscode(entry.path)
   }
 
   const showPreview = async (entry: DirectoryEntry) => {
@@ -221,9 +216,9 @@ export function FileExplorer({ projectId, cwd, ptyId, terminalName }: FileExplor
           {!menu.entry.is_dir ? (
             <>
               <MenuAction
-                icon={isSourcePath(menu.entry.path) ? <FileCode size={16} /> : <LayoutGrid size={16} />}
-                label={t(isSourcePath(menu.entry.path) ? 'files.openInEditor' : 'files.addToGrid')}
-                onClick={() => (isSourcePath(menu.entry.path) ? openEntry(menu.entry) : addToGrid(menu.entry))}
+                icon={isMediaPath(menu.entry.path) ? <LayoutGrid size={16} /> : <File size={16} />}
+                label={t(isMediaPath(menu.entry.path) ? 'files.addToGrid' : 'ui.terminal.openInVscode')}
+                onClick={() => (isMediaPath(menu.entry.path) ? addToGrid(menu.entry) : openEntry(menu.entry))}
               />
               <MenuAction icon={<Eye size={16} />} label={t('files.preview')} onClick={() => void showPreview(menu.entry)} />
               {MARKDOWN_PATTERN.test(menu.entry.path) ? (
@@ -355,31 +350,20 @@ function DirectoryNode({
                     <File size={16} />
                     <span>{entry.name}</span>
                     <span className={styles.rowActions}>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onOpen(entry)
-                        }}
-                        title={t(isSourcePath(entry.path) ? 'files.openInEditor' : 'files.addToGrid')}
-                        aria-label={t(isSourcePath(entry.path) ? 'files.openInEditor' : 'files.addToGrid')}
-                      >
-                        {isSourcePath(entry.path) ? <FileCode size={16} /> : <LayoutGrid size={16} />}
-                      </button>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); void onPreview(entry) }} title={t('files.preview')} aria-label={t('files.preview')}><Eye size={16} /></button>
-                      {MARKDOWN_PATTERN.test(entry.path) ? (
+                      {isMediaPath(entry.path) ? (
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation()
-                            onOpenMarkdownSidebar(entry)
+                            onOpen(entry)
                           }}
-                          title={t('files.openMarkdownSidebar')}
-                          aria-label={t('files.openMarkdownSidebar')}
+                          title={t('files.addToGrid')}
+                          aria-label={t('files.addToGrid')}
                         >
-                          <PanelRightOpen size={16} />
+                          <LayoutGrid size={16} />
                         </button>
                       ) : null}
+                      <button type="button" onClick={(event) => { event.stopPropagation(); void onPreview(entry) }} title={t('files.preview')} aria-label={t('files.preview')}><Eye size={16} /></button>
                     </span>
                   </div>
                 ),
@@ -410,7 +394,7 @@ function FilePreviewModal({
 }) {
   const t = useT()
   const source = preview ? convertFileSrc(preview.path) : ''
-  const sourceFile = preview ? isSourcePath(preview.path) : false
+  const mediaFile = preview ? isMediaPath(preview.path) : false
   return (
     <Modal
       open={Boolean(preview)}
@@ -420,9 +404,9 @@ function FilePreviewModal({
       footer={
         preview ? (
           <>
-            <button type="button" className={styles.modalAction} onClick={sourceFile ? onOpen : onAdd}>
-              {sourceFile ? <FileCode size={16} /> : <LayoutGrid size={16} />}
-              {t(sourceFile ? 'files.openInEditor' : 'files.addToGrid')}
+            <button type="button" className={styles.modalAction} onClick={mediaFile ? onAdd : onOpen}>
+              {mediaFile ? <LayoutGrid size={16} /> : <File size={16} />}
+              {t(mediaFile ? 'files.addToGrid' : 'ui.terminal.openInVscode')}
             </button>
             {MARKDOWN_PATTERN.test(preview.path) ? (
               <button
@@ -459,8 +443,4 @@ function rootName(path: string): string {
 
 function isMediaPath(path: string): boolean {
   return IMAGE_PATTERN.test(path) || VIDEO_PATTERN.test(path) || PDF_PATTERN.test(path)
-}
-
-function isSourcePath(path: string): boolean {
-  return !MARKDOWN_PATTERN.test(path) && !isMediaPath(path)
 }

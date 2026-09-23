@@ -12,19 +12,30 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- After quit or crash, interrupted Auto / Task Board runs stay offerable for 7 days. Boot offers
+  Resume in Auto or Discard; Task Board cards show a resume CTA when the linked run was cut off.
 - **Flows (beta)** tab: graph agents, text, filters, HTTP, and MCP tools so one node's output feeds the next. Off until enabled in Preferences. HTTP calls need a per-run host confirmation; `http://127.0.0.1` is opt-in.
-- Marketplace tab **Extensions (beta)**: search Open VSX and install themes, grammars, and language
-  packs into the project folder `.flashwork/extensions`. Electron-only VSIX (debuggers, views, custom
-  editors, and similar) is refused.
-- Editor pane with a project file tree, tabs, and Monaco. Open it from the project menu; save with
-  Ctrl+S / Cmd+S. Files larger than 2 MiB stay closed with an error.
+
+### Removed
+
+- In-app IDE workbench: Monaco editor pane, Open VSX Extensions tab, and VSX themes. Flashwork is
+  the agent/PTY orchestrator again. Files preview in the sidebar or open in VS Code.
+
+### Fixed
+
+- App boot no longer dies on a missing `useTaskBoardScheduler` import, which left a blank gray
+  window instead of the loading screen.
 
 ### Changed
 
-- Explorer and Source Control open source files in the editor pane. Markdown still opens in the
-  right-sidebar history. Open in VS Code is unchanged.
-- Open VSX install is live; `@codingame/monaco-vscode-api` was **not** adopted because it would
-  replace the Monaco host. Electron-only VSIX is refused with `extension_incompatible`.
+- Home has no banner, lightning, or splash hole: greeting and quick launch sit in a compact start
+  page. Flashwork opens on the workspace, not Home. The loading screen stays static.
+- Task Board composer, kanban cards, Home usage widgets, Marketplace rows, and Flows nodes no longer
+  overlap text and buttons inside bordered blocks. On the Task Board, file/handoff actions sit under
+  their hints, MCP and skills list in one column, and tool checkboxes keep their 16 px control so they
+  stay visible and clickable.
+- Clicking a file in Files previews it. Double-click, the preview action, and Source Control open
+  source in VS Code. Images, video, and PDF can still be added to the grid.
 - Interface type uses a VS Code–like stack (Segoe UI Variable / Cascadia Code, Inter as fallback).
   Sidebar and toolbar icons are 16 px with a thicker stroke. Pane headers and the title bar are 35 px.
 - Task Board cards for folder-backed projects live under that project's `.flashwork/history`.
@@ -53,6 +64,9 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Open VSX color themes with `extensionKind: ui` install instead of being refused. Installing a theme applies it to Monaco and the workbench chrome.
+- Task Board composer checkboxes no longer stretch over the form, so project, title, and tool lists can be selected again. The kanban columns stay visible below the composer.
+- Editor pane loads Monaco 0.56 through its package exports. Notification and updater npm plugins match the Rust crate minors so `tauri dev` starts.
 - Source Control opens files from the Git repository root in the editor, not relative to a nested editor cwd.
 - Open VSX install refuses a planted `.flashwork` symlink, caps VSIX download and extract at 32 MiB, and treats a missing `package.json` as malformed instead of Electron-only. Oversized or malformed VSIX shows a dedicated error instead of a generic toast.
 - Opening the editor more than once reuses the existing editor pane instead of stacking another.

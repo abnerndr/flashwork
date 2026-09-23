@@ -241,7 +241,6 @@ export type ProjectsState = ProjectsFile & {
                                                                     
   createWebPane: (projectId: string, args: BrowserPaneOptions) => Terminal
   createGraphifyPane: (projectId: string, cwd: string) => Terminal
-  createEditorPane: (projectId: string, cwd: string) => Terminal
   renameTerminal: (projectId: string, terminalId: string, name: string) => void
                                                                                
                                                                             

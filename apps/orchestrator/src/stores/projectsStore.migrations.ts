@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid'
 import { normalizeEnabledFeatures } from '../lib/features'
 import { normalizeTodoTags, normalizeTodoTitle } from '../lib/todos'
 import {
+  type AppliedVsxTheme,
   DEFAULT_PREFERENCES,
   EMPTY_PROJECTS_FILE,
   type Group,
@@ -69,6 +70,17 @@ function normalizeStoredAccents(file: ProjectsFile): ProjectsFile {
   }
 }
 
+function normalizeAppliedVsxTheme(raw: unknown): AppliedVsxTheme | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = raw as Partial<AppliedVsxTheme>
+  const extensionId = typeof value.extensionId === 'string' ? value.extensionId.trim() : ''
+  const path = typeof value.path === 'string' ? value.path.trim() : ''
+  const label = typeof value.label === 'string' ? value.label.trim() : ''
+  const uiTheme = typeof value.uiTheme === 'string' ? value.uiTheme.trim() : 'vs-dark'
+  if (!extensionId || !path) return null
+  return { extensionId, path, label: label || extensionId, uiTheme: uiTheme || 'vs-dark' }
+}
+
 export function normalizePreferences(raw: LegacyPreferences | undefined): Preferences {
   const preferences = {
     ...DEFAULT_PREFERENCES,
@@ -119,6 +131,7 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     mcpDefaultScope: preferences.mcpDefaultScope === 'project' ? 'project' : 'global',
     mcpOnboardingSeen: Boolean(preferences.mcpOnboardingSeen),
     showTokenHud: Boolean(preferences.showTokenHud),
+    appliedVsxTheme: normalizeAppliedVsxTheme(raw?.appliedVsxTheme),
     displayName: preferences.displayName.trim(),
     profileImageUrl: preferences.profileImageUrl.trim(),
     todoStoragePath: preferences.todoStoragePath.trim(),
@@ -318,10 +331,66 @@ function migrateToV7(parsed: any): ProjectsFile {
   })
 }
 
+function dropEditorIdsFromLayout(layout: Project['gridLayout'], editorIds: Set<string>) {
+  if (!layout?.cells) return layout
+  const cells = { ...layout.cells }
+  let changed = false
+  for (const id of editorIds) {
+    if (id in cells) {
+      delete cells[id]
+      changed = true
+    }
+  }
+  return changed ? { ...layout, cells } : layout
+}
+
+/** P13: persisted Monaco panes and VSX theme do not load. */
+export function dropEditorWorkbench(file: ProjectsFile): ProjectsFile {
+  const editorIds = new Set<string>()
+  for (const project of file.projects) {
+    for (const term of project.terminals ?? []) {
+      if (term.kind === 'editor') editorIds.add(term.id)
+    }
+  }
+  if (editorIds.size === 0 && file.preferences.appliedVsxTheme == null) return file
+
+  const stripPaneIds = (ids: string[]) => ids.filter((id) => !editorIds.has(id))
+  const stripContainers = (containers: WorkspaceContainer[]) =>
+    containers.map((container) => ({
+      ...container,
+      paneIds: stripPaneIds(container.paneIds),
+    }))
+
+  return {
+    ...file,
+    preferences: { ...file.preferences, appliedVsxTheme: null },
+    projects: file.projects.map((project) => ({
+      ...project,
+      terminals: (project.terminals ?? []).filter((term) => term.kind !== 'editor'),
+      gridLayout: dropEditorIdsFromLayout(project.gridLayout, editorIds),
+    })),
+    workspace: {
+      ...file.workspace,
+      containers: stripContainers(file.workspace.containers),
+      tabs: (file.workspace.tabs ?? []).map((tab) =>
+        tab.snapshot
+          ? {
+              ...tab,
+              snapshot: {
+                ...tab.snapshot,
+                containers: stripContainers(tab.snapshot.containers),
+              },
+            }
+          : tab,
+      ),
+    },
+  }
+}
+
 /** Migrates older files and normalizes restorable snapshots. */
 export function migrate(parsed: any): ProjectsFile {
-  if (parsed.version === 7) return migrateToV7(parsed)
-  if (parsed.version === 6) return migrateToV7(parsed)
+  if (parsed.version === 7) return dropEditorWorkbench(migrateToV7(parsed))
+  if (parsed.version === 6) return dropEditorWorkbench(migrateToV7(parsed))
 
   const v5Result = parsed.version === 5 ? parsed : migrateToV5(parsed)
 
@@ -331,12 +400,14 @@ export function migrate(parsed: any): ProjectsFile {
     orphanWorktrees: p.orphanWorktrees ?? [],
   }))
 
-  return migrateToV7({
-    ...v5Result,
-    version: 6,
-    projects: v6Projects,
-    preferences: normalizePreferences(v5Result.preferences),
-  })
+  return dropEditorWorkbench(
+    migrateToV7({
+      ...v5Result,
+      version: 6,
+      projects: v6Projects,
+      preferences: normalizePreferences(v5Result.preferences),
+    }),
+  )
 }
 
 function migrateToV5(parsed: any): any {

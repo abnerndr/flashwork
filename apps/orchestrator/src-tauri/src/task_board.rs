@@ -75,6 +75,8 @@ pub struct TaskCardRecord {
     pub attachments: Vec<TaskAttachment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_selection: Option<TaskToolSelectionRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub needs_resume: Option<bool>,
     pub created_at: u64,
     pub updated_at: u64,
 }
@@ -824,6 +826,7 @@ mod tests {
             error: None,
             attachments: vec![],
             tool_selection: None,
+            needs_resume: None,
             created_at: 1,
             updated_at: 1,
         }

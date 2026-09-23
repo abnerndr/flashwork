@@ -192,6 +192,7 @@
 
 .rowTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -379,9 +380,12 @@
 
 .agentIcons {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 3px;
-  flex: none;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .agentIcons i {

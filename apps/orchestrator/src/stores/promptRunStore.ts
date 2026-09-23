@@ -2,8 +2,17 @@ import { create } from 'zustand'
 
 import { listPromptRuns, savePromptRun } from '../lib/tauri'
 import { restoreCanonicalClaudeFromRun } from '../lib/promptRun/claudeWriterLock'
+import {
+  isInterruptedRunOfferable,
+  markRunInterrupted,
+} from '../lib/promptRun/interruptedResume'
 import { isPromptRunBlocking } from '../lib/promptRun/isPromptRunBlocking'
-import type { PromptRun, PromptRunStatus, PromptRunStep } from '../lib/types'
+import type {
+  PromptRun,
+  PromptRunInterruptReason,
+  PromptRunStatus,
+  PromptRunStep,
+} from '../lib/types'
 
 type PromptRunState = {
   byProjectId: Record<string, PromptRun>
@@ -13,6 +22,10 @@ type PromptRunState = {
   appendStep: (projectId: string, step: PromptRunStep) => void
   setStatus: (projectId: string, status: PromptRunStatus) => void
   clear: (projectId: string) => void
+  /** Mark in-memory active runs interrupted and flush to disk (app quit). */
+  markActiveRunsInterrupted: (reason: PromptRunInterruptReason) => Promise<void>
+  /** Persist discard of an interrupted run (cancelled). */
+  discardInterrupted: (projectId: string, runId: string) => Promise<void>
 }
 
 type PersistSlot = {
@@ -67,6 +80,26 @@ function persist(getState: () => PromptRunState, projectId: string, runId: strin
   void flushPersist(runId)
 }
 
+async function persistNow(run: PromptRun): Promise<void> {
+  try {
+    await savePromptRun(run)
+  } catch (cause) {
+    console.warn('[prompt-run] persist failed:', cause)
+  }
+}
+
+/** Move linked Task Board cards into blocked + needsResume for an interrupted run. */
+async function flagBoardNeedsResume(runId: string): Promise<void> {
+  const { useTaskBoardStore } = await import('./taskBoardStore')
+  const board = useTaskBoardStore.getState()
+  for (const card of board.cards) {
+    if (card.runId !== runId) continue
+    if (card.column === 'doing' || card.column === 'verify' || card.needsResume) {
+      board.patchCard(card.id, { needsResume: true, column: 'blocked' })
+    }
+  }
+}
+
 export const usePromptRunStore = create<PromptRunState>((set, get) => ({
   byProjectId: {},
   hydrate: async (projectId) => {
@@ -80,8 +113,29 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
       return
     }
     if (hydrateSeqByProject.get(projectId) !== sequence) return
+
+    // Expire stale interrupted offers on disk.
+    for (const run of runs) {
+      if (run.status === 'interrupted' && !isInterruptedRunOfferable(run)) {
+        const cancelled = { ...run, status: 'cancelled' as const }
+        await persistNow(cancelled)
+      }
+    }
+
     const active = runs.find((run) => run.status === 'running' || run.status === 'handing-off')
-    if (!active) return
+    if (!active) {
+      const offerable = runs
+        .filter((run) => isInterruptedRunOfferable(run))
+        .sort((a, b) => (b.interruptedAt ?? 0) - (a.interruptedAt ?? 0))[0]
+      if (!offerable) return
+      set((state) => {
+        const memory = state.byProjectId[projectId]
+        if (memory && memory.id !== offerable.id && memory.status === 'running') return state
+        return { byProjectId: { ...state.byProjectId, [projectId]: offerable } }
+      })
+      await flagBoardNeedsResume(offerable.id)
+      return
+    }
     const { useProjectsStore } = await import('./projectsStore')
     const project = useProjectsStore.getState().projects.find((item) => item.id === projectId)
     if (
@@ -94,19 +148,16 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
         project.terminals.map((terminal) => terminal.id),
       )
     ) {
-      const cancelled = { ...active, status: 'cancelled' as const }
+      const interrupted = markRunInterrupted(active, 'orphan-pty')
       set((state) => {
         const memory = state.byProjectId[projectId]
-        if (memory && !shouldApplyHydrate(cancelled, memory) && memory.id !== cancelled.id) {
+        if (memory && !shouldApplyHydrate(interrupted, memory) && memory.id !== interrupted.id) {
           return state
         }
-        return { byProjectId: { ...state.byProjectId, [projectId]: cancelled } }
+        return { byProjectId: { ...state.byProjectId, [projectId]: interrupted } }
       })
-      try {
-        await savePromptRun(cancelled)
-      } catch (cause) {
-        console.warn('[prompt-run] persist failed:', cause)
-      }
+      await persistNow(interrupted)
+      await flagBoardNeedsResume(interrupted.id)
       return
     }
     let appliedId: string | undefined
@@ -152,4 +203,64 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
       return { byProjectId }
     })
   },
+  markActiveRunsInterrupted: async (reason) => {
+    const entries = Object.entries(get().byProjectId)
+    const nextMap: Record<string, PromptRun> = { ...get().byProjectId }
+    const toSave: PromptRun[] = []
+    for (const [projectId, run] of entries) {
+      if (run.status !== 'running' && run.status !== 'handing-off') continue
+      const interrupted = markRunInterrupted(run, reason)
+      nextMap[projectId] = interrupted
+      toSave.push(interrupted)
+    }
+    if (toSave.length === 0) return
+    set({ byProjectId: nextMap })
+    await Promise.all(toSave.map((run) => persistNow(run)))
+    for (const run of toSave) {
+      await flagBoardNeedsResume(run.id)
+    }
+  },
+  discardInterrupted: async (projectId, runId) => {
+    const current = get().byProjectId[projectId]
+    const target =
+      current?.id === runId
+        ? current
+        : (await listPromptRuns(projectId).catch(() => [] as PromptRun[])).find(
+            (run) => run.id === runId,
+          )
+    if (!target) return
+    const cancelled = { ...target, status: 'cancelled' as const }
+    set((state) => {
+      const byProjectId = { ...state.byProjectId }
+      if (byProjectId[projectId]?.id === runId) delete byProjectId[projectId]
+      return { byProjectId }
+    })
+    await persistNow(cancelled)
+    const { useTaskBoardStore } = await import('./taskBoardStore')
+    const board = useTaskBoardStore.getState()
+    for (const card of board.cards) {
+      if (card.runId === runId) {
+        board.patchCard(card.id, { needsResume: false, error: undefined })
+      }
+    }
+  },
 }))
+
+/** Collect interrupted runs still within TTL across projects (disk scan). */
+export async function listOfferableInterruptedRuns(
+  projectIds: string[],
+): Promise<PromptRun[]> {
+  const found: PromptRun[] = []
+  for (const projectId of projectIds) {
+    let runs: PromptRun[]
+    try {
+      runs = await listPromptRuns(projectId)
+    } catch {
+      continue
+    }
+    for (const run of runs) {
+      if (isInterruptedRunOfferable(run)) found.push(run)
+    }
+  }
+  return found.sort((a, b) => (b.interruptedAt ?? 0) - (a.interruptedAt ?? 0))
+}

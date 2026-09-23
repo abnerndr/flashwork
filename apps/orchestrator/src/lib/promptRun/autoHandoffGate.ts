@@ -25,5 +25,5 @@ export function isHandoffAborted(
   current: { id: string; status: string } | undefined,
   runId: string,
 ): boolean {
-  return !current || current.id !== runId || current.status === 'cancelled'
+  return !current || current.id !== runId || current.status === 'cancelled' || current.status === 'interrupted'
 }

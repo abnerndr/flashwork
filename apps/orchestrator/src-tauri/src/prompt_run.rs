@@ -38,6 +38,10 @@ pub struct PromptRunRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub canonical_claude_terminal_id: Option<String>,
     pub created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interrupted_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interrupt_reason: Option<String>,
 }
 
 fn validate_run_id(value: &str) -> Result<(), String> {

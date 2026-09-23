@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "name": "flashwork",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "*.mdc": "markdown"
+    }
+  }
+}

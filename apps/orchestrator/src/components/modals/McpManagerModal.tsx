@@ -25,12 +25,11 @@ import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
 import controls from './controls.module.css'
 import { AddServerFlow } from './mcp/AddServerFlow'
-import { ExtensionsBrowser } from './mcp/ExtensionsBrowser'
 import { SkillsBrowser } from './mcp/SkillsBrowser'
 import { Modal } from './Modal'
 import styles from './McpManagerModal.module.css'
 
-type ManagerTab = 'servers' | 'skills' | 'extensions'
+type ManagerTab = 'servers' | 'skills'
 
 /** Must identify the exact value: two servers of one agent can share an env key name. */
 function revealKey(record: McpServerRecord, key: string, header: boolean): string {
@@ -65,7 +64,6 @@ export function McpManagerModal() {
     if (fromProject) return fromProject
     return project.terminals.find((terminal) => terminal.cwd)?.cwd ?? null
   }, [projects, activeProjectId])
-  const extensionRoot = projectRoot ?? repo
 
   const [tab, setTab] = useState<ManagerTab>('servers')
   const [term, setTerm] = useState('')
@@ -100,7 +98,7 @@ export function McpManagerModal() {
     setRevealed({})
     if (!open) return
     if (typeof requestedServer === 'string') setSelected(requestedServer)
-    if (requestedTab === 'servers' || requestedTab === 'skills' || requestedTab === 'extensions') {
+    if (requestedTab === 'servers' || requestedTab === 'skills') {
       setTab(requestedTab)
     }
     if (requestedAdd === true) setAdding(true)
@@ -243,7 +241,7 @@ export function McpManagerModal() {
       }
     >
       <div className={controls.tabRow} role="tablist">
-        {(['servers', 'skills', 'extensions'] as ManagerTab[]).map((option) => (
+        {(['servers', 'skills'] as ManagerTab[]).map((option) => (
           <button
             key={option}
             type="button"
@@ -252,13 +250,7 @@ export function McpManagerModal() {
             className={`${controls.tabBtn} ${tab === option ? controls.tabBtnActive : ''}`}
             onClick={() => setTab(option)}
           >
-            {t(
-              option === 'servers'
-                ? 'mcp.tabServers'
-                : option === 'skills'
-                  ? 'mcp.tabSkills'
-                  : 'extensions.tab',
-            )}
+            {t(option === 'servers' ? 'mcp.tabServers' : 'mcp.tabSkills')}
           </button>
         ))}
       </div>
@@ -266,8 +258,6 @@ export function McpManagerModal() {
       {tab === 'skills' ? (
         <SkillsBrowser dark={dark} startInstall={requestedAddSkill === true} />
       ) : null}
-
-      {tab === 'extensions' ? <ExtensionsBrowser root={extensionRoot} layout="modal" /> : null}
 
       <div className={styles.layout} hidden={tab !== 'servers'}>
         <aside className={styles.sidebar}>

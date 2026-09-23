@@ -27,6 +27,7 @@ const STATUS_KEYS: Record<PromptRunStatus, MessageKey> = {
   done: 'promptRun.status.done',
   failed: 'promptRun.status.failed',
   cancelled: 'promptRun.status.cancelled',
+  interrupted: 'promptRun.status.interrupted',
 }
 
 const REASON_KEYS: Record<PromptRunStepReason, MessageKey> = {

@@ -38,10 +38,8 @@ import { usePromptRunStore } from '../../stores/promptRunStore'
 import { useUiStore } from '../../stores/uiStore'
 import { AgentInstallModal } from '../AgentInstall/AgentInstallModal'
 import { AgentIcon } from '../icons/AgentIcons'
-import { AsciiEffect } from '../ui/ascii-effect'
 import { Avatar } from '../ui/Avatar'
 import { EmptyState } from '../EmptyState'
-import homeBackground from '../../assets/home-bg-right.png'
 import { computeStreak } from './ActivityGraph'
 import { NowPlayingWidget } from './NowPlayingWidget'
 import { UsageStrip } from './UsageStrip'
@@ -379,25 +377,6 @@ export function HomeView() {
 
   return (
     <section className={styles.home}>
-      <div className={styles.homeBackdrop} aria-hidden="true">
-        <AsciiEffect
-          imageSrc={homeBackground}
-          alt=""
-          variant="flow"
-          fontSize={8}
-          brightnessBoost={2.25}
-          contrast={1.15}
-          threshold={0.02}
-          flowSpeed={0.16}
-          flowStrength={9}
-          mouseRadius={260}
-          mouseStrength={16}
-          scale={1}
-          fit="cover"
-          colors={['var(--fg-muted)', 'var(--fg)']}
-          backgroundColor="transparent"
-        />
-      </div>
       <section className={styles.heroStage}>
         <div className={styles.identity}>
           <div className={styles.identityMedia}>

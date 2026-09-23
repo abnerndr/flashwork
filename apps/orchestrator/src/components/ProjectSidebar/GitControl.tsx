@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  FileCode,
   Folder,
   FolderSearch,
   GitBranch,
@@ -26,7 +25,6 @@ import { useGitOrigin } from '../../hooks/useGitOrigin'
 import { readableError } from '../../lib/errors'
 import { createPullRequestUrl } from '../../lib/git/githubCompareUrl'
 import { type MessageKey, useT } from '../../lib/i18n'
-import { openSourceInEditor } from '../../lib/openInEditor'
 import {
   getPtyCwd,
   gitCheckout,
@@ -47,6 +45,7 @@ import {
   looksLikeGitAuthError,
   openInBrowser,
   openInFileExplorer,
+  openInVscode,
 } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -684,7 +683,7 @@ function TreeNodeView({
   }
 
   const openFile = (filePath: string) => {
-    openSourceInEditor(projectId, absoluteRepoPath(repoRoot, filePath))
+    void openInVscode(absoluteRepoPath(repoRoot, filePath))
   }
 
   if (node.type === 'file') {
@@ -697,7 +696,12 @@ function TreeNodeView({
         title={change.originalPath ? `${change.originalPath} → ${change.path}` : change.path}
         onDoubleClick={() => handleDoubleClick(change.path)}
       >
-        <span className={styles.fileName}>{node.name}</span>
+        <span
+          className={styles.fileName}
+          onClick={() => openFile(change.path)}
+        >
+          {node.name}
+        </span>
         <span className={`${styles.status} ${statusClass(kind, change.status)}`}>
           {statusChar(kind, change.status)}
         </span>
@@ -709,14 +713,6 @@ function TreeNodeView({
             onClick={() => void openInFileExplorer(absoluteRepoPath(repoRoot, change.path))}
           >
             <UiIcon icon={FolderSearch} />
-          </button>
-          <button
-            type="button"
-            title={t('files.openInEditor')}
-            aria-label={t('files.openInEditor')}
-            onClick={() => openFile(change.path)}
-          >
-            <UiIcon icon={FileCode} />
           </button>
           {onDiscard ? (
             <button

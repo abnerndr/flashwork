@@ -1,0 +1,30 @@
+---
+description: Where ADRs, memory, and implementation plans live; how to update them
+globs: "{.claude/**,docs/superpowers/**,docs/**/*.md}"
+alwaysApply: false
+---
+
+# Docs, ADRs, and memory
+
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `.claude/memory/MEMORY.md` | Durable facts about the product and this program |
+| `.claude/memory/CONTEXT.md` | What already shipped vs gaps (as of 2026-09-17) |
+| `.claude/adr/NNN-*.md` | Architecture Decision Records |
+| `docs/superpowers/specs/` | Design specs |
+| `docs/superpowers/plans/` | Bite-sized implementation plans |
+| `apps/orchestrator/docs/` | Product docs already in the app (`FEATURES.md`, `OVERVIEW.md`, `CHANGELOG.md`) |
+
+## ADR format
+
+Each ADR has: Status (`accepted` / `proposed` / `superseded`), Context, Decision, Consequences.
+
+Do not silently reverse an `accepted` ADR. Open a new ADR that supersedes it.
+
+## When implementing a plan
+
+1. Read the matching spec + ADR first.
+2. Follow existing files listed in the plan; do not invent a parallel stack.
+3. After a slice ships, update `CONTEXT.md` (done vs remaining) and `CHANGELOG.md`.

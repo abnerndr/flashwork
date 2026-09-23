@@ -157,6 +157,8 @@ export type TaskCard = {
   slicePlan?: TaskSlicePlan[]
   attachments?: TaskAttachment[]
   toolSelection?: TaskToolSelection
+  /** Set when the linked Auto run was interrupted (quit/crash); offer resume. */
+  needsResume?: boolean
   error?: string
   createdAt: number
   updatedAt: number
@@ -202,6 +204,9 @@ export type PromptRunStatus =
   | 'done'
   | 'failed'
   | 'cancelled'
+  | 'interrupted'
+
+export type PromptRunInterruptReason = 'unclean-exit' | 'quit' | 'orphan-pty'
 
 export type PromptRunStepReason =
   | 'heuristic'
@@ -239,6 +244,9 @@ export type PromptRun = {
   canonicalClaudeSessionId?: string
   canonicalClaudeTerminalId?: string
   createdAt: number
+  /** When status is `interrupted`, wall clock of the interrupt. */
+  interruptedAt?: number
+  interruptReason?: PromptRunInterruptReason
 }
 
 export type AgentRuntimeProfile = 'full' | 'lean' | 'diagnostic'
@@ -471,10 +479,19 @@ export type TerminalCreationPreset = {
   }
 }
 
+export type AppliedVsxTheme = {
+  extensionId: string
+  path: string
+  label: string
+  uiTheme: string
+}
+
 export type Preferences = {
   /** Idioma da UI. Default 'en'. */
   language: Locale
   uiTheme: Theme
+  /** Color theme installed from Open VSX and applied to Monaco + workbench tokens. */
+  appliedVsxTheme: AppliedVsxTheme | null
   /** Application-wide visual language. Normal preserves the production UI. */
   visualStyle: VisualStyle
   /** Native desktop icon theme. Defaults to Dark independently from the UI theme. */
@@ -632,6 +649,7 @@ export type ProjectsFile = {
 export const DEFAULT_PREFERENCES: Preferences = {
   language: 'en',
   uiTheme: 'dark',
+  appliedVsxTheme: null,
   visualStyle: 'normal',
   appIconTheme: 'dark',
   uiZoom: 1,

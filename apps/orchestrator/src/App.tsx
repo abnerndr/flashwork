@@ -5,7 +5,6 @@ import { type CSSProperties, lazy, Suspense, useEffect, useRef } from 'react'
 import { Group as PanelGroup, Panel, Separator, usePanelRef } from 'react-resizable-panels'
 
 import styles from './App.module.css'
-import homeBackground from './assets/home-bg-right.png'
 import { AgentSandbox } from './components/AgentSandbox'
 import { DictationButton } from './components/DictationButton'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -20,6 +19,7 @@ import { EditGroupModal } from './components/modals/EditGroupModal'
 import { EditProjectModal } from './components/modals/EditProjectModal'
 import { FindJumpModal } from './components/modals/FindJumpModal'
 import { HandoffModal } from './components/modals/HandoffModal'
+import { InterruptedResumeModal } from './components/modals/InterruptedResumeModal'
 import { McpIntroModal } from './components/modals/McpIntroModal'
 import { McpManagerModal } from './components/modals/McpManagerModal'
 import { NewGroupModal } from './components/modals/NewGroupModal'
@@ -44,7 +44,6 @@ import { ProjectSidebar } from './components/ProjectSidebar'
 import { RightSidebar } from './components/RightSidebar'
 import { TitleBar } from './components/TitleBar'
 import { TokenHud } from './components/TokenHud'
-import { AsciiEffect } from './components/ui/ascii-effect'
 import { WorkspaceView } from './components/WorkspaceView'
 import { useCliOpenRequests } from './hooks/useCliOpenRequests'
 import { useCloseConfirmation } from './hooks/useCloseConfirmation'
@@ -52,9 +51,9 @@ import { useDiscordPresence } from './hooks/useDiscordPresence'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
 import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
-import { useTaskBoardScheduler } from './hooks/useTaskBoardScheduler'
 import { useRemoteControlService } from './hooks/useRemoteControlService'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
+import { useTaskBoardScheduler } from './hooks/useTaskBoardScheduler'
 import { startActivityTracker } from './lib/activityTracker'
 import { APP_SHELL_ID } from './lib/appShell'
 import { AGENT_SANDBOX_ENABLED } from './lib/featureFlags'
@@ -66,6 +65,8 @@ import { getLastCrashReport } from './lib/tauri'
 import { loadThemeIconBytes } from './lib/themeIcons'
 import { checkForUpdate } from './lib/updater'
 import { useProjectsStore } from './stores/projectsStore'
+import { listOfferableInterruptedRuns, usePromptRunStore } from './stores/promptRunStore'
+import { useTaskBoardStore } from './stores/taskBoardStore'
 import { type InAppToast, useUiStore } from './stores/uiStore'
 
 const HomeView = lazy(() =>
@@ -92,25 +93,6 @@ function LoadingScreen() {
   const t = useT()
   return (
     <div className={styles.loadingScreen} role="status" aria-label={t('loading.initializing')}>
-      <div className={styles.loadingBackdrop} aria-hidden="true">
-        <AsciiEffect
-          imageSrc={homeBackground}
-          alt=""
-          variant="flow"
-          fontSize={8}
-          brightnessBoost={2.25}
-          contrast={1.15}
-          threshold={0.02}
-          flowSpeed={0.16}
-          flowStrength={9}
-          mouseRadius={260}
-          mouseStrength={16}
-          scale={1}
-          fit="cover"
-          colors={['var(--fg-muted)', 'var(--fg)']}
-          backgroundColor="transparent"
-        />
-      </div>
       <div className={styles.loadingInner}>
         <div className={styles.loadingWordmark}>Flashwork</div>
         <div className={styles.loadingConsole}>
@@ -349,7 +331,7 @@ export default function App() {
     if (preferences.accountCreated && preferences.onboardingDone) {
       useUiStore.getState().openModal_('welcome')
     }
-    useUiStore.getState().setActiveView(preferences.alwaysStartOnHome ? 'home' : 'workspace')
+    useUiStore.getState().setActiveView('workspace')
   }, [hydrated])
 
   useEffect(() => {
@@ -406,6 +388,28 @@ export default function App() {
         })
       })
       .catch(() => {})
+  }, [hydrated])
+
+  useEffect(() => {
+    if (!hydrated) return
+    let cancelled = false
+    void (async () => {
+      await useTaskBoardStore.getState().hydrate()
+      if (cancelled) return
+      const projectIds = useProjectsStore.getState().projects.map((project) => project.id)
+      await Promise.all(
+        projectIds.map((projectId) => usePromptRunStore.getState().hydrate(projectId)),
+      )
+      if (cancelled) return
+      const runs = await listOfferableInterruptedRuns(projectIds)
+      if (cancelled || runs.length === 0) return
+      useUiStore.getState().openModal_('interruptedResume', { runs })
+    })().catch((cause) => {
+      console.warn('[interrupted-resume] boot scan failed:', cause)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [hydrated])
 
   if (!hydrated) {
@@ -622,6 +626,7 @@ export default function App() {
         <WhatsNewModal />
         <RecentChatsModal />
         <HandoffModal />
+        <InterruptedResumeModal />
         <McpManagerModal />
         <McpIntroModal />
         <RemoteControlModal />

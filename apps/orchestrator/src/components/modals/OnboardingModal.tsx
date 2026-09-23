@@ -182,7 +182,7 @@ export function OnboardingModal() {
       profileImageUrl: trimmedPhotoUrl,
     })
 
-    useUiStore.getState().setActiveView('home')
+    useUiStore.getState().setActiveView('workspace')
     window.setTimeout(() => {
       openModal('newProject')
     }, 0)

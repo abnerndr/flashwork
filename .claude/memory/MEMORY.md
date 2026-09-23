@@ -21,7 +21,7 @@ Last updated: 2026-09-17 (addendum: token metrics for all agents, not only Claud
 
 ## Program started 2026-09-17
 
-Turn Flashwork into an IDE **without throwing away** the orchestrator. Addenda: **remove OmniRoute/9router**, **fix CLI install/update on Win/Linux/macOS**, **first-party Anthropic/OpenAI/Gemini APIs**, **token HUD and usage for every CLI (not only Claude)** including identifying Gemini panes.
+Turn Flashwork into an IDE **without throwing away** the orchestrator. **P13 (2026-09-20):** owner withdrew the in-app IDE workbench (Monaco / Open VSX). Flashwork stays the orchestrator; edit in VS Code. **P14 (2026-09-23):** live PTYs die on quit/crash; Auto/Task Board continuity is a 7-day PromptRun ledger + Resume in Auto (ADR 012).
 
 Pointers:
 

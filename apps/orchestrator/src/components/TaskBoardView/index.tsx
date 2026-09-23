@@ -27,6 +27,7 @@ import { toCwdRelative } from '../../lib/taskBoard/schedule'
 import { pumpTaskBoardQueue, stopBoardCard } from '../../lib/taskBoard/submitBoardTask'
 import { pickAndAttachMarkdown } from '../../lib/tauri/taskAttachments'
 import { getProjectDefaultCwd } from '../../lib/terminalFactory'
+import { resumeInterruptedAuto } from '../../lib/promptRun/resumeInterruptedAuto'
 import { routedAgentLabel } from '../../lib/promptRun/routedAgent'
 import {
   type TaskAttachment,
@@ -35,6 +36,7 @@ import {
   type TaskToolSelection,
 } from '../../lib/types'
 import { selectActiveProject, useProjectsStore } from '../../stores/projectsStore'
+import { usePromptRunStore } from '../../stores/promptRunStore'
 import { createTaskCardDraft, useTaskBoardStore } from '../../stores/taskBoardStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './TaskBoardView.module.css'
@@ -90,10 +92,12 @@ function BoardCard({
   card,
   onOpen,
   onRemove,
+  onResume,
 }: {
   card: TaskCard
   onOpen: (card: TaskCard) => void
   onRemove: (cardId: string) => void
+  onResume: (card: TaskCard) => void
 }) {
   const t = useT()
   const draggable = useDraggable({ id: cardDragId(card.id) })
@@ -137,7 +141,20 @@ function BoardCard({
           ))}
         </ul>
       ) : null}
+      {card.needsResume ? <p className={styles.needsResume}>{t('taskBoard.needsResume')}</p> : null}
       {card.error ? <p className={styles.error}>{cardErrorText(card.error, t)}</p> : null}
+      {card.needsResume ? (
+        <div className={styles.cardActions}>
+          <button
+            type="button"
+            className={styles.open}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => onResume(card)}
+          >
+            {t('taskBoard.resumeAuto')}
+          </button>
+        </div>
+      ) : null}
       {card.column === 'doing' || card.column === 'verify' ? (
         <div className={styles.cardActions}>
           <button
@@ -265,6 +282,41 @@ export function TaskBoardView() {
     if (terminalId) requestPaneFocus(terminalId)
   }
 
+  const resumeCard = (card: TaskCard) => {
+    const runId = card.runId
+    if (!runId) return
+    void (async () => {
+      const { listPromptRuns } = await import('../../lib/tauri')
+      const runs = await listPromptRuns(card.projectId).catch(() => [])
+      const run =
+        runs.find((item) => item.id === runId) ??
+        usePromptRunStore.getState().byProjectId[card.projectId]
+      if (!run || run.id !== runId) {
+        useUiStore.getState().pushToast({
+          title: t('interruptedResume.failedTitle'),
+          body: t('interruptedResume.failedBody'),
+        })
+        return
+      }
+      const result = await resumeInterruptedAuto(run)
+      if (!result.ok) {
+        useUiStore.getState().pushToast({
+          title: t('interruptedResume.failedTitle'),
+          body: t('interruptedResume.failedBody'),
+        })
+        return
+      }
+      useUiStore.getState().pushToast({
+        title: t('interruptedResume.resumedTitle'),
+        body: t('interruptedResume.resumedBody'),
+      })
+      setActiveProject(card.projectId)
+      setActiveView('workspace')
+    })().catch((cause) => {
+      console.warn('[task-board] resume interrupted failed:', cause)
+    })
+  }
+
   const onDragEnd = (event: DragEndEvent) => {
     const drop = parseBoardDrop(event.active.id, event.over?.id)
     if (!drop) return
@@ -292,30 +344,32 @@ export function TaskBoardView() {
           createCard()
         }}
       >
-        <label>
-          {t('taskBoard.project')}
-          <select value={project?.id ?? ''} onChange={(event) => setProjectId(event.target.value)}>
-            {projects.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.grow}>
-          {t('taskBoard.cardTitle')}
-          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} />
-        </label>
-        <label>
-          {t('taskBoard.priority')}
-          <input
-            type="number"
-            min={1}
-            max={9}
-            value={priority}
-            onChange={(event) => setPriority(Number(event.target.value) || 3)}
-          />
-        </label>
+        <div className={styles.composerRow}>
+          <label>
+            {t('taskBoard.project')}
+            <select value={project?.id ?? ''} onChange={(event) => setProjectId(event.target.value)}>
+              {projects.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.grow}>
+            {t('taskBoard.cardTitle')}
+            <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} />
+          </label>
+          <label>
+            {t('taskBoard.priority')}
+            <input
+              type="number"
+              min={1}
+              max={9}
+              value={priority}
+              onChange={(event) => setPriority(Number(event.target.value) || 3)}
+            />
+          </label>
+        </div>
         <label className={styles.full}>
           {t('taskBoard.prompt')}
           <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={3} />
@@ -416,7 +470,13 @@ export function TaskBoardView() {
               title={t(COLUMN_KEYS[column])}
             >
               {byColumn[column].map((card) => (
-                <BoardCard key={card.id} card={card} onOpen={openCard} onRemove={removeCard} />
+                <BoardCard
+                  key={card.id}
+                  card={card}
+                  onOpen={openCard}
+                  onRemove={removeCard}
+                  onResume={resumeCard}
+                />
               ))}
             </BoardColumn>
           ))}

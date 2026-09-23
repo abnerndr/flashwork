@@ -1,6 +1,6 @@
 # Flashwork IDE program — execution progress
 
-Last updated: 2026-09-20
+Last updated: 2026-09-23
 
 Resume here if the session context runs out. Implement **one numbered plan at a time**. Default order: **P09 → P10 → P12 → P11 → P01 → P02 → P04 → P07 → P03 → P05 → P06 → P08**.
 
@@ -20,12 +20,21 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P07 Opaque model router | `4fd97fb` | done |
 | P03 Visual refresh | `2860ea9` | done |
 | P05 GitHub source control | `33ae3bd` | done |
-| P06 IDE workbench | `c76bfb6` | done |
+| P06 IDE workbench | `c76bfb6` | done, **withdrawn by P13** |
 | P08 Canvas beta | `1cda5d6` | done |
+| P13 Withdraw in-app IDE | (local) | done |
+| P14 Interrupted Auto resume | (local) | done |
 
 ## Current slice
 
-All numbered plans P01–P12 are complete. Stop unless the owner names more work.
+**P14** interrupted Auto resume (`docs/superpowers/plans/2026-09-23-14-interrupted-auto-resume.md`, ADR 012). Live PTYs die on quit/crash; PromptRun ledger + 7-day Resume in Auto offer.
+
+## P14 notes
+
+- Status `interrupted` + `interruptedAt` / `interruptReason`; TTL 7 days then expire to `cancelled`.
+- Quit `beforeClose` marks active runs and flushes Task Board `needsResume`.
+- Boot modal lists offerable runs; Resume uses `submitAutoPromptRun` + journal pointer.
+- CLI `--resume` / scrollback path unchanged as manual fallback.
 
 ## P08 notes (for later slices)
 
@@ -44,7 +53,7 @@ Program slices P01–P12 are complete except remaining notes below. Stop unless 
 - Editor pane: Monaco (`monaco-editor` lazy), tree via confined `workspace_*` IO, Ctrl+S, 2 MiB read cap. One editor pane per project (`createEditorPane` reuses).
 - Workspace writes refuse leaf/dangling symlinks (`path_escape`). Windows `fs::write` still has a TOCTOU vs reparse points (commented, not rewritten).
 - Open VSX install into `{cwd}/.flashwork/extensions/<publisher>.<name>`. Electron-only VSIX → `extension_incompatible`. Download/extract capped at 32 MiB. No redirect off `open-vsx.org`.
-- `@codingame/monaco-vscode-api` was **not** adopted; installed themes/grammars sit on disk and are not applied in Monaco.
+- `@codingame/monaco-vscode-api` was **not** adopted. Color themes from Open VSX now load into Monaco and map a subset of workbench colors onto Flashwork tokens. Grammars still sit on disk unused. `extensionKind: ui` theme packs are allowed.
 - Explorer: markdown → right-sidebar history; source → editor. SCM Open file joins `absoluteRepoPath`. Open in VS Code unchanged.
 
 ## P07 notes (for later slices)

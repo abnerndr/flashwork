@@ -42,7 +42,6 @@ mod mcp_store;
 mod opencode_bridge;
 mod opencode_gsd_plugin;
 mod opencode_sessions;
-mod openvsx;
 mod paths;
 mod planning;
 mod planning_gate;
@@ -71,7 +70,6 @@ mod validation;
 mod window_style;
 #[cfg(windows)]
 mod windows_webview;
-mod workspace_fs;
 mod worktrees;
 
 use crate::pty::{PtySession, PtySessions};
@@ -264,9 +262,6 @@ pub fn run() {
             filesystem::ensure_todo_template,
             filesystem::watch_file,
             filesystem::unwatch_file,
-            workspace_fs::workspace_list,
-            workspace_fs::workspace_read,
-            workspace_fs::workspace_write,
             pty::pty_exists,
             pty::spawn_pty,
             pty::attach_pty,
@@ -482,10 +477,6 @@ pub fn run() {
             mcp_store::mcp_sync,
             mcp_catalog::mcp_registry_search,
             mcp_health::mcp_health_check,
-            openvsx::openvsx_search,
-            openvsx::extensions_list,
-            openvsx::extensions_install,
-            openvsx::extensions_uninstall,
             skills::skills_scan,
             skills::skills_detail,
             skills::skills_uninstall,

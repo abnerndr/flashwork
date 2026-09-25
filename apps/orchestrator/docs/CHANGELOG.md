@@ -10,6 +10,11 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+
+- Project versioning starts at **1.0.0**. Every push to `master` auto-bumps the patch
+  (`1.0.1`, `1.0.2`, …) via `.github/workflows/bump-version.yml`.
+
 ### Fixed
 
 - On WSL, Flashwork forces `GDK_BACKEND=x11` so the window appears (Wayland-native GTK

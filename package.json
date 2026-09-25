@@ -1,7 +1,7 @@
 {
   "name": "flashwork",
   "private": true,
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Flashwork — local-first AI agent orchestrator (Tauri).",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
@@ -14,6 +14,7 @@
     "test": "pnpm --prefix apps/orchestrator test",
     "test:local": "pnpm run setup && pnpm run lint && pnpm run test && pnpm --prefix apps/orchestrator run build",
     "lint": "pnpm --prefix apps/orchestrator run lint",
+    "bump": "node scripts/bump-version.mjs",
     "installer": "pnpm --prefix apps/orchestrator run installer",
     "installer:linux": "pnpm --prefix apps/orchestrator run installer:linux",
     "installer:macos": "pnpm --prefix apps/orchestrator run installer:macos",

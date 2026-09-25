@@ -1,18 +1,18 @@
+//! Platform window chrome helpers.
 //!
+//! On macOS we make the window transparent and clip the contentView with a
+//! corner radius for a rounded look. On Linux/WSL we only ensure the main
+//! window is visible and on-screen.
 
-//! transparente e recortamos o `contentView` com um `cornerRadius`, para que a
+use tauri::Manager;
 
-//!
-
-/// (Sequoia/Tahoe ~10pt) para um visual mais arredondado.
+/// (Sequoia/Tahoe ~10pt) for a more rounded look.
 #[cfg(target_os = "macos")]
 const CORNER_RADIUS: f64 = 16.0;
 
 pub fn apply_rounded_corners(app: &tauri::AppHandle) {
     #[cfg(target_os = "macos")]
     {
-        use tauri::Manager;
-
         let Some(window) = app.get_webview_window("main") else {
             return;
         };
@@ -27,6 +27,57 @@ pub fn apply_rounded_corners(app: &tauri::AppHandle) {
     }
 }
 
+/// On WSL, undecorated GTK windows can map off the primary monitor or stay
+/// unfocused. Bring the main window on-screen and focused at startup.
+pub fn ensure_main_window_visible(app: &tauri::AppHandle) {
+    #[cfg(target_os = "linux")]
+    {
+        if !is_wsl() {
+            return;
+        }
+        let Some(window) = app.get_webview_window("main") else {
+            return;
+        };
+        let _ = window.show();
+        let _ = window.unminimize();
+        let (x, y) = match window.available_monitors() {
+            Ok(monitors) if !monitors.is_empty() => {
+                let monitor = monitors
+                    .iter()
+                    .min_by_key(|monitor| {
+                        let pos = monitor.position();
+                        (pos.x, pos.y)
+                    })
+                    .expect("non-empty monitors");
+                let pos = monitor.position();
+                (pos.x + 80, pos.y + 60)
+            }
+            _ => match window.primary_monitor() {
+                Ok(Some(monitor)) => {
+                    let pos = monitor.position();
+                    (pos.x + 80, pos.y + 60)
+                }
+                _ => (80, 60),
+            },
+        };
+        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+        let _ = window.set_focus();
+        eprintln!("[window_style] WSL: main window moved to ({x}, {y})");
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = app;
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn is_wsl() -> bool {
+    std::fs::read_to_string("/proc/version")
+        .map(|text| text.to_ascii_lowercase().contains("microsoft"))
+        .unwrap_or(false)
+}
+
 #[cfg(target_os = "macos")]
 fn round_macos_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     use objc2::runtime::AnyObject;
@@ -38,9 +89,7 @@ fn round_macos_window(window: &tauri::WebviewWindow) -> Result<(), String> {
         return Err("ns_window retornou ponteiro nulo".into());
     }
 
-    // as mensagens abaixo (setOpaque:, setBackgroundColor:, contentView,
-
-    // thread (o setup do Tauri roda nela).
+    // Setup runs on the main thread; these AppKit messages are safe here.
     unsafe {
         let ns_window: &AnyObject = &*(ns_window_ptr as *const AnyObject);
 

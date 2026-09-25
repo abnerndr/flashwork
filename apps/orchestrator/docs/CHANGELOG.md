@@ -10,6 +10,14 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+
+- On WSL, Flashwork forces `GDK_BACKEND=x11` so the window appears (Wayland-native GTK
+  windows often never map under WSLg). At startup it also moves the main window onto the
+  leftmost display and focuses it (WSLg often places it on a secondary monitor).
+- App boot no longer dies on a missing `useTaskBoardScheduler` import, which left a blank gray
+  window instead of the loading screen.
+
 ### Added
 
 - After quit or crash, interrupted Auto / Task Board runs stay offerable for 7 days. Boot offers
@@ -20,11 +28,6 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 - In-app IDE workbench: Monaco editor pane, Open VSX Extensions tab, and VSX themes. Flashwork is
   the agent/PTY orchestrator again. Files preview in the sidebar or open in VS Code.
-
-### Fixed
-
-- App boot no longer dies on a missing `useTaskBoardScheduler` import, which left a blank gray
-  window instead of the loading screen.
 
 ### Changed
 

@@ -213,6 +213,7 @@ pub fn run() {
             // Cantos arredondados no macOS (no-op nas outras plataformas). A
 
             window_style::apply_rounded_corners(app.handle());
+            window_style::ensure_main_window_visible(app.handle());
 
             crash_watch::start(app.handle().clone());
             resources::start(

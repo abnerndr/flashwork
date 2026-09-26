@@ -1,7 +1,7 @@
 {
   "name": "flashwork",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Flashwork — local-first AI agent orchestrator (Tauri).",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {

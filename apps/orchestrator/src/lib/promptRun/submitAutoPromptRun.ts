@@ -63,7 +63,6 @@ export async function submitAutoPromptRun(args: {
   project: AutoPromptRunProject | null
   cwd: string
   prompt: string
-  unrestricted: boolean
   attachmentsDir?: string
   toolsJsonPath?: string
 }): Promise<StartPromptRunResult> {
@@ -119,7 +118,8 @@ export async function submitAutoPromptRun(args: {
       : null,
     cwd: args.cwd,
     prompt: args.prompt,
-    unrestricted: args.unrestricted,
+    // Auto always spawns CLIs with skip-permission flags so Allow prompts never block.
+    unrestricted: true,
     enabledAgents,
     installedAgents: installed,
     claudeFiveHourUtilization: selectInput.claudeFiveHourUtilization,

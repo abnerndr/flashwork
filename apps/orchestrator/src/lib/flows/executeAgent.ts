@@ -5,7 +5,6 @@ import { isPromptRunBlocking } from '../promptRun/isPromptRunBlocking'
 import { readPromptRunFile, taskWriteToolsJson } from '../tauri'
 import type { FlowAgentNodeData, FlowRunNode } from './types'
 import type { PromptRun, PromptRunStatus, Project, TaskToolSelection } from '../types'
-import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 
 const TERMINAL: PromptRunStatus[] = ['done', 'failed', 'cancelled', 'interrupted']
@@ -90,7 +89,6 @@ export async function runFlowAgent(
     project: toAutoPromptRunProject(context.project),
     cwd: context.cwd,
     prompt,
-    unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
     attachmentsDir: attachmentsDirFor(data.attachments),
     toolsJsonPath,
   })

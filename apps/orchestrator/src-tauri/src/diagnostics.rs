@@ -440,10 +440,104 @@ mod unix_clipboard {
     use std::io::Write;
     use std::process::{Command, Stdio};
 
+    use base64::Engine;
     use super::ClipboardPayload;
 
     fn wayland() -> bool {
         std::env::var_os("WAYLAND_DISPLAY").is_some()
+    }
+
+    /// WSL apps only see the Linux clipboard (wl/xclip). Copying from Windows
+    /// Edge/Chrome/Notepad lands on the Windows clipboard, so paste into PTYs
+    /// must bridge via `powershell.exe` interop.
+    fn is_wsl() -> bool {
+        std::env::var_os("WSL_DISTRO_NAME").is_some()
+            || std::env::var_os("WSL_INTEROP").is_some()
+            || std::fs::read_to_string("/proc/version")
+                .map(|v| v.to_ascii_lowercase().contains("microsoft"))
+                .unwrap_or(false)
+    }
+
+    fn powershell_exe() -> Option<String> {
+        which::which("powershell.exe")
+            .ok()
+            .map(|p| p.to_string_lossy().into_owned())
+    }
+
+    /// Read Unicode text from the Windows clipboard (UTF-8 via base64).
+    fn read_windows_text() -> Result<String, String> {
+        let ps = powershell_exe().ok_or_else(|| "powershell.exe não encontrado".to_string())?;
+        let output = Command::new(&ps)
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                concat!(
+                    "$ErrorActionPreference='Stop'; ",
+                    "try { $t = Get-Clipboard -Raw } catch { '' ; exit 0 }; ",
+                    "if ($null -eq $t) { '' } else { ",
+                    "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$t)) ",
+                    "}"
+                ),
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "Get-Clipboard falhou: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        let b64 = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .trim_start_matches('\u{feff}')
+            .trim_matches(|c: char| c == '\r' || c == '\n' || c.is_whitespace())
+            .to_string();
+        if b64.is_empty() {
+            return Ok(String::new());
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64.as_bytes())
+            .map_err(|e| format!("clipboard Windows base64 inválido: {e}"))?;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    }
+
+    /// Write Unicode text to the Windows clipboard (stdin base64 → Set-Clipboard).
+    /// Avoids `clip.exe` which mangles UTF-8 from WSL, and avoids argv length limits.
+    fn write_windows_text(text: &str) -> Result<(), String> {
+        let ps = powershell_exe().ok_or_else(|| "powershell.exe não encontrado".to_string())?;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(text.as_bytes());
+        let mut child = Command::new(&ps)
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                concat!(
+                    "$b64 = [Console]::In.ReadToEnd().Trim(); ",
+                    "if ([string]::IsNullOrEmpty($b64)) { Set-Clipboard -Value ([string]::Empty) } ",
+                    "else { Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString(",
+                    "[Convert]::FromBase64String($b64))) }"
+                ),
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| "stdin do powershell indisponível".to_string())?
+            .write_all(b64.as_bytes())
+            .map_err(|e| e.to_string())?;
+        let output = child.wait_with_output().map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "Set-Clipboard falhou: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(())
     }
 
     fn paste_tool() -> Result<&'static str, String> {
@@ -540,37 +634,45 @@ mod unix_clipboard {
 
     pub fn read_payload() -> Result<ClipboardPayload, String> {
         let types = list_types();
-        if types.is_empty() {
-            return Ok(ClipboardPayload::Empty);
-        }
 
         // Mesma ordem de prioridade do backend Windows: arquivos > imagem > texto.
-        let uri_mime = ["text/uri-list", "x-special/gnome-copied-files"]
-            .into_iter()
-            .find(|mime| types.iter().any(|t| t == mime));
-        if let Some(mime) = uri_mime {
-            let raw = String::from_utf8_lossy(&read_type(mime)?).into_owned();
-            let paths = parse_uri_list(&raw);
-            if !paths.is_empty() {
-                return Ok(ClipboardPayload::Paths { paths });
+        if !types.is_empty() {
+            let uri_mime = ["text/uri-list", "x-special/gnome-copied-files"]
+                .into_iter()
+                .find(|mime| types.iter().any(|t| t == mime));
+            if let Some(mime) = uri_mime {
+                let raw = String::from_utf8_lossy(&read_type(mime)?).into_owned();
+                let paths = parse_uri_list(&raw);
+                if !paths.is_empty() {
+                    return Ok(ClipboardPayload::Paths { paths });
+                }
+            }
+
+            // image/png cobre a esmagadora maioria dos casos reais (screenshots,
+            // "copiar imagem" no navegador). Formatos crus como image/bmp ou
+            // image/jpeg não são reencodados aqui de propósito, pra não exigir
+            // features extras da crate `image` só pra esse caminho.
+            if types.iter().any(|t| t == "image/png") {
+                let bytes = read_type("image/png")?;
+                if !bytes.is_empty() {
+                    return save_png_to_temp(&bytes).map(|path| ClipboardPayload::Image { path });
+                }
+            }
+
+            if types.iter().any(|t| t.starts_with("text/plain")) {
+                let text = String::from_utf8_lossy(&read_type("text/plain")?).into_owned();
+                if !text.is_empty() {
+                    return Ok(ClipboardPayload::Text { text });
+                }
             }
         }
 
-        // image/png cobre a esmagadora maioria dos casos reais (screenshots,
-        // "copiar imagem" no navegador). Formatos crus como image/bmp ou
-        // image/jpeg não são reencodados aqui de propósito, pra não exigir
-        // features extras da crate `image` só pra esse caminho.
-        if types.iter().any(|t| t == "image/png") {
-            let bytes = read_type("image/png")?;
-            if !bytes.is_empty() {
-                return save_png_to_temp(&bytes).map(|path| ClipboardPayload::Image { path });
-            }
-        }
-
-        if types.iter().any(|t| t.starts_with("text/plain")) {
-            let text = String::from_utf8_lossy(&read_type("text/plain")?).into_owned();
-            if !text.is_empty() {
-                return Ok(ClipboardPayload::Text { text });
+        // WSL: Linux clipboard often empty when the user copied in Windows.
+        if is_wsl() {
+            if let Ok(text) = read_windows_text() {
+                if !text.is_empty() {
+                    return Ok(ClipboardPayload::Text { text });
+                }
             }
         }
 
@@ -578,13 +680,20 @@ mod unix_clipboard {
     }
 
     pub fn read_text() -> Result<String, String> {
-        if !list_types().iter().any(|t| t.starts_with("text/plain")) {
-            return Ok(String::new());
+        if list_types().iter().any(|t| t.starts_with("text/plain")) {
+            let text =
+                read_type("text/plain").map(|bytes| String::from_utf8_lossy(&bytes).into_owned())?;
+            if !text.is_empty() {
+                return Ok(text);
+            }
         }
-        read_type("text/plain").map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+        if is_wsl() {
+            return read_windows_text();
+        }
+        Ok(String::new())
     }
 
-    pub fn write_text(text: &str) -> Result<(), String> {
+    fn write_linux_text(text: &str) -> Result<(), String> {
         let tool = copy_tool()?;
         let mut command = if tool == "wl-copy" {
             Command::new("wl-copy")
@@ -610,6 +719,18 @@ mod unix_clipboard {
             return Err(format!("{tool} retornou erro"));
         }
         Ok(())
+    }
+
+    pub fn write_text(text: &str) -> Result<(), String> {
+        let linux = write_linux_text(text);
+        if is_wsl() {
+            let windows = write_windows_text(text);
+            return match (linux, windows) {
+                (Ok(()), _) | (Err(_), Ok(())) => Ok(()),
+                (Err(err), Err(_)) => Err(err),
+            };
+        }
+        linux
     }
 
     #[cfg(test)]

@@ -49,10 +49,18 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 - CLI launcher resolution before spawning an agent.
 - Windows launcher lookup across PATH, npm, pnpm, Volta, fnm, nvm-windows, Bun, Cargo, Scoop, Chocolatey, and common Node.js paths.
 - Manual launcher override when a CLI cannot be found.
-- Per-agent unrestricted mode flags:
+- Per-agent unrestricted mode flags (YOLO / skip Allow prompts):
   - Claude Code: `--dangerously-skip-permissions`
   - Codex: `--dangerously-bypass-approvals-and-sandbox`
-  - OpenCode: `--dangerously-skip-permissions`
+  - OpenCode / Antigravity: `--dangerously-skip-permissions`
+  - Copilot: `--allow-all`
+  - Gemini: `--yolo`
+- **Auto** runs (Home Auto, Prompt Run bar, Task Board, Flows agent nodes, interrupted resume)
+  always enable those flags. Manual New Terminal / Home agent-direct still use the Normal/YOLO
+  toggle and `alwaysStartUnrestricted`.
+- Session limits: Home agent picker and Auto bar show live badges (`72% · 5h`, Codex window from
+  `window_minutes`, Antigravity buckets). Usage strip includes Claude, Codex, Antigravity, Gemini,
+  and OpenCode.
 
 ## Providers
 

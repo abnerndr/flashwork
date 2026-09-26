@@ -2,6 +2,8 @@ import { Route, Send } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useT, type MessageKey } from '../../lib/i18n'
+import { handleUncontrolledPaste } from '../../lib/clipboardPaste'
+import { resolveCliSessionSnapshot } from '../../lib/cliSessionLimit'
 import { isPromptRunBlocking } from '../../lib/promptRun/isPromptRunBlocking'
 import { promptRunOutcomeToast } from '../../lib/promptRun/promptRunToast'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
@@ -72,6 +74,11 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
   const pushToast = useUiStore((state) => state.pushToast)
   const setActiveTerminal = useUiStore((state) => state.setActiveTerminal)
   const requestPaneFocus = useUiStore((state) => state.requestPaneFocus)
+  const claudeUsage = useUiStore((state) => state.claudeUsage)
+  const codexUsage = useUiStore((state) => state.codexUsage)
+  const antigravityUsage = useUiStore((state) => state.antigravityUsage)
+  const geminiUsage = useUiStore((state) => state.geminiUsage)
+  const opencodeUsage = useUiStore((state) => state.opencodeUsage)
   const promptRef = useRef<HTMLInputElement>(null)
   const submittingRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)
@@ -92,6 +99,16 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
   const lastStep = run?.steps[run.steps.length - 1]
   const capsule = run ? reviewCapsule(run.steps) : {}
   const failed = run?.status === 'failed'
+  const activeSession =
+    run && !isApiAgentId(run.activeAgent)
+      ? resolveCliSessionSnapshot(run.activeAgent, {
+          claude: claudeUsage,
+          codex: codexUsage,
+          antigravity: antigravityUsage,
+          gemini: geminiUsage,
+          opencode: opencodeUsage,
+        })
+      : null
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -106,7 +123,6 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
         project: toAutoPromptRunProject(current),
         cwd: getProjectDefaultCwd(current, useProjectsStore.getState().projects),
         prompt,
-        unrestricted: run?.unrestricted ?? false,
       })
       if (!result.ok) {
         if (result.code === 'no-cwd') {
@@ -175,6 +191,17 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
           <div className={styles.meta}>
             <span className={styles.title}>{t('promptRun.barTitle')}</span>
             <span className={styles.agent}>{routedAgentLabel(run.activeAgent)}</span>
+            {activeSession ? (
+              <span
+                className={`${styles.sessionLimit}${activeSession.critical ? ` ${styles.sessionLimitCritical}` : ''}`}
+                title={t('promptRun.sessionLimitHint', {
+                  agent: routedAgentLabel(run.activeAgent),
+                  limit: activeSession.badge,
+                })}
+              >
+                {activeSession.badge}
+              </span>
+            ) : null}
             <span className={`${styles.status} ${failed ? styles.statusFailed : ''}`}>
               <span className={styles.dot} />
               {t(STATUS_KEYS[run.status])}
@@ -224,6 +251,7 @@ export function PromptRunBar({ projectId }: PromptRunBarProps) {
             placeholder={t('promptRun.composerPlaceholder')}
             aria-label={t('promptRun.composerPlaceholder')}
             disabled={submitting}
+            onPaste={handleUncontrolledPaste}
             required
           />
           <button

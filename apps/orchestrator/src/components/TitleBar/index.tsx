@@ -28,11 +28,13 @@ import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { getCachedAntigravityUsage } from '../../lib/antigravityUsageCache'
 import { getCachedGeminiUsage } from '../../lib/geminiUsageCache'
 import { getCachedOpenCodeUsage } from '../../lib/opencodeUsageCache'
+import { formatWindowMinutes } from '../../lib/cliSessionLimit'
 import { requestAppClose } from '../../hooks/useCloseConfirmation'
 import { observeClaudeReset, observeCodexReset } from '../../lib/limitResetWatch'
 import { useT } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { remoteControlConnectedDevices } from '../../lib/tauri'
+import { toggleFlashworkMaximize } from '../../lib/windowMaximize'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './TitleBar.module.css'
@@ -582,11 +584,17 @@ export function TitleBar() {
                 >
                   <div className={styles.usagePopoverTitle}>{t('ui.titlebar.itemCodex')}</div>
                   <div className={styles.usagePopoverMain}>
-                    <span>{t('widget.usage5h')}</span>
+                    <span>
+                      {t('widget.sessionWindowUsage', {
+                        window: formatWindowMinutes(codexUsage.primary.window_minutes) || '5h',
+                      })}
+                    </span>
                     <strong>{formatPct(codexUsage.primary.used_percent)}</strong>
                   </div>
                   <div className={styles.usagePopoverLine}>
-                    <span>{t('widget.week')}</span>
+                    <span>
+                      {formatWindowMinutes(codexUsage.secondary.window_minutes) || t('widget.week')}
+                    </span>
                     <strong>{formatPct(codexUsage.secondary.used_percent)}</strong>
                   </div>
                   <div className={styles.usagePopoverLine}>
@@ -716,7 +724,7 @@ export function TitleBar() {
         <button
           type="button"
           className={styles.windowBtn}
-          onClick={() => void win.toggleMaximize()}
+          onClick={() => void toggleFlashworkMaximize()}
           title={t('ui.titlebar.maximize')}
           aria-label={t('ui.titlebar.maximize')}
         >

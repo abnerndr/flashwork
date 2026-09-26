@@ -31,7 +31,6 @@ export async function resumeInterruptedAuto(run: PromptRun): Promise<StartPrompt
     project: toAutoPromptRunProject(project),
     cwd,
     prompt: buildInterruptedResumePrompt(run),
-    unrestricted: run.unrestricted,
   })
 
   if (result.ok) {

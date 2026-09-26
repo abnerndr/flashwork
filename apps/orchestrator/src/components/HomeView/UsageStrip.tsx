@@ -5,6 +5,7 @@ import { getCachedCodexUsage } from '../../lib/codexUsageCache'
 import { getCachedAntigravityUsage } from '../../lib/antigravityUsageCache'
 import { getCachedGeminiUsage } from '../../lib/geminiUsageCache'
 import { getCachedOpenCodeUsage } from '../../lib/opencodeUsageCache'
+import { formatWindowMinutes } from '../../lib/cliSessionLimit'
 import { fmtTokens, fmtUsd, shortModel } from '../../lib/costFormat'
 import { translate, getLocale, useT } from '../../lib/i18n'
 import type {
@@ -339,6 +340,9 @@ function CodexCard({ usage }: { usage: CodexUsage | null }) {
     )
   }
 
+  const primaryWindow = formatWindowMinutes(usage.primary.window_minutes) || '5h'
+  const secondaryWindow =
+    formatWindowMinutes(usage.secondary.window_minutes) || t('widget.week')
   const maxUtil = Math.max(usage.primary.used_percent, usage.secondary.used_percent)
 
   return (
@@ -353,9 +357,9 @@ function CodexCard({ usage }: { usage: CodexUsage | null }) {
             t('widget.limitReached')
           ) : (
             <>
-              {t('widget.usage5h')} ·{' '}
+              {t('widget.sessionWindowUsage', { window: primaryWindow })} ·{' '}
               <b>
-                {t('widget.week')} {pctNum(usage.secondary.used_percent)}%
+                {secondaryWindow} {pctNum(usage.secondary.used_percent)}%
               </b>
             </>
           )
@@ -364,13 +368,13 @@ function CodexCard({ usage }: { usage: CodexUsage | null }) {
       <div className={styles.cardBody}>
         <div className={styles.meterList}>
           <Meter
-            label="5h"
+            label={primaryWindow}
             value={`${pctNum(usage.primary.used_percent)}%`}
             util={usage.primary.used_percent}
             base={accent}
           />
           <Meter
-            label={t('widget.week')}
+            label={secondaryWindow}
             value={`${pctNum(usage.secondary.used_percent)}%`}
             util={usage.secondary.used_percent}
             base={accent}
@@ -378,11 +382,11 @@ function CodexCard({ usage }: { usage: CodexUsage | null }) {
         </div>
         <div className={styles.statGrid}>
           <StatCell
-            label={t('widget.resetLabel', { w: '5h' })}
+            label={t('widget.resetLabel', { w: primaryWindow })}
             value={formatResetMs(usage.primary.resets_at_ms)}
           />
           <StatCell
-            label={t('widget.resetLabel', { w: t('widget.week') })}
+            label={t('widget.resetLabel', { w: secondaryWindow })}
             value={formatResetMs(usage.secondary.resets_at_ms)}
           />
           <StatCell
@@ -395,7 +399,7 @@ function CodexCard({ usage }: { usage: CodexUsage | null }) {
       </div>
       <CardFoot
         accent={accent}
-        left={`5h · ${t('widget.week')}`}
+        left={`${primaryWindow} · ${secondaryWindow}`}
         right={t('widget.peak', { v: `${pctNum(maxUtil)}%` })}
       />
     </div>
@@ -641,7 +645,7 @@ export function UsageStrip({ showActivity = true }: { showActivity?: boolean }) 
     <div className={`${styles.usageStrip} ${showActivity ? '' : styles.usageStripTwo}`}>
       <ClaudeCard usage={claudeUsage} />
       <CodexCard usage={codexUsage} />
-      {!showActivity ? <AntigravityCard usage={antigravityUsage} /> : null}
+      <AntigravityCard usage={antigravityUsage} />
       <GeminiCard usage={geminiUsage} />
       <OpenCodeCard usage={opencodeUsage} />
       {showActivity ? (

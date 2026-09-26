@@ -14,12 +14,25 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 - Project versioning starts at **1.0.0**. Every push to `master` auto-bumps the patch
   (`1.0.1`, `1.0.2`, …) via `.github/workflows/bump-version.yml`.
+- **Auto** (Home, Prompt Run bar, Task Board, Flows, resume) always launches CLIs with
+  skip-permission flags (YOLO), so Allow prompts do not block the run. Manual agent
+  launches still respect Normal/YOLO and New Terminal preferences.
+- Home agent picker, Auto bar, usage cards, and titlebar show each CLI’s **session limit**
+  (Claude 5h %, Codex real `window_minutes`, Antigravity buckets). Antigravity also appears
+  on the Home usage strip.
 
 ### Fixed
 
-- On WSL, Flashwork forces `GDK_BACKEND=x11` so the window appears (Wayland-native GTK
-  windows often never map under WSLg). At startup it also moves the main window onto the
-  leftmost display and focuses it (WSLg often places it on a secondary monitor).
+- WSL: paste from Windows (browser, Notepad, …) into terminals and Auto/Home/Task Board
+  composers reads the Windows clipboard via `powershell.exe` when the Linux clipboard is
+  empty. Copy from Flashwork also mirrors text to Windows.
+- Typing Portuguese accents and AltGr characters in chat composers no longer triggers
+  global Ctrl shortcuts (AltGr was seen as Ctrl+Alt on Linux/WSL).
+- WSL + Windows: stop forcing `GDK_BACKEND=x11` by default (it broke maximize). Maximize on
+  Linux/WSL uses fullscreen, then a sane monitor fill. Startup only moves the window when it
+  opens off-screen. If the window never appears: `FLASHWORK_FORCE_X11=1 pnpm run dev`.
+- Focus mode no longer uses `backdrop-filter` blur (froze WebKit under WSLg). Esc / backdrop /
+  minimize exit focus again.
 - App boot no longer dies on a missing `useTaskBoardScheduler` import, which left a blank gray
   window instead of the loading screen.
 

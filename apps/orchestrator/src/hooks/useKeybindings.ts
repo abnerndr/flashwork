@@ -15,6 +15,9 @@ import { useUiStore } from '../stores/uiStore'
 export function useKeybindings() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Dead keys / IME composition must reach inputs (PT-BR accents, ç, etc.).
+      if (e.isComposing || e.key === 'Dead') return
+
       if (e.key === 'Escape') {
         const ui = useUiStore.getState()
         if (ui.openModal) {
@@ -35,8 +38,12 @@ export function useKeybindings() {
         target &&
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
 
-      const ctrl = e.ctrlKey || e.metaKey
-      if (ctrl && !e.altKey && isZoomKey(e)) {
+      // AltGr is reported as ctrl+alt on Linux/WSL. Treat it as typing, not Ctrl.
+      const altGraph = typeof e.getModifierState === 'function' && e.getModifierState('AltGraph')
+      const mod = e.ctrlKey || e.metaKey
+      const ctrl = mod && !e.altKey && !altGraph
+
+      if (ctrl && isZoomKey(e)) {
         e.preventDefault()
         const projects = useProjectsStore.getState()
         const current = projects.preferences.uiZoom
@@ -49,7 +56,8 @@ export function useKeybindings() {
         return
       }
 
-      if (!ctrl && inEditable) return
+      // Never steal keys from composers — AltGr specials used to fire Ctrl+W/P/…
+      if (inEditable) return
 
       if (!ctrl && !e.shiftKey && !e.altKey && (e.key === 'r' || e.key === 'R')) {
         const projects = useProjectsStore.getState()
@@ -75,7 +83,7 @@ export function useKeybindings() {
         return
       }
 
-      if (ctrl && !e.shiftKey && !e.altKey && (e.key === 'b' || e.key === 'B')) {
+      if (ctrl && !e.shiftKey && (e.key === 'b' || e.key === 'B')) {
         e.preventDefault()
         const projects = useProjectsStore.getState()
         projects.setPreferences({
@@ -84,7 +92,7 @@ export function useKeybindings() {
         return
       }
 
-      if (ctrl && !e.shiftKey && !e.altKey && (e.key === 't' || e.key === 'T')) {
+      if (ctrl && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault()
         const project = selectActiveProject(useProjectsStore.getState())
         if (!project) return
@@ -93,7 +101,8 @@ export function useKeybindings() {
       }
 
       // Ctrl+Alt+T repeats the last terminal configuration without reopening the picker.
-      if (ctrl && e.altKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+      // Require real Ctrl+Alt (not AltGr).
+      if (mod && e.altKey && !altGraph && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault()
         const projects = useProjectsStore.getState()
         const project = selectActiveProject(projects)
@@ -127,7 +136,7 @@ export function useKeybindings() {
         return
       }
 
-      if (ctrl && e.shiftKey && !e.altKey && (e.key === 'A' || e.key === 'a')) {
+      if (ctrl && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault()
         const project = selectActiveProject(useProjectsStore.getState())
         if (!project) return
@@ -188,11 +197,11 @@ export function useKeybindings() {
       }
 
       const cycleTerminalDirection =
-        ctrl && !e.altKey && (e.key === 'PageUp' || e.key === 'PageDown')
+        ctrl && (e.key === 'PageUp' || e.key === 'PageDown')
           ? e.key === 'PageUp'
             ? -1
             : 1
-          : !ctrl && e.shiftKey && !e.altKey && e.key === 'Tab'
+          : !mod && e.shiftKey && !e.altKey && e.key === 'Tab'
             ? 1
             : 0
       if (cycleTerminalDirection !== 0) {

@@ -247,7 +247,8 @@ export async function startBoardCard(cardId: string): Promise<void> {
       project: autoProject,
       cwd,
       prompt: card.prompt,
-      unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
+      // Board runs are Auto lanes — always skip CLI Allow prompts.
+      unrestricted: true,
       enabledAgents: input.enabledAgents,
       installedAgents: afterPlannerInstalled,
       claudeFiveHourUtilization: input.claudeFiveHourUtilization,
@@ -344,7 +345,7 @@ export async function continueBoardCard(cardId: string): Promise<void> {
       projectId: card.projectId,
       cwd: card.cwd,
       runId: card.runId,
-      unrestricted: useProjectsStore.getState().preferences.alwaysStartUnrestricted,
+      unrestricted: true,
       lanes: pending.map(sliceToLane),
       allowedFiles: card.allowedFiles,
       boardPath: card.boardPath,

@@ -30,6 +30,23 @@
   color: var(--fg-muted);
 }
 
+.sessionLimit {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font: 10px var(--font-mono);
+  white-space: nowrap;
+}
+
+.sessionLimitCritical {
+  border-color: color-mix(in srgb, var(--status-offline) 45%, var(--border));
+  color: var(--status-offline);
+}
+
 .status {
   display: inline-flex;
   align-items: center;

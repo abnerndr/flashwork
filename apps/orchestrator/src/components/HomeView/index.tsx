@@ -21,6 +21,8 @@ import { useT, type MessageKey, type TFunction } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
 import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
+import { handleUncontrolledPaste } from '../../lib/clipboardPaste'
+import { resolveCliSessionSnapshot } from '../../lib/cliSessionLimit'
 import { AUTO_LAUNCH_VALUE, HOME_DEFAULT_QUICK_PICK } from '../../lib/promptRun/constants'
 import { promptRunOutcomeToast } from '../../lib/promptRun/promptRunToast'
 import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
@@ -126,6 +128,11 @@ export function HomeView() {
     clearNotifications,
     pushToast,
     setHomeQuickPromptDraft,
+    claudeUsage,
+    codexUsage,
+    antigravityUsage,
+    geminiUsage,
+    opencodeUsage,
   } = useUiStore(
     useShallow((s) => ({
       openModal: s.openModal_,
@@ -136,7 +143,23 @@ export function HomeView() {
       clearNotifications: s.clearNotifications,
       pushToast: s.pushToast,
       setHomeQuickPromptDraft: s.setHomeQuickPromptDraft,
+      claudeUsage: s.claudeUsage,
+      codexUsage: s.codexUsage,
+      antigravityUsage: s.antigravityUsage,
+      geminiUsage: s.geminiUsage,
+      opencodeUsage: s.opencodeUsage,
     })),
+  )
+
+  const cliUsage = useMemo(
+    () => ({
+      claude: claudeUsage,
+      codex: codexUsage,
+      antigravity: antigravityUsage,
+      gemini: geminiUsage,
+      opencode: opencodeUsage,
+    }),
+    [claudeUsage, codexUsage, antigravityUsage, geminiUsage, opencodeUsage],
   )
 
   const lastUsedByProject = useMemo(() => {
@@ -267,7 +290,6 @@ export function HomeView() {
           project: toAutoPromptRunProject(quickTarget),
           cwd,
           prompt,
-          unrestricted: quickUnrestricted,
         })
         if (!result.ok) {
           if (result.code === 'no-project') {
@@ -423,6 +445,7 @@ export function HomeView() {
               aria-label={t('home.quickPrompt')}
               defaultValue={useUiStore.getState().homeQuickPromptDraft}
               onChange={(event) => setHomeQuickPromptDraft(event.currentTarget.value)}
+              onPaste={handleUncontrolledPaste}
               required
             />
           </label>
@@ -464,25 +487,49 @@ export function HomeView() {
                   <span>{t('home.quickAgentAuto')}</span>
                   {isAutoPick ? <CheckCircle2 size={16} /> : null}
                 </button>
-                {quickAgents.map((agent) => (
-                  <button
-                    key={agent.type}
-                    type="button"
-                    className={
-                      !isAutoPick && quickAgent === agent.type ? styles.quickAgentActive : ''
-                    }
-                    title={agent.label}
-                    aria-label={agent.label}
-                    onClick={() => {
-                      setQuickPick(agent.type)
-                      quickAgentMenuRef.current?.removeAttribute('open')
-                    }}
-                  >
-                    <AgentIcon type={agent.type} size={19} theme={preferences.uiTheme} />
-                    <span>{agent.label}</span>
-                    {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={16} /> : null}
-                  </button>
-                ))}
+                {quickAgents.map((agent) => {
+                  const session = resolveCliSessionSnapshot(agent.type, cliUsage)
+                  return (
+                    <button
+                      key={agent.type}
+                      type="button"
+                      className={
+                        !isAutoPick && quickAgent === agent.type ? styles.quickAgentActive : ''
+                      }
+                      title={
+                        session
+                          ? t('home.quickAgentSessionHint', {
+                              agent: agent.label,
+                              limit: session.badge,
+                            })
+                          : agent.label
+                      }
+                      aria-label={
+                        session
+                          ? t('home.quickAgentSessionHint', {
+                              agent: agent.label,
+                              limit: session.badge,
+                            })
+                          : agent.label
+                      }
+                      onClick={() => {
+                        setQuickPick(agent.type)
+                        quickAgentMenuRef.current?.removeAttribute('open')
+                      }}
+                    >
+                      <AgentIcon type={agent.type} size={19} theme={preferences.uiTheme} />
+                      <span>{agent.label}</span>
+                      {session ? (
+                        <span
+                          className={`${styles.quickAgentSession}${session.critical ? ` ${styles.quickAgentSessionCritical}` : ''}`}
+                        >
+                          {session.badge}
+                        </span>
+                      ) : null}
+                      {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={16} /> : null}
+                    </button>
+                  )
+                })}
               </div>
             </details>
             <button
@@ -499,47 +546,59 @@ export function HomeView() {
               </span>
               <ChevronDown size={16} />
             </button>
-            <details
-              ref={quickModeMenuRef}
-              className={styles.quickMode}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget))
-                  event.currentTarget.open = false
-              }}
-            >
-              <summary aria-label={t('home.quickPermissions')}>
+            {isAutoPick ? (
+              <div
+                className={`${styles.quickMode} ${styles.quickModeLocked}`}
+                title={t('home.quickUnrestrictedAutoHint')}
+                aria-label={t('home.quickUnrestrictedAutoHint')}
+              >
                 <span className={styles.quickModeDot} aria-hidden="true" />
                 <span className={styles.quickControlLabel}>{t('home.quickMode')}:</span>
-                <span>
-                  {quickUnrestricted ? t('home.quickUnrestricted') : t('home.quickRestricted')}
-                </span>
-                <ChevronDown size={16} />
-              </summary>
-              <div className={`${styles.quickSelectOptions} ${styles.quickModeOptions}`}>
-                {(['restricted', 'unrestricted'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={
-                      quickUnrestricted === (mode === 'unrestricted')
-                        ? styles.quickSelectActive
-                        : ''
-                    }
-                    onClick={() => {
-                      setQuickUnrestricted(mode === 'unrestricted')
-                      quickModeMenuRef.current?.removeAttribute('open')
-                    }}
-                  >
-                    <span className={styles.quickModeDot} aria-hidden="true" />
-                    <span>
-                      {mode === 'unrestricted'
-                        ? t('home.quickUnrestricted')
-                        : t('home.quickRestricted')}
-                    </span>
-                  </button>
-                ))}
+                <span>{t('home.quickUnrestricted')}</span>
               </div>
-            </details>
+            ) : (
+              <details
+                ref={quickModeMenuRef}
+                className={styles.quickMode}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget))
+                    event.currentTarget.open = false
+                }}
+              >
+                <summary aria-label={t('home.quickPermissions')}>
+                  <span className={styles.quickModeDot} aria-hidden="true" />
+                  <span className={styles.quickControlLabel}>{t('home.quickMode')}:</span>
+                  <span>
+                    {quickUnrestricted ? t('home.quickUnrestricted') : t('home.quickRestricted')}
+                  </span>
+                  <ChevronDown size={16} />
+                </summary>
+                <div className={`${styles.quickSelectOptions} ${styles.quickModeOptions}`}>
+                  {(['restricted', 'unrestricted'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={
+                        quickUnrestricted === (mode === 'unrestricted')
+                          ? styles.quickSelectActive
+                          : ''
+                      }
+                      onClick={() => {
+                        setQuickUnrestricted(mode === 'unrestricted')
+                        quickModeMenuRef.current?.removeAttribute('open')
+                      }}
+                    >
+                      <span className={styles.quickModeDot} aria-hidden="true" />
+                      <span>
+                        {mode === 'unrestricted'
+                          ? t('home.quickUnrestricted')
+                          : t('home.quickRestricted')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
             <button
               type="submit"
               className={styles.quickSend}

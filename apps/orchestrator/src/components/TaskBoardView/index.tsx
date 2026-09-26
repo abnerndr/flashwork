@@ -15,6 +15,7 @@ import { type ReactNode, useMemo, useState } from 'react'
 import { UiIcon } from '../ui/UiIcon'
 
 import { pickFiles } from '../../lib/dialog'
+import { resolveControlledPasteValue } from '../../lib/clipboardPaste'
 import { type MessageKey, useT } from '../../lib/i18n'
 import {
   cardDragId,
@@ -372,7 +373,24 @@ export function TaskBoardView() {
         </div>
         <label className={styles.full}>
           {t('taskBoard.prompt')}
-          <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={3} />
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            onPaste={(event) => {
+              if (event.clipboardData?.getData('text/plain')) return
+              event.preventDefault()
+              const el = event.currentTarget
+              const start = el.selectionStart ?? prompt.length
+              const end = el.selectionEnd ?? prompt.length
+              void resolveControlledPasteValue(event.nativeEvent, prompt, start, end).then(
+                (next) => {
+                  if (next == null) return
+                  setPrompt(next)
+                },
+              )
+            }}
+            rows={3}
+          />
         </label>
         <div className={styles.attachments}>
           <div className={styles.filesHead}>

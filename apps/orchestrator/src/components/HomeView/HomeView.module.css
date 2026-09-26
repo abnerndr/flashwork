@@ -2162,7 +2162,7 @@
   z-index: 4;
   top: calc(100% + 6px);
   left: 0;
-  width: 176px;
+  width: 240px;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -2196,9 +2196,28 @@
 
 .quickAgentOptions button > span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .quickAgentOptions button > svg:last-child {
   color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.quickAgentSession {
+  flex: 0 0 auto;
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-faint);
+  font: 9px var(--font-mono);
+}
+
+.quickAgentSessionCritical {
+  color: var(--status-offline);
 }
 
 .quickAgentOptions button:hover,
@@ -2254,6 +2273,20 @@
   font: 10px var(--font-mono);
   cursor: pointer;
   list-style: none;
+}
+
+/* Auto locks YOLO — same chip look as the mode <summary>, non-interactive. */
+.quickModeLocked {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--panel-hover);
+  color: var(--fg-muted);
+  font: 10px var(--font-mono);
 }
 
 .quickMode summary::-webkit-details-marker {

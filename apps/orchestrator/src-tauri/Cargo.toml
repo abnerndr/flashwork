@@ -1,6 +1,6 @@
 [package]
 name = "flashwork"
-version = "1.0.0"
+version = "1.0.1"
 description = "Flashwork — AI agent orchestrator"
 authors = ["Abner Ananias"]
 license = "AGPL-3.0-or-later"

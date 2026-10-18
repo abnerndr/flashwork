@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/003-unified-mcp-skills-surface.md`
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # shellcheck disable=SC1091
 . ./lib.sh
 ROOT="$(flashwork_root)"
-ORCH="$ROOT/apps/orchestrator"
+ORCH="$ROOT"
 flashwork_env
 flashwork_require_node
 flashwork_require_rust

@@ -39,7 +39,7 @@ flashwork_require_rust() {
 flashwork_npm_install() {
   local orch="$1"
   if [ ! -d "$orch/node_modules" ]; then
-    echo "Installing npm dependencies in apps/orchestrator…"
+    echo "Installing npm dependencies in .…"
     npm --prefix "$orch" install
   fi
 }

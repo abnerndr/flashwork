@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/009-remove-omniroute.md`
 
-Paths relative to `apps/orchestrator/` unless noted.
+Paths relative to `` unless noted.
 
 ---
 

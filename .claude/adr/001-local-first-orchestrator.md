@@ -10,7 +10,7 @@ Flashwork exists to run several coding CLIs and shells at once, with real PTYs, 
 
 ## Decision
 
-Keep the current desktop stack and domain model (`Group → Project → Terminal → Sub-tab → PTY`). New IDE features extend `apps/orchestrator`. Do not add a second Electron app, a cloud control plane, or a rewrite of persistence.
+Keep the current desktop stack and domain model (`Group → Project → Terminal → Sub-tab → PTY`). New IDE features extend `.`. Do not add a second Electron app, a cloud control plane, or a rewrite of persistence.
 
 ## Consequences
 

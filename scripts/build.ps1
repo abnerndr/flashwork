@@ -1,7 +1,7 @@
 # Flashwork — production bundle on native Windows (NSIS / MSI).
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
-$Orch = Join-Path $Root "apps\orchestrator"
+$Orch = $Root
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Error "Node.js >= 22 is required."

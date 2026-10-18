@@ -14,6 +14,6 @@ Read these before writing code:
 5. The numbered plan for the slice you were asked to implement
 6. Relevant ADRs in `.claude/adr/`
 
-Existing app conventions live in `apps/orchestrator/AGENTS.md`.
+Existing app conventions live in `AGENTS.md`.
 
-Do not fork VS Code. Do not add OpenRouter or OmniRoute. Do not add an in-app Monaco IDE (ADR 011). Do not implement until the owner names a plan. Prefer extending `apps/orchestrator` over adding a second app.
+Do not fork VS Code. Do not add OpenRouter or OmniRoute. Do not add an in-app Monaco IDE (ADR 011). Do not implement until the owner names a plan. Prefer extending `.` over adding a second app.

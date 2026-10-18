@@ -1,7 +1,7 @@
 # Flashwork — open the desktop app (Tauri + Vite) on native Windows.
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
-$Orch = Join-Path $Root "apps\orchestrator"
+$Orch = $Root
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Error "Node.js >= 22 is required."
@@ -17,4 +17,4 @@ if (-not (Test-Path (Join-Path $Orch "node_modules"))) {
 
 Write-Host "==> Flashwork desktop (dev)"
 Set-Location $Root
-npm run dev
+npm run app

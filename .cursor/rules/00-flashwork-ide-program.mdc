@@ -15,7 +15,7 @@ The current product (orchestrator, Task Board, MCP/Skills panel, Git control, Gr
 - Do not commit, push, tag, or release unless the owner asks in that message.
 - No AI co-author trailers on commits.
 - i18n is mandatory: every visible string in `en.ts` **and** `pt-BR.ts`.
-- Changelog under `[Unreleased]` in `apps/orchestrator/docs/CHANGELOG.md` for user-facing work.
+- Changelog under `[Unreleased]` in `docs/CHANGELOG.md` for user-facing work.
 - CSS Modules + tokens in `theme.css`. Never hardcode colors. No Tailwind. No gradients / generic template UI.
 - English for versioned source, comments, JSDoc, changelog, and docs. Locale files are the exception.
 
@@ -29,7 +29,7 @@ Entry points:
 - ADRs: `.claude/adr/`
 - Spec: `docs/superpowers/specs/2026-09-17-flashwork-ide-program-design.md`
 - Plans: `docs/superpowers/plans/2026-09-17-*.md`
-- Existing app guide: `apps/orchestrator/AGENTS.md`
+- Existing app guide: `AGENTS.md`
 
 ## Architecture decisions already recorded
 

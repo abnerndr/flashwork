@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/011-token-metrics-all-agents.md`
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

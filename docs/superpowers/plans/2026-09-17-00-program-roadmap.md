@@ -4,7 +4,7 @@
 
 **Goal:** Sequence independent, testable slices that turn Flashwork into an IDE while keeping the current orchestrator, dropping the OmniRoute gateway, fixing CLI + first-party APIs, and metering every agent — not only Claude.
 
-**Architecture:** Extend `apps/orchestrator` only. Persistence grows from profile `projects.json` plus per-folder `.flashwork/`. VS Code is a UX reference. No OpenRouter/9router hop.
+**Architecture:** Extend `.` only. Persistence grows from profile `projects.json` plus per-folder `.flashwork/`. VS Code is a UX reference. No OpenRouter/9router hop.
 
 **Tech Stack:** Tauri 2, Rust, React 18, Zustand, Vitest, existing MCP/skills/git/prompt-run modules, OS keyring for provider keys.
 

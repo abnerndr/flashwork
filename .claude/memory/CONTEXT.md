@@ -33,8 +33,8 @@ CLI install/update (`agentInstall.ts`, `useCommandInstall.ts`) is no longer Wind
 
 ## Task Board (shipped; P01 attachments + tool picker)
 
-- UI: `apps/orchestrator/src/components/TaskBoardView/index.tsx`
-- Types: `TaskCard` / `TaskSlicePlan` / `TaskAttachment` / `TaskToolSelection` in `apps/orchestrator/src/lib/types.ts`
+- UI: `src/components/TaskBoardView/index.tsx`
+- Types: `TaskCard` / `TaskSlicePlan` / `TaskAttachment` / `TaskToolSelection` in `src/lib/types.ts`
 - Create form: title, prompt, priority, allowed files, verify commands, **Attach handoff**, **Restrict tools** (MCP + skills)
 - Attachments copy under `{profile}/task-board/attachments/{cardId}/` (migrate to `.flashwork/` with P04)
 - Spawn writes `tools.json` via `task_write_tools_json` and points agents at paths (no markdown paste)
@@ -75,7 +75,7 @@ Creating a project requires a destination folder. Flashwork writes `<folder>/.fl
 
 - Graphify + AI Memory still optional feature flags; on create they run in the background and write `.flashwork/rag/STATUS.json` (`exists` | `unavailable`). No hosted embedding API.
 - Task Board cards for folder-backed projects: `.flashwork/history/tasks/<id>.json`. Pre-P04 cards stay in profile `task-board.json`.
-- Spec proposed, not fully landed: `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` (run hubs remain under the app profile; `.flashwork/history/runs/README.md` is a pointer).
+- Spec proposed, not fully landed: `docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` (run hubs remain under the app profile; `.flashwork/history/runs/README.md` is a pointer).
 - Attachments still live under `{profile}/task-board/attachments/{cardId}/` (not yet migrated next to the card JSON).
 
 ## Visual (P03 shipped)
@@ -99,9 +99,9 @@ P06 Monaco + Open VSX is removed. Files in the explorer preview or open in VS Co
 
 ## Docs already in the app
 
-- `apps/orchestrator/AGENTS.md` / `CLAUDE.md`
-- `apps/orchestrator/docs/FEATURES.md`, `OVERVIEW.md`, `CHANGELOG.md`, `BRAND.md`
-- Superpowers specs/plans under `apps/orchestrator/docs/superpowers/` (shared session context, project-scoped hub)
+- `AGENTS.md` / `CLAUDE.md`
+- `docs/FEATURES.md`, `OVERVIEW.md`, `CHANGELOG.md`, `BRAND.md`
+- Superpowers specs/plans under `docs/superpowers/` (shared session context, project-scoped hub)
 
 ## Gaps this program addresses
 

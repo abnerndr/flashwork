@@ -9,9 +9,9 @@
 **Tech Stack:** Rust (fs, serde), React modal, Vitest + cargo test.
 
 **ADR:** `.claude/adr/005-per-project-harness-rag.md`  
-**Related spec:** `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md`
+**Related spec:** `docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md`
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

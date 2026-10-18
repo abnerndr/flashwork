@@ -9,9 +9,9 @@
 **Tech Stack:** CSS Modules, `theme.css`, `docs/BRAND.md`, lucide-react.
 
 **ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
-**Existing tokens:** `apps/orchestrator/docs/BRAND.md`, `docs/UI_VISUAL_STYLES.md`
+**Existing tokens:** `docs/BRAND.md`, `docs/UI_VISUAL_STYLES.md`
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

@@ -19,11 +19,11 @@ Read these two docs for context — they describe the hub this plan promotes to 
 - `docs/superpowers/specs/2026-08-24-shared-session-context-design.md`
 - `docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` (the spec this plan implements)
 
-All file paths below are relative to `apps/orchestrator/` unless stated otherwise.
+All file paths below are relative to `` unless stated otherwise.
 
 Rust tests: `npm run test:rust` (runs `cd src-tauri && cargo test --lib`). To run one module: `cd src-tauri && cargo test --lib <module>::tests`.
 
-TS tests: `npx vitest run <path>` from `apps/orchestrator/`.
+TS tests: `npx vitest run <path>` from ``.
 
 ---
 
@@ -113,7 +113,7 @@ Expected: PASS (no other module referenced `validate_run_id` — confirm with `g
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/paths.rs apps/orchestrator/src-tauri/src/prompt_run.rs
+git add src-tauri/src/paths.rs src-tauri/src/prompt_run.rs
 git commit -m "feat(context-hub): add project-scoped path confinement helpers"
 ```
 
@@ -497,7 +497,7 @@ Expected: PASS (this also compiles `handoff.rs`, confirming the `write_events_hu
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/context_hub.rs apps/orchestrator/src-tauri/src/handoff.rs
+git add src-tauri/src/context_hub.rs src-tauri/src/handoff.rs
 git commit -m "feat(context-hub): tag every chunk with its originating run id"
 ```
 
@@ -596,7 +596,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/context_hub.rs
+git add src-tauri/src/context_hub.rs
 git commit -m "feat(context-hub): merge sibling run hubs into a project-level hub"
 ```
 
@@ -696,7 +696,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/prompt_run.rs
+git add src-tauri/src/prompt_run.rs
 git commit -m "fix(context-hub): stop save_prompt_run from reverting contextDir to the old per-run path"
 ```
 
@@ -863,7 +863,7 @@ Expected: PASS (this compiles the whole crate, catching any remaining call-site 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/context_hub.rs apps/orchestrator/src-tauri/src/prompt_run.rs apps/orchestrator/src-tauri/src/lib.rs
+git add src-tauri/src/context_hub.rs src-tauri/src/prompt_run.rs src-tauri/src/lib.rs
 git commit -m "feat(context-hub): promote ensure/ingest/search commands to project scope"
 ```
 
@@ -1038,7 +1038,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src-tauri/src/lane_status.rs apps/orchestrator/src-tauri/src/lib.rs
+git add src-tauri/src/lane_status.rs src-tauri/src/lib.rs
 git commit -m "feat(context-hub): add per-lane status ledger (write/read, zero model tokens)"
 ```
 
@@ -1136,7 +1136,7 @@ Expected: no new errors from these three files (there will still be errors from 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/types.ts apps/orchestrator/src/lib/tauri/contextHub.ts apps/orchestrator/src/lib/tauri/laneStatus.ts apps/orchestrator/src/lib/tauri/index.ts
+git add src/lib/types.ts src/lib/tauri/contextHub.ts src/lib/tauri/laneStatus.ts src/lib/tauri/index.ts
 git commit -m "feat(context-hub): add project-scoped TS bindings and lane status client"
 ```
 
@@ -1204,7 +1204,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/promptRun/startPromptRun.ts apps/orchestrator/src/lib/promptRun/startPromptRun.test.ts
+git add src/lib/promptRun/startPromptRun.ts src/lib/promptRun/startPromptRun.test.ts
 git commit -m "feat(context-hub): pass project id into ensureContextDir"
 ```
 
@@ -1294,7 +1294,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/promptRun/startPromptRun.ts apps/orchestrator/src/lib/promptRun/startPromptRun.test.ts
+git add src/lib/promptRun/startPromptRun.ts src/lib/promptRun/startPromptRun.test.ts
 git commit -m "feat(context-hub): mark a lane's status working as soon as it launches"
 ```
 
@@ -1349,7 +1349,7 @@ Expected: file exists and updates after each debounced ingest.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/orchestrator/src/hooks/usePromptRunWatcher.ts
+git add src/hooks/usePromptRunWatcher.ts
 git commit -m "feat(context-hub): refresh live filesTouched status after each context ingest"
 ```
 
@@ -1456,7 +1456,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/taskBoard/schedule.ts apps/orchestrator/src/lib/taskBoard/schedule.test.ts
+git add src/lib/taskBoard/schedule.ts src/lib/taskBoard/schedule.test.ts
 git commit -m "feat(context-hub): block TaskBoard cards on live filesTouched, not just declared allowlists"
 ```
 
@@ -1466,7 +1466,7 @@ git commit -m "feat(context-hub): block TaskBoard cards on live filesTouched, no
 
 **Files:**
 - Modify: `src/lib/taskBoard/submitBoardTask.ts:7-16` (import), `:318-347` (`noteBoardTerminalComplete`), `:388-408` (`pumpTaskBoardQueue`)
-- Test: `src/lib/taskBoard/boardStart.test.ts` or a new `src/lib/taskBoard/submitBoardTask.test.ts` section — check which file already covers `pumpTaskBoardQueue`/`noteBoardTerminalComplete` with `grep -n "pumpTaskBoardQueue\|noteBoardTerminalComplete" apps/orchestrator/src/lib/taskBoard/*.test.ts` before adding; if neither is covered by an existing test file, add the test directly to a new `src/lib/taskBoard/submitBoardTask.test.ts`.
+- Test: `src/lib/taskBoard/boardStart.test.ts` or a new `src/lib/taskBoard/submitBoardTask.test.ts` section — check which file already covers `pumpTaskBoardQueue`/`noteBoardTerminalComplete` with `grep -n "pumpTaskBoardQueue\|noteBoardTerminalComplete" src/lib/taskBoard/*.test.ts` before adding; if neither is covered by an existing test file, add the test directly to a new `src/lib/taskBoard/submitBoardTask.test.ts`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1568,7 +1568,7 @@ Expected: no errors
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/taskBoard/submitBoardTask.ts
+git add src/lib/taskBoard/submitBoardTask.ts
 git commit -m "feat(context-hub): feed live lane status into TaskBoard scheduling and mark slices done"
 ```
 
@@ -1631,7 +1631,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/orchestrator/src/lib/promptRun/bootstrapPrompt.ts apps/orchestrator/src/lib/promptRun/bootstrapPrompt.test.ts
+git add src/lib/promptRun/bootstrapPrompt.ts src/lib/promptRun/bootstrapPrompt.test.ts
 git commit -m "docs(context-hub): point worker bootstrap at run-namespaced chunk paths"
 ```
 
@@ -1659,7 +1659,7 @@ In `docs/CHANGELOG.md`, under `## [Unreleased]` → `### Changed`, add (as a new
 - [ ] **Step 2: Commit**
 
 ```bash
-git add apps/orchestrator/docs/CHANGELOG.md
+git add docs/CHANGELOG.md
 git commit -m "docs: changelog entry for the project-scoped context hub"
 ```
 

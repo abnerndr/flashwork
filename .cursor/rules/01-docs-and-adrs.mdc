@@ -15,7 +15,7 @@ alwaysApply: false
 | `.claude/adr/NNN-*.md` | Architecture Decision Records |
 | `docs/superpowers/specs/` | Design specs |
 | `docs/superpowers/plans/` | Bite-sized implementation plans |
-| `apps/orchestrator/docs/` | Product docs already in the app (`FEATURES.md`, `OVERVIEW.md`, `CHANGELOG.md`) |
+| `docs/` | Product docs already in the app (`FEATURES.md`, `OVERVIEW.md`, `CHANGELOG.md`) |
 
 ## ADR format
 

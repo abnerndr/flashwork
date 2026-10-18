@@ -9,5 +9,5 @@ This Flashwork build **does not** use Flashwork trademarks in the product UI, in
 
 ## Flashwork
 
-**Flashwork** is a separate product brand. This repository's `apps/orchestrator` is an AGPL-3.0
+**Flashwork** is a separate product brand. This repository's `.` is an AGPL-3.0
 derivative of Flashwork Agents with Flashwork branding applied.

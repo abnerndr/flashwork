@@ -22,4 +22,4 @@ Program started 2026-09-17. Implementation happens only when the owner names a p
 
 ADRs and memory live at the repo root: `.claude/adr/`, `.claude/memory/`.
 
-Older orchestrator-only specs remain in `apps/orchestrator/docs/superpowers/`.
+Shared-session and project-hub specs are also available in this directory.

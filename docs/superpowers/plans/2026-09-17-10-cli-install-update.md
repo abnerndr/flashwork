@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/009-remove-omniroute.md` (CLIs are the primary path)
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

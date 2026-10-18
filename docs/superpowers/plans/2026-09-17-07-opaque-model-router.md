@@ -11,7 +11,7 @@
 **ADR:** `.claude/adr/006-opaque-model-router.md`  
 **Depends on:** P09 (no OmniRoute), P11 (keys + catalog), P10 recommended so Auto can install a missing CLI.
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

@@ -2,7 +2,7 @@
 
 Date: 2026-09-17
 Status: proposed (planning only; not implemented)
-Builds on: current orchestrator in `apps/orchestrator`, ADRs 001–010, vscode-docs as UX reference
+Builds on: current orchestrator in `.`, ADRs 001–010, vscode-docs as UX reference
 
 ## Problem
 
@@ -72,7 +72,7 @@ Rationale: drop the gateway first; fix CLI install; then token/identity HUD (use
 ## Data contracts (shared)
 
 ```ts
-// apps/orchestrator/src/lib/types.ts (to add)
+// src/lib/types.ts (to add)
 
 export type TaskAttachment = {
   id: string

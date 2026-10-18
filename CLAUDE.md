@@ -158,3 +158,7 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## IDE program scope
+
+Until the owner names a numbered plan (`P01`?`P08`), do not implement product code for the IDE program. See [the program design](docs/superpowers/specs/2026-09-17-flashwork-ide-program-design.md) and [the product snapshot](.claude/memory/CONTEXT.md).

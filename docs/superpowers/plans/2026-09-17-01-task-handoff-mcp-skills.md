@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/008-task-handoff-and-tool-picker.md`
 
-Paths below are relative to `apps/orchestrator/` unless noted.
+Paths below are relative to `` unless noted.
 
 ---
 

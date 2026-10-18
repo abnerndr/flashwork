@@ -10,6 +10,10 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Repository
+
+- Move the desktop app to the repository root, with unified dependencies, scripts, and documentation.
+
 ### Added
 
 - **Run SPEC** is the single way to run work on a project: paste a prompt or attach a `.md`

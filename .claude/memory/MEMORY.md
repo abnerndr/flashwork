@@ -7,7 +7,7 @@ Last updated: 2026-09-17 (addendum: token metrics for all agents, not only Claud
 - **Name:** Flashwork (`com.ruperth.flashwork`)
 - **What it is:** Local-first desktop workspace for running coding agents and shells in parallel, with real PTYs (not fake terminals).
 - **Stack:** Tauri 2, Rust, React 18, TypeScript, Vite, Zustand, xterm.js, CSS Modules + design tokens. No Tailwind.
-- **App root:** `apps/orchestrator/`
+- **App root:** ``
 - **Owner:** Abner Ananias / Ruperth
 - **License of the desktop app:** AGPL-3.0-or-later
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-17 (addendum: token metrics for all agents, not only Claud
 - Never commit/push without an explicit ask in that moment.
 - No AI co-author on commits.
 - i18n: `en.ts` is source of truth; `pt-BR.ts` must match keys.
-- User-facing work updates `apps/orchestrator/docs/CHANGELOG.md` `[Unreleased]`.
+- User-facing work updates `docs/CHANGELOG.md` `[Unreleased]`.
 
 ## Program started 2026-09-17
 

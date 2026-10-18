@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/orchestrator/src/assets/flashwork-mark.svg" alt="Flashwork" width="96" height="96">
+  <img src="src/assets/flashwork-mark.svg" alt="Flashwork" width="96" height="96">
 </p>
 
 <h1 align="center">Flashwork</h1>
@@ -42,24 +42,24 @@ Flashwork concentra isso num workspace único:
 ## Screenshots
 
 <p align="center">
-  <img src="apps/orchestrator/docs/screenshots/home-view.png" alt="Home do Flashwork — projetos recentes e quick launch" width="900">
+  <img src="docs/screenshots/home-view.png" alt="Home do Flashwork — projetos recentes e quick launch" width="900">
 </p>
 
 <p align="center">
-  <img src="apps/orchestrator/docs/screenshots/flashwork-linux.png" alt="Workspace com panes de agentes no Linux" width="900">
+  <img src="docs/screenshots/flashwork-linux.png" alt="Workspace com panes de agentes no Linux" width="900">
 </p>
 
 <details>
 <summary>Windows e macOS</summary>
 
 <p align="center">
-  <img src="apps/orchestrator/docs/screenshots/flashwork-windows.png" alt="Flashwork no Windows" width="900">
-  <img src="apps/orchestrator/docs/screenshots/flashwork-macos.png" alt="Flashwork no macOS" width="900">
+  <img src="docs/screenshots/flashwork-windows.png" alt="Flashwork no Windows" width="900">
+  <img src="docs/screenshots/flashwork-macos.png" alt="Flashwork no macOS" width="900">
 </p>
 
 </details>
 
-Preview animado: [`apps/orchestrator/docs/assets/flashwork-preview.gif`](apps/orchestrator/docs/assets/flashwork-preview.gif)
+Preview animado: [`docs/assets/flashwork-preview.gif`](docs/assets/flashwork-preview.gif)
 
 ---
 
@@ -79,7 +79,7 @@ Preview animado: [`apps/orchestrator/docs/assets/flashwork-preview.gif`](apps/or
 | **Backup**    | Export/import `.zip` com proteção contra zip-slip e writes atômicos                                                        |
 | **i18n**      | Inglês e pt-BR; o build falha se faltar chave de tradução                                                                  |
 
-Lista completa: [`apps/orchestrator/docs/FEATURES.md`](apps/orchestrator/docs/FEATURES.md)
+Lista completa: [`docs/FEATURES.md`](docs/FEATURES.md)
 
 ---
 
@@ -118,7 +118,7 @@ Group
 - **Terminal** — unidade persistente: cwd, sub-abas, PTY, scrollback
 - **Sub-tab** — aba interna, em geral um agente ou um shell
 
-Detalhes: [`apps/orchestrator/docs/OVERVIEW.md`](apps/orchestrator/docs/OVERVIEW.md)
+Detalhes: [`docs/OVERVIEW.md`](docs/OVERVIEW.md)
 
 ---
 
@@ -149,11 +149,11 @@ Na raiz do repositório:
 ```bash
 npm run setup          # instala deps do app
 npm run test:local     # lint + testes + build do frontend
-npm run dev            # abre o app (Tauri) — teste local
+npm run app            # abre o app (Tauri) — teste local
 npm run dev:ui         # só o visual no browser (sem PTY)
 ```
 
-A primeira execução de `npm run dev` compila o backend Rust do zero e leva alguns minutos. As seguintes são rápidas.
+A primeira execução de `npm run app` compila o backend Rust do zero e leva alguns minutos. As seguintes são rápidas.
 
 `dev:ui` sobe só o Vite — útil para UI, mas **não** spawna PTYs.
 
@@ -166,7 +166,7 @@ npm run installer:windows    # NSIS + MSI
 npm run installer            # bundle do SO atual
 ```
 
-Artefatos: `apps/orchestrator/src-tauri/target/release/bundle/`
+Artefatos: `src-tauri/target/release/bundle/`
 
 Windows é a plataforma mais testada. Linux e macOS entram no fluxo de release; validação em máquina real ainda é bem-vinda.
 
@@ -174,13 +174,12 @@ Windows é a plataforma mais testada. Linux e macOS entram no fluxo de release; 
 
 ## Estrutura
 
-```
-apps/orchestrator/     # único app — Tauri 2 + React + Rust
-  src/                 # frontend (componentes, stores, i18n)
-  src-tauri/           # backend Rust (PTY, projetos, agentes, MCP)
-  docs/                # features, overview, changelog, screenshots
-scripts/               # setup / dev / build por SO
-.github/workflows/     # CI
+```text
+src/                   # React frontend
+src-tauri/             # Rust / Tauri backend
+docs/                  # Product docs, specs, plans, screenshots
+scripts/               # Setup, development, build, release helpers
+.github/workflows/     # CI and releases
 ```
 
 ---
@@ -189,25 +188,23 @@ scripts/               # setup / dev / build por SO
 
 | Doc                                                    | Conteúdo                               |
 | ------------------------------------------------------ | -------------------------------------- |
-| [`FEATURES.md`](apps/orchestrator/docs/FEATURES.md)    | Capacidades do produto                 |
-| [`OVERVIEW.md`](apps/orchestrator/docs/OVERVIEW.md)    | Modelo de domínio, stack, persistência |
-| [`CHANGELOG.md`](apps/orchestrator/docs/CHANGELOG.md)  | Histórico user-facing                  |
-| [`CONTRIBUTING.md`](apps/orchestrator/CONTRIBUTING.md) | Setup, convenções, PRs                 |
-| [`BRAND.md`](apps/orchestrator/docs/BRAND.md)          | Tokens visuais e assets                |
+| [`FEATURES.md`](docs/FEATURES.md)    | Capacidades do produto                 |
+| [`OVERVIEW.md`](docs/OVERVIEW.md)    | Modelo de domínio, stack, persistência |
+| [`CHANGELOG.md`](docs/CHANGELOG.md)  | Histórico user-facing                  |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, convenções, PRs                 |
+| [`BRAND.md`](docs/BRAND.md)          | Tokens visuais e assets                |
 
 ---
 
 ## Licença
 
-O produto desktop (`apps/orchestrator` e os binários gerados dele) é **AGPL-3.0-or-later**.
-
-Scripts e docs originais na raiz podem estar sob MIT, conforme o arquivo `LICENSE`. **Não trate o binário do orchestrator como MIT.**
+The desktop app and generated binaries are **AGPL-3.0-or-later**; see `LICENSE`. Original repository helper scripts and program documentation retain their MIT terms in `LICENSE-MIT`.
 
 Ver:
 
 - [`LICENSE`](LICENSE)
-- [`apps/orchestrator/NOTICE`](apps/orchestrator/NOTICE)
-- [`apps/orchestrator/TRADEMARK.md`](apps/orchestrator/TRADEMARK.md)
+- [`NOTICE`](NOTICE)
+- [`TRADEMARK.md`](TRADEMARK.md)
 
 Upstream: [Flashwork Agents](https://github.com/abnerndr/flashwork-agents)
 

@@ -37,10 +37,10 @@
 ### Task 1: Chunk + lexical index (zero model tokens)
 
 **Files:**
-- Create: `apps/orchestrator/src-tauri/src/context_hub.rs`
-- Create: `apps/orchestrator/src/lib/promptRun/contextChunks.ts` (pure TS mirror for unit tests of the chunk policy, or test Rust via `cargo test`)
-- Test: `apps/orchestrator/src/lib/promptRun/contextChunks.test.ts`
-- Modify: `apps/orchestrator/src-tauri/src/lib.rs` (add `mod context_hub`)
+- Create: `src-tauri/src/context_hub.rs`
+- Create: `src/lib/promptRun/contextChunks.ts` (pure TS mirror for unit tests of the chunk policy, or test Rust via `cargo test`)
+- Test: `src/lib/promptRun/contextChunks.test.ts`
+- Modify: `src-tauri/src/lib.rs` (add `mod context_hub`)
 
 Chunk policy (must match spec):
 
@@ -174,7 +174,7 @@ describe('searchChunks', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npm test -- src/lib/promptRun/contextChunks.test.ts` from `apps/orchestrator`  
+Run: `npm test -- src/lib/promptRun/contextChunks.test.ts` from `.`  
 Expected: FAIL resolving `./contextChunks`
 
 - [ ] **Step 3: Implement `contextChunks.ts` with the code above**
@@ -190,10 +190,10 @@ Expected: PASS
 ### Task 2: Persist hub paths on the run
 
 **Files:**
-- Modify: `apps/orchestrator/src/lib/types.ts` (`PromptRun`)
-- Modify: `apps/orchestrator/src-tauri/src/prompt_run.rs` (serde record + `context` dir next to journal)
-- Modify: `apps/orchestrator/src/lib/tauri/promptRun.ts` and new `apps/orchestrator/src/lib/tauri/contextHub.ts`
-- Modify: `apps/orchestrator/src-tauri/src/lib.rs` invoke_handler
+- Modify: `src/lib/types.ts` (`PromptRun`)
+- Modify: `src-tauri/src/prompt_run.rs` (serde record + `context` dir next to journal)
+- Modify: `src/lib/tauri/promptRun.ts` and new `src/lib/tauri/contextHub.ts`
+- Modify: `src-tauri/src/lib.rs` invoke_handler
 
 ```typescript
 export type PromptRun = {
@@ -246,10 +246,10 @@ pub async fn search_run_context(
 ### Task 3: Canonical Claude session (no duplicate JSONL)
 
 **Files:**
-- Create: `apps/orchestrator/src/lib/promptRun/claudeWriterLock.ts`
-- Test: `apps/orchestrator/src/lib/promptRun/claudeWriterLock.test.ts`
-- Modify: `apps/orchestrator/src/lib/promptRun/startPromptRun.ts`
-- Modify: `apps/orchestrator/src/lib/sessionLaunch.ts` (already supports `--resume` when `sessionId` is set)
+- Create: `src/lib/promptRun/claudeWriterLock.ts`
+- Test: `src/lib/promptRun/claudeWriterLock.test.ts`
+- Modify: `src/lib/promptRun/startPromptRun.ts`
+- Modify: `src/lib/sessionLaunch.ts` (already supports `--resume` when `sessionId` is set)
 
 ```typescript
 export type ClaudeWriterLock = {
@@ -323,9 +323,9 @@ Thread it through `terminalFactory.ts` → sub-tab `sessionId` so `useXtermSessi
 ### Task 4: Pointer bootstrap (kill the dump)
 
 **Files:**
-- Modify: `apps/orchestrator/src/lib/promptRun/bootstrapPrompt.ts`
-- Test: `apps/orchestrator/src/lib/promptRun/bootstrapPrompt.test.ts`
-- Modify: `apps/orchestrator/src/lib/promptRun/startPromptRun.ts`
+- Modify: `src/lib/promptRun/bootstrapPrompt.ts`
+- Test: `src/lib/promptRun/bootstrapPrompt.test.ts`
+- Modify: `src/lib/promptRun/startPromptRun.ts`
 
 ```typescript
 export function buildRunBootstrapInput(args: {
@@ -369,10 +369,10 @@ export function buildRunBootstrapInput(args: {
 ### Task 5: Handoff writes vectors, not one capsule
 
 **Files:**
-- Modify: `apps/orchestrator/src-tauri/src/handoff.rs`
-- Modify: `apps/orchestrator/src/lib/promptRun/executeHandoff.ts`
-- Test: `apps/orchestrator/src/lib/promptRun/executeHandoff.test.ts`
-- Modify: `apps/orchestrator/src/lib/i18n/messages/en.ts` and `pt-BR.ts` (`handoff.bootstrapPrompt`)
+- Modify: `src-tauri/src/handoff.rs`
+- Modify: `src/lib/promptRun/executeHandoff.ts`
+- Test: `src/lib/promptRun/executeHandoff.test.ts`
+- Modify: `src/lib/i18n/messages/en.ts` and `pt-BR.ts` (`handoff.bootstrapPrompt`)
 
 `materialize_agent_handoff` today writes one file under `handoffs/<id>/`. Change it to:
 
@@ -401,8 +401,8 @@ export function buildIndexBootstrap(contextDir: string, prompt: string, note?: s
 ### Task 6: Live ingest so siblings see new Claude turns without a new dump
 
 **Files:**
-- Modify: `apps/orchestrator/src/hooks/usePromptRunWatcher.ts`
-- Modify: `apps/orchestrator/src/lib/promptRun/autoHandoffGate.ts` only if ingest must be deduped
+- Modify: `src/hooks/usePromptRunWatcher.ts`
+- Modify: `src/lib/promptRun/autoHandoffGate.ts` only if ingest must be deduped
 
 Debounce 800ms on PTY data for the canonical Claude terminal, then `ingest_run_context`. No chat API.
 
@@ -415,9 +415,9 @@ Debounce 800ms on PTY data for the canonical Claude terminal, then `ingest_run_c
 ### Task 7: Auto lanes use one Claude + index for everyone else
 
 **Files:**
-- Modify: `apps/orchestrator/src/lib/promptRun/startPromptRun.ts`
-- Modify: `apps/orchestrator/src/lib/promptRun/planAutoLanes.ts` (do not emit two `agent: 'claude'` workers)
-- Test: `apps/orchestrator/src/lib/promptRun/startPromptRun.test.ts`
+- Modify: `src/lib/promptRun/startPromptRun.ts`
+- Modify: `src/lib/promptRun/planAutoLanes.ts` (do not emit two `agent: 'claude'` workers)
+- Test: `src/lib/promptRun/startPromptRun.test.ts`
 
 - [ ] **Step 1: Test** two-step run with `lanes: [claude implement, codex mechanical]`:
   - `createAgentTerminal` first call `firstTab.type === 'claude'` and no resume id (create)
@@ -433,8 +433,8 @@ Debounce 800ms on PTY data for the canonical Claude terminal, then `ingest_run_c
 ### Task 8: Changelog + FEATURES (when implementing, not during planning)
 
 **Files:**
-- Modify: `apps/orchestrator/docs/CHANGELOG.md` under `[Unreleased]` **Changed**
-- Modify: `apps/orchestrator/docs/FEATURES.md` Resume / Auto bullets
+- Modify: `docs/CHANGELOG.md` under `[Unreleased]` **Changed**
+- Modify: `docs/FEATURES.md` Resume / Auto bullets
 
 User-facing text (implement later):
 

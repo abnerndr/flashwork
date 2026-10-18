@@ -23,9 +23,7 @@ Thumbs.db
 
 # Tauri / Rust
 target/
-apps/orchestrator/node_modules/
-apps/orchestrator/src-tauri/target/
-apps/orchestrator/dist/
+src-tauri/target/
 
 # Misc
 *.local
@@ -36,3 +34,36 @@ fw-status.txt
 
 # Superpowers SDD scratch (task briefs, reports, review diffs)
 .superpowers/
+
+dist-ssr/
+.vite/
+.turbo/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Tauri
+src-tauri/gen/
+
+# Prebuilt libghostty binaries are rebuilt by the pinned vendor fetch script.
+src-tauri/vendor/GhosttyKit.xcframework/
+src-tauri/WixTools/
+src-tauri/*.log
+src-tauri/**/*.pdb
+src-tauri/**/*.msi
+src-tauri/**/*.exe
+src-tauri/**/*.dmg
+src-tauri/**/*.app
+src-tauri/**/*.AppImage
+src-tauri/**/*.deb
+src-tauri/**/*.rpm
+
+# Logs
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Graphify generated graph and AST cache.
+graphify-out/

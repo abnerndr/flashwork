@@ -40,11 +40,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             package.json \
-            apps/orchestrator/package.json \
-            apps/orchestrator/package-lock.json \
-            apps/orchestrator/src-tauri/tauri.conf.json \
-            apps/orchestrator/src-tauri/Cargo.toml \
-            apps/orchestrator/src-tauri/Cargo.lock
+            package-lock.json \
+            src-tauri/tauri.conf.json \
+            src-tauri/Cargo.toml \
+            src-tauri/Cargo.lock
           if git diff --cached --quiet; then
             echo "No version files changed"
             exit 0

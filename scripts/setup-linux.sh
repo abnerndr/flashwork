@@ -33,10 +33,10 @@ flashwork_env
 flashwork_require_node
 flashwork_require_rust
 
-echo "==> npm install (apps/orchestrator)"
-npm --prefix "$ROOT/apps/orchestrator" install
+echo "==> npm install (.)"
+npm --prefix "$ROOT" install
 
 echo
 echo "OK. Next:"
 echo "  $ROOT/scripts/dev.sh"
-echo "  or:  npm run dev"
+echo "  or:  npm run app"

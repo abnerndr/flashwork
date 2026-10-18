@@ -11,7 +11,7 @@
 **ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
 **References:** [VS Code source control docs](https://code.visualstudio.com/docs/sourcecontrol/overview) ([vscode-docs](https://github.com/microsoft/vscode-docs) `docs/sourcecontrol/`)
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

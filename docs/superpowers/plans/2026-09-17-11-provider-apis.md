@@ -10,7 +10,7 @@
 
 **ADR:** `.claude/adr/010-provider-apis.md`
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

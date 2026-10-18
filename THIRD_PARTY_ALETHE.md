@@ -1,6 +1,6 @@
 # Third-party: Flashwork Agents
 
-Flashwork's desktop orchestrator (`apps/orchestrator`) is based on:
+Flashwork's desktop orchestrator (`.`) is based on:
 
 - **Project:** Flashwork Agents
 - **Upstream:** https://github.com/abnerndr/flashwork-agents

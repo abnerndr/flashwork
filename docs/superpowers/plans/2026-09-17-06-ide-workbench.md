@@ -11,7 +11,7 @@
 **ADR:** `.claude/adr/004-keep-tauri-reference-vscode.md`  
 **Depends on:** P04 (project folder), P05 recommended for SCM in the same sidebar.
 
-Paths relative to `apps/orchestrator/`.
+Paths relative to ``.
 
 ---
 

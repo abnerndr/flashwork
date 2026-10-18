@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
  * Bump (or set) the Flashwork semver across every source of truth:
- *   package.json (root)
- *   apps/orchestrator/package.json
- *   apps/orchestrator/package-lock.json (root package only)
- *   apps/orchestrator/src-tauri/tauri.conf.json
- *   apps/orchestrator/src-tauri/Cargo.toml
- *   apps/orchestrator/src-tauri/Cargo.lock (crate `flashwork` only)
+ *   package.json
+ *   package-lock.json (root package only)
+ *   src-tauri/tauri.conf.json
+ *   src-tauri/Cargo.toml
+ *   src-tauri/Cargo.lock (crate `flashwork` only)
  *
  * Usage:
  *   node scripts/bump-version.mjs           # patch +1
@@ -26,11 +25,10 @@ const printOnly = args.includes('--print')
 const bumpArg = args.find((a) => !a.startsWith('--')) ?? 'patch'
 
 const ROOT_PKG = join(root, 'package.json')
-const ORCH_PKG = join(root, 'apps/orchestrator/package.json')
-const ORCH_LOCK = join(root, 'apps/orchestrator/package-lock.json')
-const TAURI = join(root, 'apps/orchestrator/src-tauri/tauri.conf.json')
-const CARGO = join(root, 'apps/orchestrator/src-tauri/Cargo.toml')
-const CARGO_LOCK = join(root, 'apps/orchestrator/src-tauri/Cargo.lock')
+const ORCH_LOCK = join(root, 'package-lock.json')
+const TAURI = join(root, 'src-tauri/tauri.conf.json')
+const CARGO = join(root, 'src-tauri/Cargo.toml')
+const CARGO_LOCK = join(root, 'src-tauri/Cargo.lock')
 
 function fail(message) {
   console.error(`bump-version: ${message}`)
@@ -75,7 +73,6 @@ function replaceFirst(path, regex, label = path) {
 
 console.log(`bump-version: ${current} → ${next}`)
 replaceFirst(ROOT_PKG, /"version":\s*"(\d+\.\d+\.\d+)"/)
-replaceFirst(ORCH_PKG, /"version":\s*"(\d+\.\d+\.\d+)"/)
 replaceFirst(TAURI, /"version":\s*"(\d+\.\d+\.\d+)"/)
 replaceFirst(CARGO, /^version\s*=\s*"(\d+\.\d+\.\d+)"/m)
 
@@ -89,14 +86,14 @@ if (existsSync(ORCH_LOCK)) {
     `$1${next}$3`,
   )
   writeFileSync(ORCH_LOCK, lock)
-  console.log(`  apps/orchestrator/package-lock.json → ${next}`)
+  console.log(`  package-lock.json → ${next}`)
 }
 
 if (existsSync(CARGO_LOCK)) {
   replaceFirst(
     CARGO_LOCK,
     /name = "flashwork"\r?\nversion = "(\d+\.\d+\.\d+)"/,
-    'apps/orchestrator/src-tauri/Cargo.lock',
+    'src-tauri/Cargo.lock',
   )
 }
 

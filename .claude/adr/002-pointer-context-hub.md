@@ -10,7 +10,7 @@ Pasting a full Claude/Codex transcript into the next CLI wastes tokens and leaks
 
 ## Decision
 
-Auto and handoff share a local chunk index (`runs/<id>/context`) instead of dumping the source transcript. Bootstrap prompts are pointer-sized. A project-scoped hub is specified in `apps/orchestrator/docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` and should be finished as part of ADR 005, not replaced.
+Auto and handoff share a local chunk index (`runs/<id>/context`) instead of dumping the source transcript. Bootstrap prompts are pointer-sized. A project-scoped hub is specified in `docs/superpowers/specs/2026-09-04-project-scoped-context-hub-design.md` and should be finished as part of ADR 005, not replaced.
 
 ## Consequences
 

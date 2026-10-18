@@ -3,7 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
-$Orch = Join-Path $Root "apps\orchestrator"
+$Orch = $Root
 
 Write-Host "==> Flashwork setup (Windows nativo)"
 Write-Host "    repo: $Root"
@@ -32,7 +32,7 @@ Also required on Windows (install once if missing):
     https://developer.microsoft.com/microsoft-edge/webview2/
 "@
 
-Write-Host "==> npm install (apps/orchestrator)"
+Write-Host "==> npm install (.)"
 Push-Location $Orch
 try {
   npm install
@@ -43,4 +43,4 @@ try {
 Write-Host ""
 Write-Host "OK. Next:"
 Write-Host "  .\scripts\dev.ps1"
-Write-Host "  or:  npm run dev"
+Write-Host "  or:  npm run app"

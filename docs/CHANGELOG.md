@@ -12,6 +12,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Repository
 
+- Launch development through Node on the native platform, discover Rustup's Cargo directory, and report missing Rust before starting Tauri.
 - Move the desktop app to the repository root, with unified dependencies, scripts, and documentation.
 
 ### Added

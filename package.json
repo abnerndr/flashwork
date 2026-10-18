@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tauri": "tauri",
-    "app": "bash scripts/tauri-dev.sh",
+    "app": "node scripts/tauri-dev.mjs",
     "installer": "tauri build",
     "installer:linux": "tauri build --bundles appimage,deb",
     "installer:macos": "tauri build --bundles dmg,app",

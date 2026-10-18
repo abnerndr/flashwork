@@ -1,31 +1,23 @@
 import {
-  Download,
   FileArchive,
   FileText,
   FolderOpen,
-  Globe2,
   Layers,
-  Network,
   RefreshCw,
   ScrollText,
   Settings,
   Sparkles,
   Sun,
   Trash2,
-  Upload,
 } from 'lucide-react'
 import { useRef } from 'react'
 
 import { useOnClickOutside } from '../../hooks/useOnClickOutside'
 import { useOnEscape } from '../../hooks/useOnEscape'
-import { pickFile, saveFile } from '../../lib/dialog'
-import { AGENT_SANDBOX_ENABLED } from '../../lib/featureFlags'
+import { saveFile } from '../../lib/dialog'
 import { useT } from '../../lib/i18n'
 import {
-  exportBackup,
   exportLogs,
-  importBackup,
-  killPty,
   openDataFolder,
   openLogsFolder,
   openSpawnLog,
@@ -33,7 +25,6 @@ import {
   wipeAllAppData,
 } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
-import { useTerminalsStore } from '../../stores/terminalsStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './MainMenu.module.css'
 
@@ -41,15 +32,9 @@ export function MainMenu() {
   const t = useT()
   const open = useUiStore((s) => s.showMainMenu)
   const closeMainMenu = useUiStore((s) => s.closeMainMenu)
-  const setActiveView = useUiStore((s) => s.setActiveView)
   const openModal = useUiStore((s) => s.openModal_)
   const flat = useProjectsStore((s) => s.preferences.workspaceFlat)
-  const browserEnabled = useProjectsStore((s) => s.preferences.enabledFeatures.browser)
-  const activeProjectId = useProjectsStore((s) => s.activeProjectId)
-  const projects = useProjectsStore((s) => s.projects)
-  const hydrate = useProjectsStore((s) => s.hydrate)
   const setFlat = useProjectsStore((s) => s.setWorkspaceFlat)
-  const resetTerminalRuntime = useTerminalsStore((s) => s.reset)
 
   const ref = useRef<HTMLDivElement>(null)
 
@@ -97,40 +82,6 @@ export function MainMenu() {
         }}
       >
         <Settings size={16} /> <span>{t('menu.preferences')}</span>
-      </button>
-      {browserEnabled && activeProjectId ? (
-        <button
-          type="button"
-          className={styles.item}
-          onClick={() => {
-            openModal('addBrowser', { projectId: activeProjectId })
-            closeMainMenu()
-          }}
-        >
-          <Globe2 size={16} /> <span>{t('menu.addBrowser')}</span>
-        </button>
-      ) : null}
-      {AGENT_SANDBOX_ENABLED ? (
-        <button
-          type="button"
-          className={styles.item}
-          onClick={() => {
-            setActiveView('agentSandbox')
-            closeMainMenu()
-          }}
-        >
-          <Network size={16} /> <span>{t('menu.agentSandbox')}</span>
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className={styles.item}
-        onClick={() => {
-          openModal('remoteControl')
-          closeMainMenu()
-        }}
-      >
-        <Network size={16} /> <span>{t('menu.remoteControl')}</span>
       </button>
       {import.meta.env.DEV ? (
         <>
@@ -196,51 +147,6 @@ export function MainMenu() {
         }
       >
         <FileArchive size={16} /> <span>{t('menu.exportLogs')}</span>
-      </button>
-      <div className={styles.separator} />
-      <button
-        type="button"
-        className={styles.item}
-        onClick={() =>
-          void action(async () => {
-            const target = await saveFile({
-              title: t('menu.exportBackupTitle'),
-              defaultPath: `flashwork-backup-${new Date().toISOString().slice(0, 10)}.flashwork.zip`,
-              filters: [{ name: t('menu.backupFilter'), extensions: ['zip'] }],
-            })
-            if (target) await exportBackup(target)
-          })
-        }
-      >
-        <Download size={16} /> <span>{t('menu.exportBackup')}</span>
-      </button>
-      <button
-        type="button"
-        className={styles.item}
-        onClick={() =>
-          void action(async () => {
-            const source = await pickFile({
-              title: t('menu.importBackupTitle'),
-              filters: [{ name: t('menu.backupFilter'), extensions: ['zip'] }],
-            })
-            if (!source) return
-            if (!window.confirm(t('menu.confirmImport'))) return
-            const currentPtyIds = new Set(
-              projects.flatMap((project) =>
-                project.terminals.flatMap((terminal) =>
-                  terminal.tabs.flatMap((tab) => (tab.ptyId ? [tab.ptyId] : [])),
-                ),
-              ),
-            )
-            await Promise.allSettled([...currentPtyIds].map((ptyId) => killPty(ptyId)))
-            resetTerminalRuntime()
-            await importBackup(source)
-            await hydrate()
-            window.location.reload()
-          })
-        }
-      >
-        <Upload size={16} /> <span>{t('menu.importBackup')}</span>
       </button>
       <div className={styles.separator} />
       <button

@@ -231,7 +231,6 @@ pub fn pty_exists(sessions: State<'_, PtySessions>, id: String) -> Result<bool, 
 pub async fn spawn_pty(
     app: AppHandle,
     sessions: State<'_, PtySessions>,
-    remote: State<'_, Arc<crate::remote::RemoteHub>>,
     cols: u16,
     rows: u16,
     id: Option<String>,
@@ -255,7 +254,6 @@ pub async fn spawn_pty(
 
     // `activity_stats`, `agent_cost`).
     let sessions: PtySessions = Arc::clone(sessions.inner());
-    let remote_hub = Arc::clone(remote.inner());
     tokio::task::spawn_blocking(move || {
         let extras: Vec<String> = extra_args.unwrap_or_default();
         let spawn_started = Instant::now();
@@ -309,14 +307,24 @@ pub async fn spawn_pty(
                 })
                 .map(|path| path.to_string_lossy().to_string())
         };
-        let mut command = command_builder_for_terminal(
-            requested_command.as_deref(),
-            resolved_launcher.as_deref(),
-            &extras,
-        );
+        // A cwd inside a WSL distro (Windows build) runs everything through
+        // wsl.exe with the distro's own shell/CLI; Windows launchers never apply.
+        let wsl_target = crate::wsl::wsl_target_for_cwd(cwd.as_deref());
+        let mut command = match wsl_target.as_ref() {
+            Some(target) => {
+                crate::wsl::wsl_pty_command(target, requested_command.as_deref(), &extras)
+            }
+            None => command_builder_for_terminal(
+                requested_command.as_deref(),
+                resolved_launcher.as_deref(),
+                &extras,
+            ),
+        };
+        let mut injected_env_keys: Vec<String> = Vec::new();
         if let Some(extra_env) = env.as_ref() {
             for (key, value) in extra_env {
                 command.env(key, value);
+                injected_env_keys.push(key.clone());
             }
         }
         // Keyring-backed provider env (ADR 010) is applied last so it wins
@@ -326,9 +334,14 @@ pub async fn spawn_pty(
         if use_provider_key == Some(true) {
             if let Some(provider_id) = provider.as_deref() {
                 for (key, value) in crate::providers::provider_cli_env(provider_id) {
-                    command.env(key, value);
+                    command.env(&key, value);
+                    injected_env_keys.push(key.to_string());
                 }
             }
+        }
+        if wsl_target.is_some() {
+            // Env set on wsl.exe only reaches Linux when listed in WSLENV.
+            crate::wsl::forward_env_keys(&mut command, &injected_env_keys);
         }
         let resolve_ms = resolve_started.elapsed().as_millis();
         let builder_ms = spawn_started.elapsed().as_millis();
@@ -341,7 +354,10 @@ pub async fn spawn_pty(
                 s[..limit].to_string()
             })
             .unwrap_or_else(|| "<none>".to_string());
-        let cwd_warning = if let Some(cwd_value) = cwd.as_deref().filter(|cwd| !cwd.is_empty()) {
+        let cwd_warning = if wsl_target.is_some() {
+            // `wsl.exe --cd` already moves into the Linux cwd.
+            None
+        } else if let Some(cwd_value) = cwd.as_deref().filter(|cwd| !cwd.is_empty()) {
             if PathBuf::from(cwd_value).is_dir() {
                                                                                
                                                                                  
@@ -416,7 +432,6 @@ pub async fn spawn_pty(
         let thread_read_active = Arc::clone(&read_active);
         let visible = Arc::new(AtomicBool::new(true));
         let thread_visible = Arc::clone(&visible);
-        let remote_pty_id = id.clone();
 
                                                                                  
                                                                                     
@@ -480,9 +495,6 @@ pub async fn spawn_pty(
                                                                            
                                                                              
                                                                   
-            remote_hub.publish(&remote_pty_id, || {
-                serde_json::json!({ "type": "pty_output", "ptyId": &remote_pty_id, "text": text })
-            });
             if thread_visible.load(Ordering::Relaxed) {
                 if !activity_pending.is_empty() {
                     activity_pending.clear();
@@ -633,9 +645,6 @@ pub async fn spawn_pty(
         if !carry.is_empty() {
             let lossy = String::from_utf8_lossy(&carry).into_owned();
             let _ = event_app.emit(&event_name, lossy.as_str());
-            remote_hub.publish(&scrollback_id, || {
-                serde_json::json!({ "type": "pty_output", "ptyId": &scrollback_id, "text": lossy })
-            });
         }
 
                                                                                   
@@ -693,9 +702,6 @@ pub async fn spawn_pty(
             _ => "exited",
         };
         let _ = event_app.emit(&exit_event_name, PtyExitPayload { code, reason });
-        remote_hub.publish(&scrollback_id, || {
-            serde_json::json!({ "type": "pty_exit", "ptyId": &scrollback_id, "reason": reason })
-        });
 
         if let Some(pid) = child_pid {
             if let Ok(mut sessions) = thread_sessions.lock() {
@@ -764,7 +770,6 @@ pub(crate) fn kill_process_tree(_pid: u32) {}
 pub async fn restart_pty(
     app: AppHandle,
     sessions: State<'_, PtySessions>,
-    remote: State<'_, Arc<crate::remote::RemoteHub>>,
     id: String,
     command: Option<String>,
     cwd: Option<String>,
@@ -806,7 +811,6 @@ pub async fn restart_pty(
     spawn_pty(
         app,
         sessions,
-        remote,
         80,
         24,
         Some(id),

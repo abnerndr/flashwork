@@ -106,58 +106,6 @@ export async function getPtyCwd(id: string): Promise<string | null> {
   return invoke<string | null>('get_pty_cwd', { id })
 }
 
-// --- Ghostty native terminal (macOS only) ---
-
-export type GhosttySurfaceResponse = {
-  id: string
-  attached: boolean
-}
-
-                                                                          
-export type WebRect = { x: number; y: number; width: number; height: number }
-
-export type GhosttySpawnArgs = {
-  id: string
-                                                                    
-  cwd?: string
-                                                                                        
-  command?: string
-}
-
-export async function ghosttySpawn(args: GhosttySpawnArgs): Promise<GhosttySurfaceResponse> {
-  return invoke<GhosttySurfaceResponse>('ghostty_spawn', {
-    id: args.id,
-    cwd: args.cwd,
-    command: args.command,
-  })
-}
-
-export async function ghosttySyncFrame(id: string, rect: WebRect, scale: number): Promise<void> {
-  await invoke('ghostty_sync_frame', { id, rect, scale })
-}
-
-export async function ghosttySetHidden(id: string, hidden: boolean): Promise<void> {
-  await invoke('ghostty_set_hidden', { id, hidden })
-}
-
-export async function ghosttySetFocus(id: string, focused: boolean): Promise<void> {
-  await invoke('ghostty_set_focus', { id, focused })
-}
-
-                                                                                  
-export async function ghosttySurfaceExited(id: string): Promise<boolean> {
-  return invoke<boolean>('ghostty_surface_exited', { id })
-}
-
-export async function ghosttyKill(id: string): Promise<void> {
-  await invoke('ghostty_kill', { id })
-}
-
-                                                                              
-export async function ghosttyKillAll(): Promise<void> {
-  await invoke('ghostty_kill_all')
-}
-
 export type PtyProcessSnapshot = {
   id: string
   pid: number | null

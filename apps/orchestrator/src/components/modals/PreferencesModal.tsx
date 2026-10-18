@@ -7,7 +7,6 @@ import {
   Info,
   KeyRound,
   Palette,
-  ShieldCheck,
   Plug,
   Search,
   TerminalSquare,
@@ -31,7 +30,6 @@ import { MultiagentPage } from './preferences/MultiagentPage'
 import { OrganizationPage } from './preferences/OrganizationPage'
 import { ProvidersPage } from './preferences/ProvidersPage'
 import { TerminalPage } from './preferences/TerminalPage'
-import { RemoteControlPage } from './preferences/RemoteControlPage'
 import { Avatar } from './preferences/primitives'
 import styles from './PreferencesModal.module.css'
 
@@ -45,7 +43,6 @@ type CategoryId =
   | 'organization'
   | 'providers'
   | 'about'
-  | 'remoteControl'
 
 type Category = {
   id: CategoryId
@@ -97,12 +94,6 @@ export function PreferencesModal() {
         Icon: Palette,
       },
       {
-        id: 'remoteControl',
-        label: t('prefs.categoryRemoteControl'),
-        description: t('prefs.categoryRemoteControlDesc'),
-        Icon: ShieldCheck,
-      },
-      {
         id: 'features',
         label: t('prefs.features'),
         description: t('prefs.featuresDesc'),
@@ -128,8 +119,8 @@ export function PreferencesModal() {
       },
       {
         id: 'multiagent',
-        label: 'Multi-Agent & Telemetry',
-        description: 'Real-time metrics, event traces, and structured logs.',
+        label: 'Multi-Agent',
+        description: 'Scheduler tasks and planning audit history.',
         Icon: Activity,
       },
       {
@@ -171,13 +162,6 @@ export function PreferencesModal() {
         label: t('prefs.uiTheme'),
         description: t('prefs.uiThemeDesc'),
         keywords: 'theme tema colors cores light dark claro escuro',
-      },
-      {
-        category: 'remoteControl',
-        target: 'remote-status',
-        label: t('remote.settingsStatusTitle'),
-        description: t('remote.settingsStatusDesc'),
-        keywords: 'remote control lan security qr device mobile celular segurança pareamento',
       },
       {
         category: 'organization',
@@ -265,27 +249,6 @@ export function PreferencesModal() {
         keywords: 'cli command terminal path shell comando linha de comando abrir pasta',
       },
       {
-        category: 'integrations',
-        target: 'spotify',
-        label: t('prefs.spotify'),
-        description: t('prefs.spotifyDesc'),
-        keywords: 'spotify music música client id secret',
-      },
-      {
-        category: 'integrations',
-        target: 'discord',
-        label: t('prefs.discordPresence'),
-        description: t('prefs.discordPresenceHint'),
-        keywords: 'discord rich presence status integração',
-      },
-      {
-        category: 'integrations',
-        target: 'dictation',
-        label: t('prefs.dictation'),
-        description: t('prefs.dictationDesc'),
-        keywords: 'dictation voice mic microphone ditado voz microfone handy speech',
-      },
-      {
         category: 'providers',
         target: 'providers',
         label: t('providers.title'),
@@ -310,11 +273,6 @@ export function PreferencesModal() {
     ],
     [t],
   )
-
-  useEffect(() => {
-    if (!open || modalContext?.category !== 'remoteControl') return
-    setCategory('remoteControl')
-  }, [open, modalContext])
 
   const results = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase(preferences.language)
@@ -511,7 +469,6 @@ export function PreferencesModal() {
                 {category === 'multiagent' ? <MultiagentPage /> : null}
                 {category === 'organization' ? <OrganizationPage /> : null}
                 {category === 'about' ? <AboutPage /> : null}
-                {category === 'remoteControl' ? <RemoteControlPage /> : null}
                 </ErrorBoundary>
               </div>
             </div>

@@ -29,6 +29,11 @@ export type AutoLane = {
   reason: PromptRunStepReason
   skillNames: string[]
   slicePrompt: string
+  /** Exact text typed into the pane (Run SPEC lanes); skips the Auto worker bootstrap. */
+  bootstrap?: string
+  paneName?: string
+  /** Start a fresh Claude session instead of resuming the run's canonical one. */
+  independentSession?: boolean
 }
 
 const MAX_WORKERS = 3

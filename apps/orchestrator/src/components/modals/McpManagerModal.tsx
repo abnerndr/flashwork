@@ -55,15 +55,6 @@ export function McpManagerModal() {
   const dark = useProjectsStore(
     (state) => state.preferences.uiTheme !== 'light' && state.preferences.uiTheme !== 'min-light',
   )
-  const activeProjectId = useProjectsStore((state) => state.activeProjectId)
-  const projects = useProjectsStore((state) => state.projects)
-  const projectRoot = useMemo(() => {
-    const project = projects.find((item) => item.id === activeProjectId) ?? projects[0]
-    if (!project) return null
-    const fromProject = project.defaultCwd?.trim()
-    if (fromProject) return fromProject
-    return project.terminals.find((terminal) => terminal.cwd)?.cwd ?? null
-  }, [projects, activeProjectId])
 
   const [tab, setTab] = useState<ManagerTab>('servers')
   const [term, setTerm] = useState('')

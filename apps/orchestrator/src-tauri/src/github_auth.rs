@@ -1,7 +1,6 @@
 //! GitHub **repository** SCM authentication (device flow, `gh`, OS keyring).
 //!
-//! This is **not** gist backup. App-state gist sync lives in `github_sync.rs` and
-//! must keep using its own token. Do not reuse gist tokens here.
+//! Used by Git source control (push/pull/clone over HTTPS).
 
 use std::collections::HashMap;
 use std::fmt;

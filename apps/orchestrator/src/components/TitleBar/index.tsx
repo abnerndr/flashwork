@@ -11,9 +11,7 @@ import {
   PanelRightOpen,
   Pencil,
   Pin,
-  RefreshCw,
   Newspaper,
-  Smartphone,
   Users,
   Workflow,
   X,
@@ -33,14 +31,12 @@ import { requestAppClose } from '../../hooks/useCloseConfirmation'
 import { observeClaudeReset, observeCodexReset } from '../../lib/limitResetWatch'
 import { useT } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
-import { remoteControlConnectedDevices } from '../../lib/tauri'
 import { toggleFlashworkMaximize } from '../../lib/windowMaximize'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './TitleBar.module.css'
 
 const CLAUDE_POLL_INTERVAL_MS = 5 * 60_000
-const REMOTE_CONTROL_POLL_INTERVAL_MS = 2_000
 const APP_TITLE = import.meta.env.DEV ? '(DEV) Flashwork' : 'Flashwork'
 const USAGE_FAIL_LIMIT = 3
 
@@ -137,7 +133,6 @@ export function TitleBar() {
   const preferences = useProjectsStore((s) => s.preferences)
   const setPreferences = useProjectsStore((s) => s.setPreferences)
   const rightPanelEnabled =
-    preferences.enabledFeatures.todos ||
     preferences.enabledFeatures.mcp ||
     (preferences.enabledFeatures.git && preferences.gitControlPlacement === 'right')
   const toggleWorkspaceTabPinned = useProjectsStore((s) => s.toggleWorkspaceTabPinned)
@@ -146,43 +141,12 @@ export function TitleBar() {
   const activateWorkspaceTab = useProjectsStore((s) => s.activateWorkspaceTab)
   const navigateWorkspaceHistory = useProjectsStore((s) => s.navigateWorkspaceHistory)
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
-  const [remoteConnectedDevices, setRemoteConnectedDevices] = useState(0)
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId) ?? null
   const threeAreas = preferences.topbarStyle === 'three-areas'
   const antigravityReady =
     antigravityUsage?.status === 'ready' && antigravityUsage.buckets.length > 0
-  const remoteConnectedLabel = t(
-    remoteConnectedDevices === 1
-      ? 'remote.topbarDeviceConnected'
-      : 'remote.topbarDevicesConnected',
-    { count: remoteConnectedDevices },
-  )
 
   const activeRef = useRef(true)
-
-  useEffect(() => {
-    let cancelled = false
-    const refreshRemoteDevices = async () => {
-      if (!activeRef.current) return
-      try {
-        const connectedDevices = await remoteControlConnectedDevices()
-        if (!cancelled) {
-          setRemoteConnectedDevices(connectedDevices)
-        }
-      } catch {
-        if (!cancelled) setRemoteConnectedDevices(0)
-      }
-    }
-    void refreshRemoteDevices()
-    const interval = window.setInterval(
-      () => void refreshRemoteDevices(),
-      REMOTE_CONTROL_POLL_INTERVAL_MS,
-    )
-    return () => {
-      cancelled = true
-      window.clearInterval(interval)
-    }
-  }, [])
 
                                                                             
   useEffect(() => {
@@ -480,17 +444,6 @@ export function TitleBar() {
               <Newspaper size={16} />
               {updateInfo ? <span className={styles.whatsNewDot} /> : null}
             </button> : null}
-            {!threeAreas && preferences.topbarShowSync ? (
-              <button
-                type="button"
-                className={styles.syncPill}
-                title={t('sync.title')}
-                aria-label={t('sync.title')}
-                onClick={() => openModal('sync')}
-              >
-                <RefreshCw size={16} />
-              </button>
-            ) : null}
             {!threeAreas && preferences.topbarShowProfile ? (
               <button
                 type="button"
@@ -506,18 +459,6 @@ export function TitleBar() {
             ) : null}
           </div>
           <div className={styles.statusGroup}>
-            {remoteConnectedDevices > 0 ? (
-              <button
-                type="button"
-                className={styles.remoteDevicePill}
-                onClick={() => openModal('remoteControl')}
-                title={remoteConnectedLabel}
-                aria-label={remoteConnectedLabel}
-              >
-                <Smartphone size={16} />
-                <span>{remoteConnectedLabel}</span>
-              </button>
-            ) : null}
             {preferences.topbarShowClaudeUsage && claudeUsage !== null ? (
               <div className={styles.usageWidget}>
                 <button

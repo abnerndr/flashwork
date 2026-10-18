@@ -7,22 +7,19 @@ import {
 } from '../components/modals/NewProjectModal.logic'
 import { bootstrapProjectRag } from './projectRagBootstrap'
 import {
-  aiMemoryMcpConfigPath,
   graphifyEnsureGraph,
   projectBootstrap,
   projectDetect,
   projectWriteRagStatus,
 } from './tauri'
 import type { Project } from './types'
+import { useGraphifySetupStore } from '../stores/graphifySetupStore'
 import { useProjectsStore } from '../stores/projectsStore'
 
 function bootstrapFolderRag(folder: string): Promise<void> {
-  const features = useProjectsStore.getState().preferences.enabledFeatures
   return bootstrapProjectRag(folder, {
-    graphifyEnabled: features.graphify,
-    aiMemoryEnabled: features.aiMemory,
     graphifyEnsureGraph,
-    aiMemoryMcpConfigPath,
+    onGraphifyUnavailable: (missing) => useGraphifySetupStore.getState().notifyMissing(missing),
     writeRagStatus: projectWriteRagStatus,
   }).then(() => undefined)
 }

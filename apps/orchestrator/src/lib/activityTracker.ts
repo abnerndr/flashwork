@@ -79,15 +79,6 @@ function agentMetadata(): Map<string, AgentMeta> {
       }
     }
   }
-  const canvas = useUiStore.getState().agentCanvasSession
-  if (canvas && !result.has(canvas.ptyId)) {
-    result.set(canvas.ptyId, {
-      agent: 'claude',
-      projectId: '__agent_canvas__',
-      terminalId: null,
-      cwd: canvas.folder,
-    })
-  }
   return result
 }
 
@@ -190,11 +181,7 @@ function sample(): void {
     appFocused: document.hasFocus() && document.visibilityState === 'visible',
     userActive: now - lastInteractionAt < IDLE_MS,
     activeProjectId:
-      ui.activeView === 'workspace'
-        ? projects.activeProjectId
-        : ui.activeView === 'agentCanvas'
-          ? '__agent_canvas__'
-          : null,
+      ui.activeView === 'workspace' ? projects.activeProjectId : null,
     activeTerminalId:
       ui.activeView === 'workspace' ? (ui.activeTerminal?.terminalId ?? null) : null,
     agents: currentAgents(),

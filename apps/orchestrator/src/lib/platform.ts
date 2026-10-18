@@ -40,12 +40,6 @@ export function osFamily(): OSFamily {
                                                                            
                                                                          
    
-export function shouldUseNativeBackend(
-  nativeTerminalMacos: boolean | undefined,
-  macOverride: boolean = isMacOS(),
-): boolean {
-  return Boolean(nativeTerminalMacos) && macOverride
-}
 
    
                                                                            

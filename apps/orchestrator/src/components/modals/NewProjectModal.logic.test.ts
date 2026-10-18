@@ -25,7 +25,6 @@ function project(id: string): Project {
 
 const registration: NewProjectRegistration = {
   name: 'Example',
-  mode: 'standard',
   color: '#ffffff',
   groupId: null,
   defaultCwd: '  /workspace/example  ',

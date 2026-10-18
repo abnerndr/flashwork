@@ -36,25 +36,20 @@ import {
 import { waitForSessionHint } from '../../lib/sessionWatch'
 import { acquireSpawnSlot, releaseSpawnSlot } from '../../lib/spawnQueue'
 import {
-  aiMemoryCodexConfigWrite,
-  aiMemoryDetect,
-  aiMemoryMcpConfigPath,
-  aiMemoryOpenCodeConfigWrite,
   attachPty,
   clearPtyScrollback,
   findCliLauncher,
   graphifyCodexConfigWrite,
   graphifyEnsureGraph,
+  graphifyGeminiConfigWrite,
   graphifyMcpConfigPath,
   graphifyOpenCodeConfigWrite,
-  gsdOpenCodePluginWrite,
   killPty,
   listenPtyActivity,
   listenPtyData,
   listenPtyExit,
   ptyExists,
   readClipboardPayload,
-  readGsdChildSession,
   resizePty,
   setPtyVisible,
   snapshotAntigravitySessions,
@@ -72,6 +67,7 @@ import {
   type AgentType,
   type Theme,
 } from '../../lib/types'
+import { useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
@@ -131,8 +127,6 @@ function isBrowserInputPending(): boolean {
   return scheduling?.isInputPending?.() ?? false
 }
 
-let aiMemoryMissingWarned = false
-
 type BootPhase = 'preparing' | 'queued' | 'spawning' | 'attaching' | 'ready'
 
 export function useXtermSession(params: {
@@ -147,7 +141,6 @@ export function useXtermSession(params: {
   env?: Record<string, string>
   graphifyRepo?: string | null
 
-  gsdWatcherEnabled?: boolean
 
   trustSessionId?: boolean
 
@@ -192,8 +185,7 @@ export function useXtermSession(params: {
     lockOwnerId,
     env,
     graphifyRepo,
-    gsdWatcherEnabled,
-    trustSessionId,
+      trustSessionId,
     readOnly,
     runtimeProfile,
     terminalTheme,
@@ -1016,16 +1008,7 @@ export function useXtermSession(params: {
         if (command === 'opencode' && !resumeId && cwd && !forceFreshRef.current) {
           try {
             const sessions = await snapshotOpenCodeSessions(cwd)
-
-            // — e como `useGsdSyncSessions` acha o terminal certo justamente
-
-            // escondendo/fechando a pane dele.
-
-            // `.gsd-child-session` em algum momento (spawn anterior com o
-
-            const gsdChildId = await readGsdChildSession(cwd).catch(() => null)
-            const candidates = gsdChildId ? sessions.filter((s) => s.id !== gsdChildId) : sessions
-            const claimed = claimMostRecentSession('opencode', cwd, candidates)
+            const claimed = claimMostRecentSession('opencode', cwd, sessions)
             if (claimed) resumeId = claimed.id
           } catch {}
           if (disposed) return
@@ -1037,54 +1020,34 @@ export function useXtermSession(params: {
         // o spawn.
         const mcpConfigPaths: string[] = []
 
+        // Graphify MCP for every agent CLI: configs go where the CLI runs (`cwd`, maybe a
+        // worktree) and point at the project's graph. Writers no-op when Graphify is missing.
         if (
           graphifyRepo &&
-          (command === 'claude' || command === 'codex' || command === 'opencode')
+          (command === 'claude' ||
+            command === 'codex' ||
+            command === 'opencode' ||
+            command === 'gemini')
         ) {
-          void graphifyEnsureGraph(graphifyRepo).catch(() => undefined)
+          const graphRoot = graphifyRepo
+          const configRoot = cwd || graphRoot
+          void graphifyEnsureGraph(graphRoot)
+            .then((status) => {
+              if (status === 'unavailable') {
+                useGraphifySetupStore.getState().notifyMissing(graphRoot)
+              }
+            })
+            .catch(() => undefined)
           if (command === 'claude') {
-            const p = await graphifyMcpConfigPath(graphifyRepo).catch(() => undefined)
+            const p = await graphifyMcpConfigPath(configRoot, graphRoot).catch(() => undefined)
             if (p) mcpConfigPaths.push(p)
           } else if (command === 'opencode') {
-            await graphifyOpenCodeConfigWrite(graphifyRepo).catch(() => {})
+            await graphifyOpenCodeConfigWrite(configRoot, graphRoot).catch(() => {})
           } else if (command === 'codex') {
-            await graphifyCodexConfigWrite(graphifyRepo).catch(() => {})
+            await graphifyCodexConfigWrite(configRoot, graphRoot).catch(() => {})
+          } else if (command === 'gemini') {
+            await graphifyGeminiConfigWrite(configRoot, graphRoot).catch(() => {})
           }
-          if (disposed) return
-        }
-
-        const aiMemoryEnabled = useProjectsStore.getState().preferences.enabledFeatures.aiMemory
-        if (
-          aiMemoryEnabled &&
-          cwd &&
-          (command === 'claude' || command === 'codex' || command === 'opencode')
-        ) {
-          const status = await aiMemoryDetect().catch(() => undefined)
-          if (status?.installed) {
-            if (command === 'claude') {
-              const p = await aiMemoryMcpConfigPath(cwd).catch(() => undefined)
-              if (p) mcpConfigPaths.push(p)
-            } else if (command === 'opencode') {
-              await aiMemoryOpenCodeConfigWrite(cwd).catch(() => {})
-            } else if (command === 'codex') {
-              await aiMemoryCodexConfigWrite(cwd).catch(() => {})
-            }
-          } else if (!aiMemoryMissingWarned) {
-            aiMemoryMissingWarned = true
-            useUiStore.getState().pushToast({
-              title: translate(getLocale(), 'aiMemory.notInstalledTitle'),
-              body: translate(getLocale(), 'aiMemory.notInstalledBody'),
-            })
-          }
-          if (disposed) return
-        }
-
-        if (command === 'opencode' && cwd && gsdWatcherEnabled) {
-          const modelChain = useProjectsStore.getState().preferences.gsdSyncModelChain ?? []
-
-          await gsdOpenCodePluginWrite(cwd, modelChain).catch((error) => {
-            console.error(`[pty-launch] gsdOpenCodePluginWrite falhou pra ${cwd}:`, error)
-          })
           if (disposed) return
         }
 
@@ -1242,17 +1205,11 @@ export function useXtermSession(params: {
                           ? await snapshotGeminiSessions(cwd).catch(() => [])
                           : await snapshotOpenCodeSessions(cwd).catch(() => [])
 
-                // equivalente no bloco de resume acima.
-                let filteredSessions = sessions
-                if (command === 'opencode') {
-                  const gsdChildId = await readGsdChildSession(cwd).catch(() => null)
-                  if (gsdChildId) filteredSessions = sessions.filter((s) => s.id !== gsdChildId)
-                }
                 const newSession = claimDiscoveredSession(
                   command,
                   cwd,
                   before,
-                  filteredSessions,
+                  sessions,
                   sessionPersistenceKey,
                 )
                 if (newSession) {

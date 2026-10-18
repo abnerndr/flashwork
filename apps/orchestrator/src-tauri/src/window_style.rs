@@ -32,7 +32,7 @@ pub fn apply_rounded_corners(app: &tauri::AppHandle) {
 pub fn ensure_main_window_visible(app: &tauri::AppHandle) {
     #[cfg(target_os = "linux")]
     {
-        if !is_wsl() {
+        if !crate::wsl::is_wsl() {
             return;
         }
         let Some(window) = app.get_webview_window("main") else {
@@ -86,13 +86,6 @@ pub fn ensure_main_window_visible(app: &tauri::AppHandle) {
     {
         let _ = app;
     }
-}
-
-#[cfg(target_os = "linux")]
-fn is_wsl() -> bool {
-    std::fs::read_to_string("/proc/version")
-        .map(|text| text.to_ascii_lowercase().contains("microsoft"))
-        .unwrap_or(false)
 }
 
 #[cfg(target_os = "macos")]

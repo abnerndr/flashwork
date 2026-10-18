@@ -257,10 +257,6 @@ fn tick(app: &AppHandle) {
             MemoryPressureLevel::Medium => {
                 enqueue_task(
                     ScheduledTask::new(TaskPriority::High, "webview-low-memory", move || {
-                        #[cfg(windows)]
-                        if let Err(e) = crate::windows_webview::set_memory_mode(true) {
-                            eprintln!("[ResourceManager] WebView low-memory failed: {e}");
-                        }
                         let _ = handle.emit("resource://webview-low-memory", "");
                     })
                     .with_cancel_key("webview-low-memory"),

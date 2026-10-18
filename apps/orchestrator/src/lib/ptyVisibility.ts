@@ -65,12 +65,6 @@ export function computeVisibleFocusedPtyIds(): PtyVisibilitySets {
     }
   }
 
-  const canvasId = ui.agentCanvasSession?.ptyId
-  if (canvasId && ui.activeView === 'agentCanvas') {
-    visible.add(canvasId)
-    focused.add(canvasId)
-  }
-
   return { visible, focused }
 }
 

@@ -67,8 +67,6 @@ export type StartPromptRunInput = {
   includeOrchestrator?: boolean
   allowedFiles?: string[]
   boardPath?: string
-  attachmentsDir?: string
-  toolsJsonPath?: string
   createId?: () => string
   createUuid?: () => string
   now?: () => number
@@ -93,8 +91,6 @@ export type LaunchPromptRunLanesInput = {
   allowedFiles?: string[]
   boardPath?: string
   contextDir?: string
-  attachmentsDir?: string
-  toolsJsonPath?: string
   createUuid?: () => string
   now?: () => number
   createAgentTerminal: CreateAgentTerminal
@@ -133,8 +129,6 @@ export async function launchPromptRunLanes(
         allowedFiles: input.allowedFiles,
         boardPath: input.boardPath,
         contextDir: input.contextDir,
-        attachmentsDir: input.attachmentsDir,
-        toolsJsonPath: input.toolsJsonPath,
       })
       const reply = await chat(
         provider,
@@ -157,14 +151,19 @@ export async function launchPromptRunLanes(
     const flag = input.unrestricted ? UNRESTRICTED_FLAG[lane.agent] : null
     const extraArgs = flag ? [flag] : undefined
     const paneName =
-      lane.role === 'orchestrator'
+      lane.paneName ??
+      (lane.role === 'orchestrator'
         ? `Auto · ${routedAgentLabel(lane.agent)}`
-        : routedAgentLabel(lane.agent)
+        : routedAgentLabel(lane.agent))
     let sessionId: string | undefined
     let sessionCreate: boolean | undefined
     if (lane.agent === 'claude') {
       const existing = canonicalClaudeSessionId(input.runId)
-      if (existing) {
+      if (existing && lane.independentSession) {
+        // Parallel SPEC lanes must not resume one shared Claude session.
+        sessionId = createUuid()
+        sessionCreate = true
+      } else if (existing) {
         sessionId = existing
       } else {
         sessionId = createUuid()
@@ -181,7 +180,9 @@ export async function launchPromptRunLanes(
         extraArgs,
         sessionId,
         sessionCreate,
-        initialInput: buildRunBootstrapInput({
+        initialInput:
+          lane.bootstrap ??
+          buildRunBootstrapInput({
           runId: input.runId,
           prompt: lane.slicePrompt,
           agent: lane.agent,
@@ -190,8 +191,6 @@ export async function launchPromptRunLanes(
           allowedFiles: input.allowedFiles,
           boardPath: input.boardPath,
           contextDir: input.contextDir,
-          attachmentsDir: input.attachmentsDir,
-          toolsJsonPath: input.toolsJsonPath,
         }),
       },
     })
@@ -254,8 +253,6 @@ export async function startPromptRun(input: StartPromptRunInput): Promise<StartP
     allowedFiles: input.allowedFiles,
     boardPath: input.boardPath,
     contextDir,
-    attachmentsDir: input.attachmentsDir,
-    toolsJsonPath: input.toolsJsonPath,
     createUuid: input.createUuid,
     now,
     createAgentTerminal: input.createAgentTerminal,

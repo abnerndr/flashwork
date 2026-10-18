@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatShortcut, isMacOS, normalizeCwd, osFamily, shouldUseNativeBackend } from './platform'
+import { formatShortcut, isMacOS, normalizeCwd, osFamily } from './platform'
 
 function setUserAgent(ua: string) {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(ua)
@@ -22,21 +22,6 @@ describe('isMacOS', () => {
   it('é false no Linux', () => {
     setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36')
     expect(isMacOS()).toBe(false)
-  })
-})
-
-describe('shouldUseNativeBackend', () => {
-  it('usa nativo só com flag ligada E no macOS', () => {
-    expect(shouldUseNativeBackend(true, true)).toBe(true)
-  })
-
-  it('não usa nativo sem a flag, mesmo no macOS', () => {
-    expect(shouldUseNativeBackend(false, true)).toBe(false)
-    expect(shouldUseNativeBackend(undefined, true)).toBe(false)
-  })
-
-  it('nunca usa nativo fora do macOS, mesmo com flag ligada', () => {
-    expect(shouldUseNativeBackend(true, false)).toBe(false)
   })
 })
 

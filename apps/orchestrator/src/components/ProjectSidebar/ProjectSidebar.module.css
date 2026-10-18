@@ -907,11 +907,6 @@
   flex: 1;
 }
 
-.agentProjectIcon {
-  color: var(--agent-claude);
-  flex-shrink: 0;
-}
-
 .badgePrimary {
   font-size: 8px;
   font-weight: 700;
@@ -1195,18 +1190,6 @@
   height: 14px;
   margin: 0 5px;
   background: var(--border);
-}
-
-.betaMark {
-  position: absolute;
-  right: -2px;
-  bottom: -2px;
-  font: 7px var(--font-mono);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent);
-  line-height: 1;
-  pointer-events: none;
 }
 
 .toolbarSpacer {

@@ -11,7 +11,6 @@ import {
   makeDefaultTerminal,
   makeDiffPane,
   makeFilePane,
-  makeWebPane,
   newContainer,
   rememberProjectTab,
   rememberWorkspaceTab,
@@ -35,10 +34,8 @@ type TerminalsSlice = Pick<
   | 'createAgentTerminal'
   | 'createFilePane'
   | 'createDiffPane'
-  | 'createWebPane'
   | 'createGraphifyPane'
   | 'renameTerminal'
-  | 'markGsdSyncViewer'
   | 'deleteTerminal'
   | 'deleteTerminalWithWorktreeCleanup'
   | 'killTerminal'
@@ -46,7 +43,6 @@ type TerminalsSlice = Pick<
   | 'setTerminalDisabled'
   | 'setProjectDisabled'
   | 'setLaneVisible'
-  | 'setTerminalRemoteExcluded'
   | 'markTerminalUsed'
 >
 
@@ -220,46 +216,6 @@ export function createTerminalsSlice({ get, update, updateTerminal }: SliceCtx):
       return pane
     },
 
-    createWebPane: (projectId, args) => {
-      const pane = makeWebPane(args)
-      update((state) => {
-        const projects = state.projects.map((project) =>
-          project.id === projectId
-            ? { ...project, terminals: [...project.terminals, pane] }
-            : project,
-        )
-        const project = projects.find((entry) => entry.id === projectId)
-        const layout = project?.layoutMode ?? 'auto'
-        const existing = state.workspace.containers.find(
-          (container) => container.projectId === projectId,
-        )
-        const containers = existing
-          ? state.workspace.containers.map((container) =>
-              container.projectId === projectId
-                ? {
-                    ...container,
-                    paneIds: [...container.paneIds, pane.id],
-                    lastUsedAt: Date.now(),
-                  }
-                : container,
-            )
-          : [...state.workspace.containers, newContainer(projectId, [pane.id], layout)]
-        return {
-          projects,
-          workspace: {
-            ...state.workspace,
-            containers,
-            recentProjectIds: rememberProjectTab(state.workspace.recentProjectIds, projectId),
-            recentTabs: rememberWorkspaceTab(state.workspace.recentTabs, {
-              kind: 'project',
-              id: projectId,
-            }),
-          },
-        }
-      })
-      return pane
-    },
-
     createGraphifyPane: (projectId, cwd) => {
       const pane: Terminal = {
         id: `graphify-${nanoid()}`,
@@ -304,28 +260,10 @@ export function createTerminalsSlice({ get, update, updateTerminal }: SliceCtx):
     renameTerminal: (projectId, terminalId, name) =>
       updateTerminal(projectId, terminalId, (t) => ({ ...t, name })),
 
-    markGsdSyncViewer: (projectId, terminalId) =>
-      updateTerminal(projectId, terminalId, (t) => (t.gsdSyncViewer ? t : { ...t, gsdSyncViewer: true })),
-
     deleteTerminal: (projectId, terminalId) =>
       update((state) => {
         const project = state.projects.find((p) => p.id === projectId)
-        const terminal = project?.terminals.find((t) => t.id === terminalId)
-                                                                               
-        // teardown da worktree inteira — arrasta junto o terminal "viewer" GSD
-                                                                            
-                                                                           
-                                                                            
-                                                                               
-                                                                              
-                                                                            
-                                                                       
         const idsToRemove = new Set([terminalId])
-        if (terminal?.worktreeAgentId && terminal.cwd) {
-          for (const sibling of project?.terminals ?? []) {
-            if (sibling.gsdSyncViewer && sibling.cwd === terminal.cwd) idsToRemove.add(sibling.id)
-          }
-        }
         const terminalsToClean = (project?.terminals ?? []).filter((t) => idsToRemove.has(t.id))
         if (terminalsToClean.length > 0) cleanupPtys(collectTerminalPtyIds(terminalsToClean))
         const projects = state.projects.map((p) => {
@@ -532,9 +470,6 @@ export function createTerminalsSlice({ get, update, updateTerminal }: SliceCtx):
 
     setLaneVisible: (projectId, terminalId, visible) =>
       updateTerminal(projectId, terminalId, (t) => ({ ...t, laneVisible: visible })),
-
-    setTerminalRemoteExcluded: (projectId, terminalId, excluded) =>
-      updateTerminal(projectId, terminalId, (t) => ({ ...t, remoteExcluded: excluded })),
 
     markTerminalUsed: (projectId, terminalId) =>
       updateTerminal(projectId, terminalId, (t) => touchTerminalUsage(t)),

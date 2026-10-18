@@ -1,5 +1,10 @@
 import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi'
-import { getCurrentWindow, type Monitor } from '@tauri-apps/api/window'
+import {
+  availableMonitors,
+  currentMonitor,
+  getCurrentWindow,
+  type Monitor,
+} from '@tauri-apps/api/window'
 
 type Frame = { x: number; y: number; width: number; height: number }
 
@@ -93,8 +98,8 @@ export async function toggleFlashworkMaximize(): Promise<void> {
     }
 
     const [current, monitors] = await Promise.all([
-      win.currentMonitor().catch(() => null),
-      win.availableMonitors().catch(() => [] as Monitor[]),
+      currentMonitor().catch(() => null),
+      availableMonitors().catch(() => [] as Monitor[]),
     ])
     const candidates = [current, ...monitors].filter(
       (monitor): monitor is Monitor => Boolean(monitor && saneMonitor(monitor)),

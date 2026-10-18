@@ -109,6 +109,10 @@
   background: var(--panel-hover);
   color: var(--fg);
 }
+.tagBtn:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
 
 .dragHandle {
   width: 22px;

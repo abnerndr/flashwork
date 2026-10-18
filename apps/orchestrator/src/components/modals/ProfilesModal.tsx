@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   Check,
-  Download,
   Loader2,
   PencilLine,
   Plus,
@@ -11,13 +10,11 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { saveFile } from '../../lib/dialog'
 import { useT } from '../../lib/i18n'
 import { DEFAULT_PROFILE_IMAGE_URL, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
 import {
   createProfile,
   deleteProfile,
-  exportProfileBackup,
   listProfileSummaries,
   type ProfileSummary,
   renameProfile,
@@ -32,7 +29,7 @@ import controls from './controls.module.css'
 import { Modal } from './Modal'
 import styles from './ProfilesModal.module.css'
 
-type BusyAction = null | 'load' | 'create' | 'rename' | 'switch' | 'backup' | 'delete'
+type BusyAction = null | 'load' | 'create' | 'rename' | 'switch' | 'delete'
 
 function formatDate(ms: number, locale: string): string {
   if (!ms) return '—'
@@ -61,7 +58,6 @@ export function ProfilesModal() {
   const [editingName, setEditingName] = useState('')
   const [pendingDelete, setPendingDelete] = useState<ProfileSummary | null>(null)
   const [confirmName, setConfirmName] = useState('')
-  const [backupReady, setBackupReady] = useState(false)
   const [busy, setBusy] = useState<BusyAction>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -85,7 +81,6 @@ export function ProfilesModal() {
       setEditingName('')
       setPendingDelete(null)
       setConfirmName('')
-      setBackupReady(false)
       setError(null)
       setNotice(null)
       return
@@ -122,7 +117,6 @@ export function ProfilesModal() {
   const mapError = (err: unknown) => {
     const raw = String(err)
     if (raw.includes('profile_name_exists')) return t('profiles.nameExists')
-    if (raw.includes('backup_inside_profile')) return t('profiles.backupInsideProfile')
     return t('profiles.operationError', { error: raw })
   }
 
@@ -205,29 +199,8 @@ export function ProfilesModal() {
     }
   }
 
-  const exportPendingBackup = async () => {
-    if (!pendingDelete) return
-    setBusy('backup')
-    setError(null)
-    try {
-      const targetPath = await saveFile({
-        title: t('profiles.backupDialogTitle'),
-        defaultPath: `flashwork-${pendingDelete.name.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()}-backup.zip`,
-        filters: [{ name: t('profiles.backupFileType'), extensions: ['zip'] }],
-      })
-      if (!targetPath) return
-      await exportProfileBackup(pendingDelete.id, targetPath)
-      setBackupReady(true)
-      setNotice(t('profiles.backupReady'))
-    } catch (err) {
-      setError(mapError(err))
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const removeProfile = async () => {
-    if (!pendingDelete || !backupReady || confirmName.trim() !== pendingDelete.name) return
+    if (!pendingDelete || confirmName.trim() !== pendingDelete.name) return
     setBusy('delete')
     setError(null)
     try {
@@ -243,7 +216,6 @@ export function ProfilesModal() {
   const startDelete = (profile: ProfileSummary) => {
     setPendingDelete(profile)
     setConfirmName('')
-    setBackupReady(false)
     setError(null)
     setNotice(null)
   }
@@ -468,19 +440,6 @@ export function ProfilesModal() {
                 <X size={15} />
               </button>
             </div>
-            <button
-              type="button"
-              className={controls.btn}
-              onClick={() => void exportPendingBackup()}
-              disabled={busy !== null || backupReady}
-            >
-              {busy === 'backup' ? (
-                <Loader2 size={16} className={styles.spin} />
-              ) : (
-                <Download size={16} />
-              )}
-              {backupReady ? t('profiles.backupDone') : t('profiles.exportBackup')}
-            </button>
             <label className={controls.field}>
               <span className={controls.label}>{t('profiles.confirmDeleteInput')}</span>
               <input
@@ -488,7 +447,7 @@ export function ProfilesModal() {
                 value={confirmName}
                 onChange={(event) => setConfirmName(event.target.value)}
                 placeholder={pendingDelete.name}
-                disabled={!backupReady || busy !== null}
+                disabled={busy !== null}
               />
             </label>
             <div className={styles.deleteActions}>
@@ -504,9 +463,7 @@ export function ProfilesModal() {
                 type="button"
                 className={`${controls.btn} ${controls.btnDanger}`}
                 onClick={() => void removeProfile()}
-                disabled={
-                  !backupReady || confirmName.trim() !== pendingDelete.name || busy !== null
-                }
+                disabled={confirmName.trim() !== pendingDelete.name || busy !== null}
               >
                 {busy === 'delete' ? (
                   <Loader2 size={16} className={styles.spin} />

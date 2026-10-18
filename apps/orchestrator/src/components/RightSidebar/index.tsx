@@ -1,15 +1,12 @@
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import {
-  ArrowLeft,
   ClipboardCopy,
   FileText,
   GitBranch,
-  ListTodo,
   Maximize2,
   PanelRightClose,
   Plug,
   RefreshCw,
-  Settings,
   X,
 } from 'lucide-react'
 import {
@@ -36,7 +33,6 @@ import { EmptyState } from '../EmptyState'
 const MarkdownRenderer = lazy(() => import('../MarkdownPane/MarkdownRenderer').then(m => ({ default: m.MarkdownRenderer })))
 import { McpPanel } from '../McpPanel'
 import { GitControl } from '../ProjectSidebar/GitControl'
-import { TodoSidebar } from '../TodoSidebar'
 import styles from './RightSidebar.module.css'
 
 const markdownScrollPositions = new Map<string, number>()
@@ -44,7 +40,6 @@ const markdownScrollPositions = new Map<string, number>()
 export function RightSidebar() {
   const t = useT()
   const mode = useUiStore((state) => state.rightSidebarMode)
-  const setMode = useUiStore((state) => state.showTodoSidebar)
   const openMarkdown = useUiStore((state) => state.showMarkdownSidebar)
   const showGit = useUiStore((state) => state.showGitSidebar)
   const showMcp = useUiStore((state) => state.showMcpSidebar)
@@ -62,7 +57,6 @@ export function RightSidebar() {
   const sidebarSubTab = sidebarTerminal?.tabs.find((tab) => tab.id === sidebarTerminal.activeTabId)
     ?? sidebarTerminal?.tabs[0]
 
-  const todoEnabled = preferences.enabledFeatures.todos
   const gitEnabled =
     preferences.enabledFeatures.git && preferences.gitControlPlacement === 'right'
   const mcpEnabled = preferences.enabledFeatures.mcp
@@ -71,30 +65,15 @@ export function RightSidebar() {
   useEffect(() => {
     const modeStillEnabled =
       mode === 'markdown' ||
-      (mode === 'todo' && todoEnabled) ||
       (mode === 'git' && gitEnabled) ||
       (mode === 'mcp' && mcpEnabled)
     if (modeStillEnabled) return
-    if (todoEnabled) setMode()
-    else openMarkdown()
-  }, [gitEnabled, mcpEnabled, mode, openMarkdown, setMode, todoEnabled])
+    openMarkdown()
+  }, [gitEnabled, mcpEnabled, mode, openMarkdown])
 
   return (
     <aside className={styles.sidebar} aria-label={t('rightSidebar.navigation')}>
       <div className={styles.sidebarTabs} role="tablist" aria-label={t('rightSidebar.navigation')}>
-        {todoEnabled ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'todo'}
-            className={`${styles.sidebarTab} ${mode === 'todo' ? styles.sidebarTabActive : ''}`}
-            onClick={setMode}
-            title={t('todo.title')}
-          >
-            <ListTodo size={16} />
-            <span>{t('rightSidebar.todoTab')}</span>
-          </button>
-        ) : null}
         <button
           type="button"
           role="tab"
@@ -133,17 +112,6 @@ export function RightSidebar() {
           </button>
         ) : null}
         <span className={styles.toolbarSpacer} />
-        {mode === 'todo' && todoEnabled ? (
-          <button
-            type="button"
-            className={styles.toolbarUtility}
-            onClick={() => openModal('todoSettings')}
-            title={t('todo.openSettings')}
-            aria-label={t('todo.openSettings')}
-          >
-            <Settings size={16} />
-          </button>
-        ) : null}
         {mode === 'mcp' && mcpEnabled ? (
           <button
             type="button"
@@ -168,7 +136,6 @@ export function RightSidebar() {
       </div>
       <div className={styles.tabContent}>
         {mode === 'markdown' ? <MarkdownSidebarViewer /> : null}
-        {mode === 'todo' && todoEnabled ? <TodoSidebar /> : null}
         {mode === 'mcp' && mcpEnabled ? <McpPanel /> : null}
         {mode === 'git' && gitEnabled ? (
           <GitSidebarContent
@@ -225,7 +192,6 @@ function MarkdownSidebarViewer() {
   const markdownTabs = useUiStore((state) => state.rightSidebarMarkdownTabs)
   const openMarkdownSidebar = useUiStore((state) => state.openMarkdownSidebar)
   const closeMarkdownSidebarTab = useUiStore((state) => state.closeMarkdownSidebarTab)
-  const showTodoSidebar = useUiStore((state) => state.showTodoSidebar)
   const pushToast = useUiStore((state) => state.pushToast)
   const activeProjectId = useProjectsStore((state) => state.activeProjectId)
   const projects = useProjectsStore((state) => state.projects)
@@ -428,15 +394,6 @@ function MarkdownSidebarViewer() {
             aria-label={copied ? t('ui.markdown.copied') : t('ui.markdown.copySource')}
           >
             <ClipboardCopy size={15} />
-          </button>
-          <button
-            type="button"
-            className={`${styles.headerAction} ${styles.cleanRedundantAction}`}
-            onClick={showTodoSidebar}
-            title={t('rightSidebar.backToTodo')}
-            aria-label={t('rightSidebar.backToTodo')}
-          >
-            <ArrowLeft size={15} />
           </button>
           <button
             type="button"

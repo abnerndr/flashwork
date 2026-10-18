@@ -49,7 +49,7 @@ export function ProjectNode({
   const { setNodeRef: dropRef } = useDroppable({ id: `proj:${project.id}` })
   const draggable = useDraggable({ id: `proj:${project.id}` })
   const toggleCollapsed = useProjectsStore((state) => state.toggleProjectCollapsed)
-  const visibleTerminals = project.terminals.filter((terminal) => !terminal.gsdSyncViewer)
+  const visibleTerminals = project.terminals
   const isEmpty = visibleTerminals.length === 0
   const allDisabled = visibleTerminals.length > 0 && visibleTerminals.every((term) => term.disabled)
   const runningCount = useTerminalsStore((state) =>

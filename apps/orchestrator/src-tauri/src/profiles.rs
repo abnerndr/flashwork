@@ -64,19 +64,6 @@ fn profile_dir(root: &Path, id: &str) -> PathBuf {
     profiles_root_dir(root).join(id)
 }
 
-pub fn profile_data_dir_for_id(app: &AppHandle, profile_id: &str) -> Result<PathBuf, String> {
-    let root = root_data_dir(app)?;
-    let index = ensure_profiles_index(app)?;
-    if !index
-        .profiles
-        .iter()
-        .any(|profile| profile.id == profile_id)
-    {
-        return Err("profile not found".to_string());
-    }
-    Ok(profile_dir(&root, profile_id))
-}
-
 pub fn default_profiles_index() -> ProfilesIndex {
     let now = now_ms();
     ProfilesIndex {

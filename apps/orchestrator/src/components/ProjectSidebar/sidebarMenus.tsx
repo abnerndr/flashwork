@@ -2,15 +2,12 @@ import {
   Archive,
   FileText,
   FolderOpen,
-  Globe2,
   Layout,
   MoveRight,
   PanelTopOpen,
   Pencil,
   Plus,
   Power,
-  Smartphone,
-  SmartphoneNfc,
   Trash2,
 } from 'lucide-react'
 
@@ -30,7 +27,6 @@ import { collectDescendants } from './GroupNode'
 type ProjectsState = ReturnType<typeof useProjectsStore.getState>
 type UiState = ReturnType<typeof useUiStore.getState>
 
-                                                                                
 type MenuActions = Pick<
   ProjectsState,
   | 'openProjectWorkspace'
@@ -57,7 +53,6 @@ type MenuActions = Pick<
   | 'setTerminalDisabled'
   | 'killTerminal'
   | 'setLaneVisible'
-  | 'setTerminalRemoteExcluded'
   | 'deleteTerminal'
   | 'deleteTerminalWithWorktreeCleanup'
   | 'setPreferences'
@@ -65,8 +60,6 @@ type MenuActions = Pick<
 
 export type SidebarMenuDeps = {
   t: ReturnType<typeof useT>
-  graphifyEnabled: boolean
-  browserEnabled: boolean
   groups: Group[]
   openPaneSets: Record<string, Set<string>>
   actions: MenuActions
@@ -78,17 +71,13 @@ export type SidebarMenuDeps = {
   openMarkdownSidebar: UiState['openMarkdownSidebar']
 }
 
-                                                                                        
 function visibleProjectTerminals(project: Project): Terminal[] {
-  return project.terminals.filter((term) => !term.gsdSyncViewer)
+  return project.terminals
 }
 
-                                                                         
 export function createSidebarMenus(deps: SidebarMenuDeps) {
   const {
     t,
-    graphifyEnabled,
-    browserEnabled,
     groups,
     openPaneSets,
     actions,
@@ -100,142 +89,130 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
     openMarkdownSidebar,
   } = deps
 
-  const projectMenu = (project: Project): MenuItem[] => [
-    {
-      kind: 'item',
-      label: t('ui.workspace.openIndividually'),
-      icon: <FolderOpen size={16} />,
-      onClick: () => {
-        actions.openProjectWorkspace(project.id)
-        setActiveView('workspace')
+  const projectMenu = (project: Project): MenuItem[] => {
+    const graphRoot = project.defaultCwd || project.terminals[0]?.cwd
+    return [
+      {
+        kind: 'item',
+        label: t('ui.workspace.openIndividually'),
+        icon: <FolderOpen size={16} />,
+        onClick: () => {
+          actions.openProjectWorkspace(project.id)
+          setActiveView('workspace')
+        },
       },
-    },
-    {
-      kind: 'item',
-      label: t('ui.workspace.addToCurrent'),
-      icon: <Plus size={16} />,
-      onClick: () => {
-        actions.addProjectToWorkspace(project.id)
-        setActiveView('workspace')
+      {
+        kind: 'item',
+        label: t('ui.workspace.addToCurrent'),
+        icon: <Plus size={16} />,
+        onClick: () => {
+          actions.addProjectToWorkspace(project.id)
+          setActiveView('workspace')
+        },
       },
-    },
-    { kind: 'separator' },
-    {
-      kind: 'item',
-      label: t('ui.sidebar.editNameColor'),
-      icon: <Pencil size={16} />,
-      onClick: () => openModal('editProject', { projectId: project.id }),
-    },
-    {
-      kind: 'item',
-      label: t('ui.sidebar.quickRename'),
-      icon: <Pencil size={16} />,
-      onClick: () => {
-        const name = window.prompt(t('ui.sidebar.newNamePrompt'), project.name)?.trim()
-        if (name) actions.renameProject(project.id, name)
+      { kind: 'separator' },
+      {
+        kind: 'item',
+        label: t('ui.sidebar.editNameColor'),
+        icon: <Pencil size={16} />,
+        onClick: () => openModal('editProject', { projectId: project.id }),
       },
-    },
-    {
-      kind: 'item',
-      label: t('ui.sidebar.newTerminalHere'),
-      icon: <Plus size={16} />,
-      onClick: () => openModal('newTerminal', { projectId: project.id }),
-    },
-    ...(browserEnabled
-      ? [
-          {
-            kind: 'item' as const,
-            label: t('menu.addBrowser'),
-            icon: <Globe2 size={16} />,
-            onClick: () => openModal('addBrowser', { projectId: project.id }),
-          },
-        ]
-      : []),
-    {
-      kind: 'item',
-      label: t('ui.sidebar.designLayout'),
-      icon: <Layout size={16} />,
-      onClick: () => openModal('layoutDesigner', { kind: 'project', id: project.id }),
-    },
-    ...(graphifyEnabled
-      ? [
-          {
-            kind: 'item' as const,
-            label: t('graphify.startInProject'),
-            onClick: () => {
-              const repoPath = project.terminals[0]?.cwd
-              if (repoPath) {
-                actions.createGraphifyPane(project.id, repoPath)
+      {
+        kind: 'item',
+        label: t('ui.sidebar.quickRename'),
+        icon: <Pencil size={16} />,
+        onClick: () => {
+          const name = window.prompt(t('ui.sidebar.newNamePrompt'), project.name)?.trim()
+          if (name) actions.renameProject(project.id, name)
+        },
+      },
+      {
+        kind: 'item',
+        label: t('ui.sidebar.newTerminalHere'),
+        icon: <Plus size={16} />,
+        onClick: () => openModal('newTerminal', { projectId: project.id }),
+      },
+      {
+        kind: 'item',
+        label: t('ui.sidebar.designLayout'),
+        icon: <Layout size={16} />,
+        onClick: () => openModal('layoutDesigner', { kind: 'project', id: project.id }),
+      },
+      ...(graphRoot
+        ? [
+            {
+              kind: 'item' as const,
+              label: t('graphify.startInProject'),
+              onClick: () => {
+                actions.createGraphifyPane(project.id, graphRoot)
                 setActiveView('workspace')
-              } else {
-                alert('Adicione um terminal ao projeto primeiro para obter a raiz do repositório.')
-              }
+              },
             },
-          },
-        ]
-      : []),
-    {
-      kind: 'item',
-      label: project.groupId ? t('ui.sidebar.removeFromGroup') : t('ui.sidebar.moveToGroup'),
-      icon: <MoveRight size={16} />,
-      onClick: () => {
-        if (project.groupId) {
-          actions.moveProjectToGroup(project.id, null)
-        } else if (groups.length === 0) {
-          window.alert(t('ui.sidebar.createGroupFirst'))
-        } else {
-          const list = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n')
-          const pick = window.prompt(
-            t('ui.sidebar.moveProjectToWhichGroup', { name: project.name, list }),
-            '1',
-          )
-          const idx = pick ? Number(pick) - 1 : -1
-          if (idx >= 0 && idx < groups.length) {
-            actions.moveProjectToGroup(project.id, groups[idx].id)
+          ]
+        : []),
+      {
+        kind: 'item',
+        label: project.groupId ? t('ui.sidebar.removeFromGroup') : t('ui.sidebar.moveToGroup'),
+        icon: <MoveRight size={16} />,
+        onClick: () => {
+          if (project.groupId) {
+            actions.moveProjectToGroup(project.id, null)
+          } else if (groups.length === 0) {
+            window.alert(t('ui.sidebar.createGroupFirst'))
+          } else {
+            const list = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n')
+            const pick = window.prompt(
+              t('ui.sidebar.moveProjectToWhichGroup', { name: project.name, list }),
+              '1',
+            )
+            const idx = pick ? Number(pick) - 1 : -1
+            if (idx >= 0 && idx < groups.length) {
+              actions.moveProjectToGroup(project.id, groups[idx].id)
+            }
           }
-        }
+        },
       },
-    },
-    {
-      kind: 'item',
-      label: t('ui.sidebar.archiveProject'),
-      icon: <Archive size={16} />,
-      onClick: () => actions.archiveProject(project.id),
-    },
-    {
-      kind: 'item',
-      label:
-        visibleProjectTerminals(project).length > 0 &&
-        visibleProjectTerminals(project).every((term) => term.disabled)
-          ? t('ui.sidebar.reactivateProject')
-          : t('ui.sidebar.disableProject'),
-      icon: <Power size={16} />,
-      onClick: () => {
-        const terms = visibleProjectTerminals(project)
-        const allDisabled = terms.length > 0 && terms.every((term) => term.disabled)
-        actions.setProjectDisabled(project.id, !allDisabled)
+      {
+        kind: 'item',
+        label: t('ui.sidebar.archiveProject'),
+        icon: <Archive size={16} />,
+        onClick: () => actions.archiveProject(project.id),
       },
-    },
-    { kind: 'separator' },
-    {
-      kind: 'item',
-      label: t('ui.sidebar.deleteProject'),
-      icon: <Trash2 size={16} />,
-      danger: true,
-      onClick: () => {
-        if (
-          window.confirm(
-            t('ui.sidebar.confirmDeleteProject', {
-              name: project.name,
-              count: project.terminals.length,
-            }),
-          )
-        ) {
-          actions.deleteProject(project.id)
-        }
+      {
+        kind: 'item',
+        label:
+          visibleProjectTerminals(project).length > 0 &&
+          visibleProjectTerminals(project).every((term) => term.disabled)
+            ? t('ui.sidebar.reactivateProject')
+            : t('ui.sidebar.disableProject'),
+        icon: <Power size={16} />,
+        onClick: () => {
+          const terms = visibleProjectTerminals(project)
+          const allDisabled = terms.length > 0 && terms.every((term) => term.disabled)
+          actions.setProjectDisabled(project.id, !allDisabled)
+        },
       },
-    },
-  ]
+      { kind: 'separator' },
+      {
+        kind: 'item',
+        label: t('ui.sidebar.deleteProject'),
+        icon: <Trash2 size={16} />,
+        danger: true,
+        onClick: () => {
+          if (
+            window.confirm(
+              t('ui.sidebar.confirmDeleteProject', {
+                name: project.name,
+                count: project.terminals.length,
+              }),
+            )
+          ) {
+            actions.deleteProject(project.id)
+          }
+        },
+      },
+    ]
+  }
 
   const groupMenu = (group: Group): MenuItem[] => [
     {
@@ -394,7 +371,9 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
         : activeTab.sessionId
     const launch = buildAgentLaunch(activeTab.type, runtime.args, resumeId)
     if (launch.sessionId && launch.sessionId !== activeTab.sessionId) {
-      useProjectsStore.getState().setSubTabSessionId(projectId, term.id, activeTab.id, launch.sessionId)
+      useProjectsStore
+        .getState()
+        .setSubTabSessionId(projectId, term.id, activeTab.id, launch.sessionId)
     }
     useTerminalsStore.getState().beginRestart(activeTab.ptyId)
     try {
@@ -409,7 +388,9 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
         ...providerSpawnFlags(activeTab.type, useProjectsStore.getState().preferences),
       })
       window.dispatchEvent(
-        new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: activeTab.ptyId } }),
+        new CustomEvent('flashwork:terminal-resize-request', {
+          detail: { ptyId: activeTab.ptyId },
+        }),
       )
     } catch (err) {
       window.alert(
@@ -533,19 +514,6 @@ export function createSidebarMenus(deps: SidebarMenuDeps) {
                 openMarkdownSidebar(term.filePath!, term.name)
                 actions.setPreferences({ rightSidebarVisible: true })
               },
-            },
-          ]
-        : []),
-      ...(isTerminalPane
-        ? [
-            {
-              kind: 'item' as const,
-              label: term.remoteExcluded
-                ? t('ui.terminal.shareWithRemote')
-                : t('ui.terminal.hideFromRemote'),
-              icon: term.remoteExcluded ? <Smartphone size={16} /> : <SmartphoneNfc size={16} />,
-              onClick: () =>
-                actions.setTerminalRemoteExcluded(projectId, term.id, !term.remoteExcluded),
             },
           ]
         : []),

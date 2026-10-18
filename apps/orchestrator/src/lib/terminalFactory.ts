@@ -6,7 +6,6 @@ import type {
   AgentHandoffBootstrap,
   AgentRuntimeProfile,
   AgentType,
-  BrowserPaneOptions,
   LayoutMode,
   Project,
   SubTab,
@@ -64,7 +63,6 @@ export function makeDefaultTerminal(args: {
     runtimeProfile?: AgentRuntimeProfile
   }
   worktreeAgentId?: string
-  gsdSyncViewer?: boolean
 }): Terminal {
   const tabId = nanoid()
   const now = Date.now()
@@ -77,7 +75,6 @@ export function makeDefaultTerminal(args: {
     laneVisible: null,
     lastUsedAt: now,
     worktreeAgentId: args.worktreeAgentId,
-    gsdSyncViewer: args.gsdSyncViewer,
     tabs: [
       {
         id: tabId,
@@ -98,10 +95,8 @@ export function makeDefaultTerminal(args: {
 }
 
 const MARKDOWN_FILE_PATTERN = /\.(md|markdown|mdx)$/i
-const VIDEO_FILE_PATTERN = /\.(mp4|m4v|mov|avi|mkv|webm|ogv)$/i
 
-function classifyPaneKind(filePath: string): 'markdown' | 'video' | 'file' {
-  if (VIDEO_FILE_PATTERN.test(filePath)) return 'video'
+function classifyPaneKind(filePath: string): 'markdown' | 'file' {
   return MARKDOWN_FILE_PATTERN.test(filePath) ? 'markdown' : 'file'
 }
 
@@ -140,33 +135,6 @@ export function makeDiffPane(args: {
     kind: 'diff',
     filePath,
     staged: args.staged,
-  }
-}
-
-export function makeWebPane(args: BrowserPaneOptions): Terminal {
-  const url = args.url.trim()
-  let host = url
-  try {
-    host = new URL(url).hostname
-  } catch {
-    // Keep the original value as the display name when the URL is incomplete.
-  }
-  return {
-    id: nanoid(),
-    name: args.name?.trim() || host,
-    cwd: '',
-    activeTabId: '',
-    disabled: false,
-    laneVisible: null,
-    lastUsedAt: Date.now(),
-    tabs: [],
-    kind: 'web',
-    url,
-    browserConfig: {
-      javascriptEnabled: args.javascriptEnabled ?? true,
-      zoom: args.zoom ?? 1,
-      resourceMode: args.resourceMode ?? 'app-first',
-    },
   }
 }
 
@@ -261,7 +229,7 @@ export function getProjectRepoRoot(project: Project | null | undefined): string 
 
   // de raiz, devolvendo o path da worktree em vez do repo de verdade, e
 
-  const pure = sorted.filter((terminal) => !terminal.worktreeAgentId && !terminal.gsdSyncViewer)
+  const pure = sorted.filter((terminal) => !terminal.worktreeAgentId)
   for (const terminal of pure) {
     const cwd = resolveTerminalCwd(terminal)
     if (cwd) return cwd

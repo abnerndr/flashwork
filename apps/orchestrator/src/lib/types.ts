@@ -94,74 +94,27 @@ export type AppIconTheme =
 
 export type VisualStyle = 'normal' | 'clean'
 
-export type FeatureId =
-  | 'todos'
-  | 'git'
-  | 'browser'
-  | 'graphify'
-  | 'aiMemory'
-  | 'mcp'
-  | 'taskBoard'
-  | 'canvasFlows'
+export type FeatureId = 'git' | 'mcp'
 
-export type TodoItem = {
+/** Kind of a Run SPEC task. `shell` opens a plain terminal instead of a coding CLI. */
+export type SpecTaskKind = 'implement' | 'review' | 'mechanical' | 'explore' | 'ui' | 'shell'
+
+export type SpecTaskStatus = 'pending' | 'running' | 'done' | 'failed'
+
+/** One lane of a Run SPEC plan (one PTY pane per task). */
+export type SpecTask = {
   id: string
   title: string
-  completed: boolean
-  tags: string[]
-
-  projectId?: string
-}
-
-export type TaskBoardColumn = 'backlog' | 'todo' | 'doing' | 'verify' | 'done' | 'blocked'
-
-export type TaskSliceStatus = 'pending' | 'running' | 'done' | 'failed'
-
-export type TaskSlicePlan = {
-  id: string
-  kind: 'implement' | 'review' | 'mechanical' | 'explore' | 'ui' | 'unknown'
-  agent: RoutedAgent
   prompt: string
+  /** Repo-relative files/dirs this task owns. Empty means the whole repo. */
+  files: string[]
+  kind: SpecTaskKind
+  agent: AgentType
   dependsOn: string[]
-  allowedFiles: string[]
+  /** Command typed into a `shell` task terminal. */
+  command?: string
   terminalId?: string
-  status: TaskSliceStatus
-}
-
-export type TaskAttachment = {
-  id: string
-  sourcePath: string
-  storedPath: string
-  kind: 'handoff' | 'markdown' | 'spec'
-  title: string
-}
-
-export type TaskToolSelection = {
-  mode: 'projectDefault' | 'restrict'
-  mcpServerIds: string[]
-  skillNames: string[]
-}
-
-export type TaskCard = {
-  id: string
-  projectId: string
-  cwd: string
-  title: string
-  prompt: string
-  allowedFiles: string[]
-  priority: number
-  column: TaskBoardColumn
-  verifyCommands?: string[]
-  runId?: string
-  boardPath?: string
-  slicePlan?: TaskSlicePlan[]
-  attachments?: TaskAttachment[]
-  toolSelection?: TaskToolSelection
-  /** Set when the linked Auto run was interrupted (quit/crash); offer resume. */
-  needsResume?: boolean
-  error?: string
-  createdAt: number
-  updatedAt: number
+  status: SpecTaskStatus
 }
 
 export type SubTab = {
@@ -247,6 +200,10 @@ export type PromptRun = {
   /** When status is `interrupted`, wall clock of the interrupt. */
   interruptedAt?: number
   interruptReason?: PromptRunInterruptReason
+  /** Project-relative shared board (`.flashwork/runs/<id>/board.md`) for SPEC runs. */
+  boardPath?: string
+  /** Task plan of a Run SPEC run; dependent tasks launch as their deps complete. */
+  specTasks?: SpecTask[]
 }
 
 export type AgentRuntimeProfile = 'full' | 'lean' | 'diagnostic'
@@ -267,24 +224,10 @@ export const UNRESTRICTED_FLAG: Record<AgentType, string | null> = {
   gemini: '--yolo',
 }
 
-export type PaneKind =
-  'terminal' | 'markdown' | 'file' | 'image' | 'video' | 'web' | 'graphify' | 'diff' | 'editor'
+export type PaneKind = 'terminal' | 'markdown' | 'file' | 'image' | 'graphify' | 'diff'
 
-export type BrowserResourceMode = 'app-first' | 'balanced' | 'keep-alive'
-
-export type BrowserPaneConfig = {
-  /** Whether scripts may run in the private webview. Defaults to true. */
-  javascriptEnabled?: boolean
-  /** Page zoom applied to the private webview. Defaults to 1. */
-  zoom?: number
-  /** How aggressively a hidden native webview is released. Defaults to app-first. */
-  resourceMode?: BrowserResourceMode
-}
-
-export type BrowserPaneOptions = BrowserPaneConfig & {
-  url: string
-  name?: string
-}
+/** Pane kinds that older builds persisted but that no longer render (removed in P13/P15). */
+export const REMOVED_PANE_KINDS: readonly string[] = ['editor', 'web', 'browser', 'video']
 
 export type Terminal = {
   id: string
@@ -301,17 +244,9 @@ export type Terminal = {
 
   filePath?: string
 
-  url?: string
-  /** Runtime settings for a private native browser pane. */
-  browserConfig?: BrowserPaneConfig
-
   worktreeAgentId?: string
 
   staged?: boolean
-
-  gsdSyncViewer?: boolean
-  /** Hides this terminal and its output from every paired remote device. */
-  remoteExcluded?: boolean
 }
 
 export type PaneGroup = {
@@ -335,8 +270,6 @@ export type OrphanWorktree = {
 export type Project = {
   id: string
   name: string
-  /** Determines which workspace opens when the project is selected. */
-  mode?: 'standard' | 'agentSandbox'
   color?: string
 
   iconUrl?: string
@@ -344,6 +277,12 @@ export type Project = {
   groupId: string | null
 
   defaultCwd?: string
+  /**
+   * WSL distro the project lives in (Windows build). Derived from a
+   * `\\wsl.localhost\<distro>\…` `defaultCwd`; terminals and agents then run
+   * inside the distro.
+   */
+  wslDistro?: string
   terminals: Terminal[]
   /** Blocos visuais criados selecionando panes com Shift. */
   paneGroups?: PaneGroup[]
@@ -370,8 +309,6 @@ export type Project = {
   reviewAgentProvider?: AgentType
 
   reviewAgentModel?: string
-
-  graphifyEnabled?: boolean
 
   autoWorktree?: boolean
 
@@ -528,34 +465,14 @@ export type Preferences = {
   /** Local do controle Git: sidebar esquerda ou direita. */
   gitControlPlacement: 'left' | 'right'
 
-  /** Credenciais locais do Spotify Developer Dashboard para Now Playing. */
-  spotifyClientId: string
-  spotifyClientSecret: string
-  /** Exibe a atividade atual do Flashwork no perfil do Discord. */
-  discordRichPresenceEnabled: boolean
   /** Itens opcionais exibidos no canto direito da topbar. */
   topbarShowClaudeUsage: boolean
   topbarShowCodexUsage: boolean
   topbarShowAntigravityUsage: boolean
-  topbarShowSync: boolean
   topbarShowProfile: boolean
   topbarShowMemory: boolean
-  /** Starts the LAN remote listener on launch. Off until the user opts in. */
-  remoteEnabled: boolean
-  /** Maximum number of authenticated LAN remote devices. Default 1. */
-  remoteMaxDevices: number
-  /** Remote session lifetime in seconds. Default 1 hour. */
-  remoteSessionExpirySecs: number
-  /** Paired devices can read terminals but never send input. Default true. */
-  remoteReadOnly: boolean
-  /** Allows remote input on plain shell tabs, not only agent tabs. Default false. */
-  remoteAllowShellInput: boolean
 
   enabledFeatures: Record<FeatureId, boolean>
-  /** Allow Flow HTTP nodes to call http://127.0.0.1 when confirmed for that run. */
-  flowsAllowLoopback: boolean
-  /** Folder configured as the base location for the global Todo list. */
-  todoStoragePath: string
   /** Scope the MCP panel opens on. */
   mcpDefaultScope: McpScope
   /** True once the MCP setup prompt has been shown or dismissed. */
@@ -572,8 +489,6 @@ export type Preferences = {
    * still expand it in-session.
    */
   showTokenHud: boolean
-  /** Ditado por voz (speech-to-text) escreve no terminal ativo. Default false. */
-  dictationEnabled: boolean
   /** Quantos PTYs podem ser spawnados em paralelo (fila global). Default 3. */
   spawnConcurrency: number
 
@@ -583,14 +498,11 @@ export type Preferences = {
   /** Most recently saved custom layouts for the workspace. */
   workspaceGridLayoutHistory?: GridLayoutHistoryEntry[]
 
-  nativeTerminalMacos?: boolean
   /**
    * v3 — perfil de heap do Node.js para agentes (Claude, Codex, OpenCode).
    * Injeta --max-old-space-size e UV_THREADPOOL_SIZE no ambiente do PTY.
    */
   nodeHeapProfile?: 'conservative' | 'balanced' | 'performance'
-
-  gsdSyncModelChain?: string[]
 
   /**
    * Whether the CLI spawn env should inject the keyring-stored key for each
@@ -622,8 +534,6 @@ export type ProjectsFile = {
 
   ungroupedOrder: string[]
   projects: Project[]
-
-  todos: TodoItem[]
   activeProjectId: string | null
 
   workspace: {
@@ -679,32 +589,15 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lastTerminalCreation: null,
   topbarStyle: 'classic',
   gitControlPlacement: 'left',
-  spotifyClientId: '',
-  spotifyClientSecret: '',
-  discordRichPresenceEnabled: true,
   topbarShowClaudeUsage: true,
   topbarShowCodexUsage: true,
   topbarShowAntigravityUsage: true,
-  topbarShowSync: true,
   topbarShowProfile: true,
   topbarShowMemory: true,
-  remoteEnabled: false,
-  remoteMaxDevices: 1,
-  remoteSessionExpirySecs: 3600,
-  remoteReadOnly: true,
-  remoteAllowShellInput: false,
   enabledFeatures: {
-    todos: true,
     git: true,
-    browser: true,
-    graphify: true,
-    aiMemory: false,
     mcp: true,
-    taskBoard: true,
-    canvasFlows: false,
   },
-  flowsAllowLoopback: false,
-  todoStoragePath: '',
   mcpDefaultScope: 'global',
   mcpOnboardingSeen: false,
   leftSidebarVisible: true,
@@ -713,7 +606,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   rightSidebarWidth: 300,
   notifyOnLimitReset: true,
   showTokenHud: false,
-  dictationEnabled: false,
   spawnConcurrency: 3,
   resourcePolicy: {
     mode: 'manual',
@@ -736,7 +628,6 @@ export const EMPTY_PROJECTS_FILE: ProjectsFile = {
   groups: [],
   ungroupedOrder: [],
   projects: [],
-  todos: [],
   activeProjectId: null,
   workspace: {
     containers: [],

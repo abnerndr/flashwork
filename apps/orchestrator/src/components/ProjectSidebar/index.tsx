@@ -13,18 +13,15 @@ import {
 import {
   Files,
   Folder,
-  FolderKanban,
   FolderPlus,
   GitBranch,
   Home,
   MoreHorizontal,
   Plus,
-  RefreshCw,
   Search,
   Settings,
   SquareTerminal,
   Users,
-  Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -40,7 +37,6 @@ import { type Group, type Project } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
-import { SidebarNowPlaying } from '../SidebarNowPlaying'
 import { UserProfile } from '../UserProfile'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { FileExplorer } from './FileExplorer'
@@ -160,7 +156,6 @@ function CleanProjectSidebar() {
       reorderGroups: s.reorderGroups,
       togglePane: s.togglePane,
       setLaneVisible: s.setLaneVisible,
-      setTerminalRemoteExcluded: s.setTerminalRemoteExcluded,
       setSubTabCompletionUnread: s.setSubTabCompletionUnread,
       createFilePane: s.createFilePane,
       createGraphifyPane: s.createGraphifyPane,
@@ -365,8 +360,6 @@ function CleanProjectSidebar() {
 
   const { projectMenu, groupMenu, terminalMenu } = createSidebarMenus({
     t,
-    graphifyEnabled: preferences.enabledFeatures.graphify,
-    browserEnabled: preferences.enabledFeatures.browser,
     groups: groups.filter((group) => !group.archived),
     openPaneSets,
     actions: { ...actions, setPreferences },
@@ -381,7 +374,7 @@ function CleanProjectSidebar() {
   const activateProject = (project: Project, mode: 'open' | 'focus' = 'focus') => {
     void mode
     actions.openProjectWorkspace(project.id)
-    setActiveView(project.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+    setActiveView('workspace')
   }
 
   const renderProject = (p: Project) => (
@@ -398,11 +391,6 @@ function CleanProjectSidebar() {
                                                                            
                                                                            
                                                                
-        if (t.gsdSyncViewer) {
-          actions.setFullscreenPane(t.id)
-          setActiveView('workspace')
-          return
-        }
         actions.focusWorkspaceTerminal(p.id, t.id)
         setActiveTerminal(p.id, t.id)
         const activeTab = t.tabs.find((tab) => tab.id === t.activeTabId) ?? t.tabs[0]
@@ -410,18 +398,13 @@ function CleanProjectSidebar() {
           actions.setSubTabCompletionUnread(p.id, t.id, activeTab.id, false)
         }
         requestPaneFocus(t.id)
-        setActiveView(p.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+        setActiveView('workspace')
       }}
       onTerminalDoubleClick={(t) => {
-        if (t.gsdSyncViewer) {
-          actions.setFullscreenPane(t.id)
-          setActiveView('workspace')
-          return
-        }
         actions.openTerminalWorkspace(p.id, t.id)
         setActiveTerminal(p.id, t.id)
         requestPaneFocus(t.id)
-        setActiveView(p.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+        setActiveView('workspace')
       }}
       onAddTerminal={() => openModal('newTerminal', { projectId: p.id })}
       onProjectMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, items: projectMenu(p) })}
@@ -494,29 +477,6 @@ function CleanProjectSidebar() {
         >
           <Home size={16} />
         </button>
-        {preferences.enabledFeatures.taskBoard ? (
-          <button
-            type="button"
-            className={`${styles.toolbarButton} ${activeView === 'tasks' ? styles.toolbarButtonActive : ''}`}
-            onClick={() => setActiveView('tasks')}
-            title={t('ui.sidebar.tasksTitle')}
-            aria-label={t('ui.sidebar.tasks')}
-          >
-            <FolderKanban size={16} />
-          </button>
-        ) : null}
-        {preferences.enabledFeatures.canvasFlows ? (
-          <button
-            type="button"
-            className={`${styles.toolbarButton} ${styles.toolbarBeta} ${activeView === 'flows' ? styles.toolbarButtonActive : ''}`}
-            onClick={() => setActiveView('flows')}
-            title={t('ui.sidebar.flowsTitle')}
-            aria-label={t('ui.sidebar.flows')}
-          >
-            <Workflow size={16} />
-            <span className={styles.betaMark}>{t('flows.beta')}</span>
-          </button>
-        ) : null}
         <span className={styles.toolbarDivider} />
         <button
           type="button"
@@ -721,17 +681,6 @@ function CleanProjectSidebar() {
         <div className={styles.systemFooter}>
           <span className={styles.systemFooterLabel}>{t('ui.sidebar.system')}</span>
           <div className={styles.systemFooterActions}>
-            {preferences.topbarShowSync ? (
-              <button
-                type="button"
-                className={styles.systemFooterBtn}
-                onClick={() => openModal('sync')}
-                title={t('sync.title')}
-                aria-label={t('sync.title')}
-              >
-                <RefreshCw size={16} />
-              </button>
-            ) : null}
             {preferences.topbarShowProfile ? (
               <button
                 type="button"
@@ -747,7 +696,6 @@ function CleanProjectSidebar() {
         </div>
       ) : null}
       <div className={styles.sidebarFooter}>
-        <SidebarNowPlaying />
         <SidebarUpdate />
         <UserProfile />
       </div>

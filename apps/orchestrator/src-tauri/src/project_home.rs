@@ -5,7 +5,25 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-const HARNESS_GUIDE: &str = "This folder is a Flashwork project. Use `rag/` for project knowledge and `history/` for task, flow, and run history.\n";
+/// Harness guide for agents working in a Flashwork project (`.flashwork/harness/AGENTS.md`).
+const HARNESS_GUIDE: &str = "\
+# Flashwork project harness
+
+This folder is a Flashwork project. Use `rag/` for project knowledge and `history/` for task, flow, and run history.
+
+## Code knowledge graph (Graphify)
+
+Flashwork builds a code-only Graphify graph in `graphify-out/` at the project root (local AST, no API key) and wires the `graphify` MCP server into every agent CLI it starts (Claude Code, Codex, OpenCode, Gemini).
+
+- Use the graphify MCP tools first (`query_graph`, `get_node`, `shortest_path`, ...) for codebase questions.
+- Without MCP, run `graphify query \"<question>\"`; use `graphify path \"<A>\" \"<B>\"` and `graphify explain \"<concept>\"` for focused lookups. Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review.
+- After changing code, run `graphify update .` to refresh the graph (AST only, no API cost).
+- `graphify-out/` is generated output; keep it out of commits (add it to your own `.gitignore` if needed).
+
+## Shared run board
+
+During a Run SPEC, every agent of the run shares `.flashwork/runs/<runId>/board.md`. Read it before starting, claim your task there, and write progress and results back, so no two agents duplicate work.
+";
 const HISTORY_RUNS_README: &str =
     "Run hubs remain under the app profile until the hub plan ships.\n";
 
@@ -28,7 +46,6 @@ pub enum RagGraphifyStatus {
 #[serde(rename_all = "camelCase")]
 pub struct RagStatus {
     pub graphify: RagGraphifyStatus,
-    pub ai_memory: bool,
     pub updated_at: String,
 }
 
@@ -137,6 +154,8 @@ fn fill_project_home(home: &Path, project_id: &str, write_metadata: bool) -> Res
     write_if_missing(&home.join("harness/AGENTS.md"), HARNESS_GUIDE.as_bytes())?;
     write_if_missing(&home.join("harness/tools.default.json"), b"{}\n")?;
     write_if_missing(&home.join("rag/.gitkeep"), b"")?;
+    // Run SPEC boards live in `.flashwork/runs/`; they are per-run scratch, never committed.
+    write_if_missing(&home.join(".gitignore"), b"runs/\n")?;
     write_if_missing(
         &home.join("rag/graphify.json"),
         b"{\n  \"root\": \"..\"\n}\n",
@@ -371,7 +390,6 @@ mod tests {
             &folder,
             &crate::project_home::RagStatus {
                 graphify: crate::project_home::RagGraphifyStatus::Unavailable,
-                ai_memory: false,
                 updated_at: "2026-09-19T05:00:00Z".into(),
             },
         )
@@ -384,9 +402,8 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(value["graphify"], "unavailable");
-        assert_eq!(value["aiMemory"], false);
         assert_eq!(value["updatedAt"], "2026-09-19T05:00:00Z");
-        assert_eq!(value.as_object().unwrap().len(), 3);
+        assert_eq!(value.as_object().unwrap().len(), 2);
     }
 
     #[test]

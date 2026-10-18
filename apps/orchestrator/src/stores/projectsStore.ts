@@ -16,7 +16,6 @@ import {
   type AgentHandoffBootstrap,
   type AgentRuntimeProfile,
   type AgentType,
-  type BrowserPaneOptions,
   EMPTY_PROJECTS_FILE,
   type GridLayout,
   type Group,
@@ -29,7 +28,6 @@ import {
   type SubTab,
   type Terminal,
   type Theme,
-  type TodoItem,
   type WorkspaceContainer,
   type WorkspaceRecentTab,
   type WorkspaceTab,
@@ -46,11 +44,7 @@ import {
 } from '../lib/workspaceNavigation'
 import { migrate } from './projectsStore.migrations'
 import { createGroupsSlice, createProjectsSlice } from './projectsStore.projectSlices'
-import {
-  createPreferencesSlice,
-  createSubTabsSlice,
-  createTodosSlice,
-} from './projectsStore.slices'
+import { createPreferencesSlice, createSubTabsSlice } from './projectsStore.slices'
 import { createContainersSlice, createTerminalsSlice } from './projectsStore.terminalSlices'
 import { createWorkspaceSlice } from './projectsStore.workspaceSlices'
 
@@ -97,11 +91,11 @@ export type ProjectsState = ProjectsFile & {
   createProject: (args: {
     id?: string
     name: string
-    mode?: Project['mode']
     color?: string
     iconUrl?: string
     groupId?: string | null
     defaultCwd: string
+    wslDistro?: string
     githubUrl?: string
     firstBootPending?: boolean
   }) => Project
@@ -122,7 +116,6 @@ export type ProjectsState = ProjectsFile & {
   setConflictAgentModel: (id: string, model: string) => void
   setReviewAgentProvider: (id: string, provider: AgentType) => void
   setReviewAgentModel: (id: string, model: string) => void
-  setGraphifyEnabled: (id: string, enabled: boolean) => void
   setAutoWorktree: (id: string, enabled: boolean) => void
                                                                                  
                                                                          
@@ -132,10 +125,7 @@ export type ProjectsState = ProjectsFile & {
                                                                             
                                                                         
                                      
-  migrateProjectTerminalsToWorktrees: (
-    projectId: string,
-    gsdWatcherEnabledOverride?: boolean,
-  ) => Promise<void>
+  migrateProjectTerminalsToWorktrees: (projectId: string) => Promise<void>
                                                                                      
                                                                                    
   addOrphanWorktree: (projectId: string, entry: OrphanWorktree) => void
@@ -179,14 +169,6 @@ export type ProjectsState = ProjectsFile & {
   setWorkspaceGridLayout: (layout: GridLayout | null, recordHistory?: boolean) => void
 
                   
-  createTodo: (title: string, tags?: string[], projectId?: string) => TodoItem | null
-  renameTodo: (id: string, title: string) => void
-  updateTodoTags: (id: string, tags: string[]) => void
-  setTodoProject: (id: string, projectId: string | null) => void
-  resetTodosToDefault: () => void
-  toggleTodo: (id: string) => void
-  deleteTodo: (id: string) => void
-  reorderTodo: (draggedId: string, targetId: string) => void
 
   // terminals
   createTerminal: (
@@ -205,7 +187,6 @@ export type ProjectsState = ProjectsFile & {
         runtimeProfile?: AgentRuntimeProfile
       }
       worktreeAgentId?: string
-      gsdSyncViewer?: boolean
     },
   ) => Terminal
      
@@ -239,12 +220,10 @@ export type ProjectsState = ProjectsFile & {
     args: { filePath: string; repoRoot: string; staged: boolean; name?: string },
   ) => Terminal
                                                                     
-  createWebPane: (projectId: string, args: BrowserPaneOptions) => Terminal
   createGraphifyPane: (projectId: string, cwd: string) => Terminal
   renameTerminal: (projectId: string, terminalId: string, name: string) => void
                                                                                
                                                                             
-  markGsdSyncViewer: (projectId: string, terminalId: string) => void
   deleteTerminal: (projectId: string, terminalId: string) => void
                                                                               
                                                                            
@@ -259,8 +238,6 @@ export type ProjectsState = ProjectsFile & {
                                                                                           
   setProjectDisabled: (projectId: string, disabled: boolean) => void
   setLaneVisible: (projectId: string, terminalId: string, visible: boolean | null) => void
-  /** Hides a terminal from every paired remote device. */
-  setTerminalRemoteExcluded: (projectId: string, terminalId: string, excluded: boolean) => void
                                                                          
   markTerminalUsed: (projectId: string, terminalId: string) => void
 
@@ -365,7 +342,6 @@ function projectsPayload(state: ProjectsState): ProjectsFile {
     groups: state.groups,
     ungroupedOrder: state.ungroupedOrder,
     projects: state.projects,
-    todos: state.todos,
     activeProjectId: state.activeProjectId,
     workspace: state.workspace,
     preferences: state.preferences,
@@ -741,7 +717,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => {
     ...createWorkspaceSlice(sliceCtx),
     ...createTerminalsSlice(sliceCtx),
     ...createContainersSlice(sliceCtx),
-    ...createTodosSlice(sliceCtx),
     ...createSubTabsSlice(sliceCtx),
     ...createPreferencesSlice(sliceCtx),
   }

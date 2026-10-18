@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import cytoscape from 'cytoscape'
-import { RefreshCw, Camera, Scissors, RotateCcw, X, Network, Loader2 } from 'lucide-react'
+import { RefreshCw, Camera, Scissors, RotateCcw, X, Network, Loader2, Download } from 'lucide-react'
+import { useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useGraphifyStore } from '../../stores/graphifyStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useT } from '../../lib/i18n'
@@ -45,6 +46,8 @@ export function GraphifyView({ repo, projectId, terminalId }: GraphifyViewProps)
     prune,
   } = useGraphifyStore()
   const deleteTerminal = useProjectsStore((state) => state.deleteTerminal)
+  const installGraphify = useGraphifySetupStore((state) => state.install)
+  const installing = useGraphifySetupStore((state) => state.installingScope !== null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
 
@@ -222,14 +225,29 @@ export function GraphifyView({ repo, projectId, terminalId }: GraphifyViewProps)
                   ? t('graphify.generationTimeout')
                   : error || t('graphify.emptyDescription')}
             </span>
-            <button
-              className={`${styles.button} ${styles.generateButton}`}
-              onClick={() => void generateGraph()}
-              disabled={loading}
-            >
-              {loading ? <Loader2 size={16} className={styles.spin} /> : <Network size={16} />}
-              {loading ? t('graphify.generating') : t('graphify.generate')}
-            </button>
+            {error === 'graphify_unavailable' ? (
+              <button
+                className={`${styles.button} ${styles.generateButton}`}
+                onClick={() =>
+                  void installGraphify(repo).then((ok) => {
+                    if (ok) void generateGraph()
+                  })
+                }
+                disabled={installing}
+              >
+                {installing ? <Loader2 size={16} className={styles.spin} /> : <Download size={16} />}
+                {installing ? t('graphify.installing') : t('graphify.install')}
+              </button>
+            ) : (
+              <button
+                className={`${styles.button} ${styles.generateButton}`}
+                onClick={() => void generateGraph()}
+                disabled={loading}
+              >
+                {loading ? <Loader2 size={16} className={styles.spin} /> : <Network size={16} />}
+                {loading ? t('graphify.generating') : t('graphify.generate')}
+              </button>
+            )}
           </div>
         )}
 

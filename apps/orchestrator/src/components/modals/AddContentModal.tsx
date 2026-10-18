@@ -1,5 +1,5 @@
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
-import { FileText, Globe2 } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useT } from '../../lib/i18n'
@@ -16,14 +16,12 @@ export function AddContentModal() {
   const open = useUiStore((state) => state.openModal === 'addContent')
   const context = useUiStore((state) => state.modalContext) as { projectId?: string } | null
   const closeModal = useUiStore((state) => state.closeModal)
-  const openModal = useUiStore((state) => state.openModal_)
   const projectId = useProjectsStore((state) => {
     const requested = context?.projectId
     if (requested && state.projects.some((project) => project.id === requested)) return requested
     return state.activeProjectId
   })
   const createFilePane = useProjectsStore((state) => state.createFilePane)
-  const browserEnabled = useProjectsStore((state) => state.preferences.enabledFeatures.browser)
   const [kind, setKind] = useState<AddKind>(null)
 
   useEffect(() => {
@@ -78,22 +76,6 @@ export function AddContentModal() {
             <small>{t('addContent.readmeDescription')}</small>
           </span>
         </button>
-        {browserEnabled ? (
-          <button
-            type="button"
-            className={styles.option}
-            onClick={() => projectId && openModal('addBrowser', { projectId })}
-            disabled={!projectId}
-          >
-            <span className={styles.optionIcon}>
-              <Globe2 size={20} />
-            </span>
-            <span>
-              <strong>{t('addContent.website')}</strong>
-              <small>{t('addContent.websiteDescription')}</small>
-            </span>
-          </button>
-        ) : null}
       </div>
       {!projectId ? <p className={styles.warning}>{t('ui.markdown.noActiveProject')}</p> : null}
     </Modal>

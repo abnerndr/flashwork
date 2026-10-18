@@ -114,3 +114,10 @@ P06 Monaco + Open VSX is removed. Files in the explorer preview or open in VS Co
 | 8 | ~~Model/token/agent choice still leaks to the developer~~ **P07 shipped.** Remaining: pin-CLI still available behind Choose agent; API runs have no streaming pane (reply file + toast); HUD expand is session-local until remount |
 | 9 | ~~No N8N-like flow canvas (beta)~~ **P08 shipped.** Remaining: MCP nodes are stdio JSON-RPC only; HTTPS still needs a per-run confirm even for known hosts |
 | 13 | API-path token metering for Auto-without-CLI — `provider_chat` + `api:*` spawn exist (P11/P07); HUD still does not ingest vendor usage JSON |
+
+## P15 — SPEC orchestrator (2026-10-17, working tree)
+
+Supersedes the Task Board, Auto bar, Flows, canvas, and peripheral sections above. Core: project
+folder + Graphify (always on, MCP into Claude/Codex/OpenCode/Gemini) + **Run SPEC** (Gemini CLI
+planner → one CLI pane per task, shared `.flashwork/runs/<runId>/board.md`). WSL projects run via
+`wsl.exe` (`src-tauri/src/wsl.rs`). Kept: MCP + Skills, Git, Token HUD/usage. See ADR 013 / P15.

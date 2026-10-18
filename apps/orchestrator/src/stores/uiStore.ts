@@ -27,7 +27,6 @@ type ModalKind =
   | 'editProject'
   | 'newTerminal'
   | 'addContent'
-  | 'addBrowser'
   | 'newSubTab'
   | 'preferences'
   | 'findJump'
@@ -39,22 +38,20 @@ type ModalKind =
   | 'aiUsage'
   | 'themePicker'
   | 'profiles'
-  | 'sync'
-  | 'todoSettings'
   | 'topbarSettings'
   | 'updateAvailable'
   | 'whatsNew'
-  | 'remoteControl'
   | 'recentChats'
   | 'handoff'
   | 'mcpManager'
   | 'mcpIntro'
   | 'githubLogin'
   | 'interruptedResume'
+  | 'runSpec'
   | null
 
-export type ActiveView = 'home' | 'workspace' | 'agentCanvas' | 'agentSandbox' | 'tasks' | 'flows'
-export type RightSidebarMode = 'todo' | 'markdown' | 'git' | 'mcp'
+export type ActiveView = 'home' | 'workspace'
+export type RightSidebarMode = 'markdown' | 'git' | 'mcp'
 export type MarkdownSidebarTab = { path: string; title: string }
 
 export type MemorySample = MemoryStats & {
@@ -113,10 +110,6 @@ type UiState = {
   rightSidebarMode: RightSidebarMode
   rightSidebarMarkdown: { path: string; title: string } | null
   rightSidebarMarkdownTabs: MarkdownSidebarTab[]
-                                                                             
-  agentCanvasSession: { folder: string; ptyId: string } | null
-                                                                  
-  agentCanvasBudgetUsd: number | null
   /** Ephemeral in-app notifications. */
   toasts: InAppToast[]
   /** Recent notification history used by Home. */
@@ -155,11 +148,8 @@ type UiState = {
   closeMarkdownSidebarTab: (path: string) => void
   restoreMarkdownSidebarHistory: () => void
   showMarkdownSidebar: () => void
-  showTodoSidebar: () => void
   showGitSidebar: () => void
   showMcpSidebar: () => void
-  setAgentCanvasSession: (session: { folder: string; ptyId: string } | null) => void
-  setAgentCanvasBudget: (usd: number | null) => void
   pushToast: (toast: {
     title: string
     body: string
@@ -194,11 +184,9 @@ export const useUiStore = create<UiState>((set) => ({
   activeTerminal: null,
   selectedPanes: [],
   activeView: 'workspace',
-  rightSidebarMode: 'todo',
+  rightSidebarMode: 'markdown',
   rightSidebarMarkdown: null,
   rightSidebarMarkdownTabs: [],
-  agentCanvasSession: null,
-  agentCanvasBudgetUsd: null,
   toasts: [],
   notifications: [],
   updateInfo: null,
@@ -257,7 +245,7 @@ export const useUiStore = create<UiState>((set) => ({
       }
     }),
   clearPaneSelection: () => set({ selectedPanes: [] }),
-  setActiveView: (v) => set((s) => (v === 'agentCanvas' || s.activeView === v ? s : { activeView: v })),
+  setActiveView: (v) => set((s) => (s.activeView === v ? s : { activeView: v })),
   toggleHome: () => set((s) => ({ activeView: s.activeView === 'home' ? 'workspace' : 'home' })),
   openMarkdownSidebar: (path, title) =>
     set((state) => {
@@ -284,7 +272,6 @@ export const useUiStore = create<UiState>((set) => ({
       return {
         rightSidebarMarkdownTabs: tabs,
         rightSidebarMarkdown: next,
-        rightSidebarMode: next ? 'markdown' : 'todo',
       }
     }),
   restoreMarkdownSidebarHistory: () =>
@@ -297,11 +284,8 @@ export const useUiStore = create<UiState>((set) => ({
       }
     }),
   showMarkdownSidebar: () => set({ rightSidebarMode: 'markdown' }),
-  showTodoSidebar: () => set({ rightSidebarMode: 'todo' }),
   showGitSidebar: () => set({ rightSidebarMode: 'git' }),
   showMcpSidebar: () => set({ rightSidebarMode: 'mcp' }),
-  setAgentCanvasSession: (session) => set({ agentCanvasSession: session }),
-  setAgentCanvasBudget: (usd) => set({ agentCanvasBudgetUsd: usd }),
   pushToast: ({ title, body, agent, silent }) =>
     set((s) => {
       const entry: InAppToast = {

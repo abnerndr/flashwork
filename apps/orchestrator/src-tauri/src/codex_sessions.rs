@@ -80,14 +80,18 @@ pub async fn snapshot_codex_sessions(cwd: String) -> Result<Vec<CodexSessionSnap
 }
 
 fn snapshot_codex_sessions_inner(cwd: String) -> Result<Vec<CodexSessionSnapshot>, String> {
-    let target_cwd = normalize_cwd(&cwd);
-    if target_cwd.is_empty() {
+    if normalize_cwd(&cwd).is_empty() {
         return Ok(Vec::new());
     }
 
-    let Some(root) = codex_sessions_dir() else {
-        return Err("USERPROFILE/HOME nao definido".to_string());
+    // A WSL project is run by the distro's codex: its sessions live in the
+    // distro home and record the Linux cwd.
+    let Some((root, provider_cwd)) =
+        crate::provider_common::provider_home_for_cwd(&cwd, &[".codex", "sessions"])
+    else {
+        return Err("USERPROFILE/HOME not set".to_string());
     };
+    let target_cwd = normalize_cwd(&provider_cwd);
     if !root.is_dir() {
         return Ok(Vec::new());
     }

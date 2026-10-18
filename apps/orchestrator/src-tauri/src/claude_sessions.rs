@@ -24,16 +24,27 @@ pub struct ClaudeSessionSnapshot {
     pub size_bytes: u64,
 }
 
+/// Claude Code names a project dir with `cwd.replace(/[^a-zA-Z0-9]/g, '-')`.
+/// The JS regex works on UTF-16 code units, so a character outside the BMP
+/// becomes two dashes; `len_utf16` reproduces that.
 fn encode_cwd_for_claude(cwd: &str) -> String {
     let trimmed = cwd.trim_end_matches(|c: char| c == '\\' || c == '/');
-    trimmed
-        .chars()
-        .map(|c| match c {
-            ':' | '\\' | '/' => '-',
-            _ => c,
-        })
-        .collect()
+    let mut out = String::with_capacity(trimmed.len());
+    for c in trimmed.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+        } else {
+            for _ in 0..c.len_utf16() {
+                out.push('-');
+            }
+        }
+    }
+    out
 }
+
+/// Claude Code truncates very long project dir names and appends a hash, so
+/// beyond this length only the prefix can be matched.
+const CLAUDE_DIR_NAME_PREFIX_LEN: usize = 200;
 
 pub(crate) fn claude_projects_dir() -> Option<PathBuf> {
     provider_home_dir(&[".claude", "projects"])
@@ -192,8 +203,10 @@ fn matching_project_dirs(root: &PathBuf, encoded: &str) -> Vec<PathBuf> {
             if !path.is_dir() {
                 return None;
             }
-            let name = path.file_name()?.to_str()?.to_string();
-            if name.to_ascii_lowercase() == target_lower {
+            let name = path.file_name()?.to_str()?.to_ascii_lowercase();
+            let truncated_match = target_lower.len() > CLAUDE_DIR_NAME_PREFIX_LEN
+                && name.starts_with(&target_lower[..CLAUDE_DIR_NAME_PREFIX_LEN]);
+            if name == target_lower || truncated_match {
                 Some(path)
             } else {
                 None
@@ -207,10 +220,12 @@ pub(crate) fn project_dirs_for_cwd(cwd: &str) -> Result<Vec<PathBuf>, String> {
     if cwd_trimmed.is_empty() {
         return Ok(Vec::new());
     }
-    let Some(root) = claude_projects_dir() else {
-        return Err("USERPROFILE/HOME nao definido".to_string());
+    let Some((root, provider_cwd)) =
+        crate::provider_common::provider_home_for_cwd(cwd_trimmed, &[".claude", "projects"])
+    else {
+        return Err("USERPROFILE/HOME not set".to_string());
     };
-    let encoded = encode_cwd_for_claude(cwd_trimmed);
+    let encoded = encode_cwd_for_claude(&provider_cwd);
     Ok(matching_project_dirs(&root, &encoded))
 }
 
@@ -648,6 +663,17 @@ mod tests {
             lines.push(String::from_utf8_lossy(&buf).to_string());
         }
         lines
+    }
+
+    #[test]
+    fn encodes_cwd_like_claude_code() {
+        assert_eq!(
+            encode_cwd_for_claude("/home/abner/www/abnerndr/flashwork"),
+            "-home-abner-www-abnerndr-flashwork"
+        );
+        assert_eq!(encode_cwd_for_claude(r"C:\Users\Jo\my_app.v2\"), "C--Users-Jo-my-app-v2");
+        assert_eq!(encode_cwd_for_claude("/home/u/projeto ção"), "-home-u-projeto---o");
+        assert_eq!(encode_cwd_for_claude("/a/😀"), "-a---");
     }
 
     #[test]

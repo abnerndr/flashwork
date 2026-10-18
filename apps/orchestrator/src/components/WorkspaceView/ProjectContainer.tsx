@@ -1,18 +1,21 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import {
   ChevronRight,
+  Download,
   GripVertical,
   Maximize2,
   Minimize2,
   Minus,
+  ListChecks,
   Network,
   Plus,
   TerminalSquare,
 } from 'lucide-react'
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 
 import { useT } from '../../lib/i18n'
 import type { Group, Project, Terminal, WorkspaceContainer } from '../../lib/types'
+import { graphifyScope, useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
@@ -45,7 +48,6 @@ export const ProjectContainer = memo(function ProjectContainer({
   const closeContainer = useProjectsStore((s) => s.closeContainer)
   const openContainerWithAllPanes = useProjectsStore((s) => s.openContainerWithAllPanes)
   const createGraphifyPane = useProjectsStore((s) => s.createGraphifyPane)
-  const setGraphifyEnabled = useProjectsStore((s) => s.setGraphifyEnabled)
   const openModal = useUiStore((s) => s.openModal_)
 
   const dragId = `cont:${project.id}`
@@ -68,10 +70,22 @@ export const ProjectContainer = memo(function ProjectContainer({
     return container.paneIds.map((id) => map.get(id)).filter((t): t is Terminal => Boolean(t))
   }, [project.terminals, container.paneIds, isFullscreen, isolatedPaneId])
   const graphifyPaneOpen = terminals.some((terminal) => terminal.kind === 'graphify')
-  const graphifyEnabled = useProjectsStore((s) => s.preferences.enabledFeatures.graphify)
-  const graphifyCwd = terminals.find(
-    (terminal) => terminal.kind !== 'graphify' && terminal.cwd,
-  )?.cwd
+  const graphifyCwd =
+    project.defaultCwd ||
+    terminals.find((terminal) => terminal.kind !== 'graphify' && terminal.cwd)?.cwd
+  const graphifyScopeKey = graphifyCwd ? graphifyScope(graphifyCwd) : null
+  const graphifyInstall = useGraphifySetupStore((s) =>
+    graphifyScopeKey ? s.statusByScope[graphifyScopeKey] : undefined,
+  )
+  const graphifyInstalling = useGraphifySetupStore(
+    (s) => s.installingScope !== null && s.installingScope === graphifyScopeKey,
+  )
+  const checkGraphify = useGraphifySetupStore((s) => s.check)
+  const installGraphify = useGraphifySetupStore((s) => s.install)
+  useEffect(() => {
+    if (graphifyCwd) void checkGraphify(graphifyCwd)
+  }, [graphifyCwd, checkGraphify])
+  const graphifyMissing = graphifyInstall?.installed === false
 
   const storedAccent = project.color || group?.color
   const accent = storedAccent && CSS.supports('color', storedAccent) ? storedAccent : '#6ea8ff'
@@ -140,13 +154,41 @@ export const ProjectContainer = memo(function ProjectContainer({
             >
               <Plus size={16} />
             </button>
-            {graphifyEnabled && !graphifyPaneOpen && graphifyCwd ? (
+            <button
+              type="button"
+              className={styles.tagBtn}
+              onClick={(e) => {
+                e.stopPropagation()
+                openModal('runSpec', { projectId: project.id })
+              }}
+              title={t('runSpec.openHint')}
+              aria-label={t('runSpec.open')}
+            >
+              <ListChecks size={16} />
+            </button>
+            {graphifyCwd && graphifyMissing ? (
+              <button
+                type="button"
+                className={styles.tagBtn}
+                disabled={graphifyInstalling}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void installGraphify(graphifyCwd)
+                }}
+                title={
+                  graphifyInstalling ? t('graphify.installing') : t('graphify.installHint')
+                }
+                aria-label={t('graphify.install')}
+              >
+                <Download size={16} />
+              </button>
+            ) : null}
+            {graphifyCwd && !graphifyMissing && !graphifyPaneOpen ? (
               <button
                 type="button"
                 className={styles.tagBtn}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setGraphifyEnabled(project.id, true)
                   createGraphifyPane(project.id, graphifyCwd)
                 }}
                 title={t('graphify.startInProject')}
@@ -199,7 +241,7 @@ export const ProjectContainer = memo(function ProjectContainer({
           </div>
         </div>
       ) : null}
-      <PromptRunBar projectId={project.id} />
+      <PromptRunBar projectId={project.id} showRunSpecWhenIdle={!showHeader} />
       <div className={styles.body}>
         {terminals.length === 0 ? (
           <div className={styles.emptyShell}>

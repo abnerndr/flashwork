@@ -9,70 +9,36 @@ export type FeatureDefinition = {
 
 export const FEATURES: readonly FeatureDefinition[] = [
   {
-    id: 'todos',
-    titleKey: 'features.todos.title',
-    descriptionKey: 'features.todos.description',
-  },
-  {
     id: 'git',
     titleKey: 'features.git.title',
     descriptionKey: 'features.git.description',
-  },
-  {
-    id: 'browser',
-    titleKey: 'features.browser.title',
-    descriptionKey: 'features.browser.description',
-  },
-  {
-    id: 'graphify',
-    titleKey: 'features.graphify.title',
-    descriptionKey: 'features.graphify.description',
   },
   {
     id: 'mcp',
     titleKey: 'features.mcp.title',
     descriptionKey: 'features.mcp.description',
   },
-  {
-    id: 'taskBoard',
-    titleKey: 'features.taskBoard.title',
-    descriptionKey: 'features.taskBoard.description',
-  },
-  {
-    id: 'canvasFlows',
-    titleKey: 'features.canvasFlows.title',
-    descriptionKey: 'features.canvasFlows.description',
-  },
 ]
 
 type StoredFeaturePreferences = {
-  enabledFeatures?: Partial<Record<FeatureId, boolean>>
+  // Older files may still carry removed feature ids (todos, browser, aiMemory, canvasFlows,
+  // taskBoard, graphify — Graphify is now always on for every project folder).
+  enabledFeatures?: Partial<Record<string, boolean>>
   showGitControl?: boolean
 }
 
+/** Builds the feature map from persisted preferences, dropping ids of removed features. */
 export function normalizeEnabledFeatures(
   raw: StoredFeaturePreferences | undefined,
 ): Record<FeatureId, boolean> {
   if (raw?.enabledFeatures) {
     return {
-      todos: raw.enabledFeatures.todos ?? true,
       git: raw.enabledFeatures.git ?? true,
-      browser: raw.enabledFeatures.browser ?? true,
-      graphify: raw.enabledFeatures.graphify ?? false,
       mcp: raw.enabledFeatures.mcp ?? true,
-      aiMemory: raw.enabledFeatures.aiMemory ?? false,
-      taskBoard: raw.enabledFeatures.taskBoard ?? true,
-      canvasFlows: raw.enabledFeatures.canvasFlows ?? false,
     }
   }
   return {
-    todos: raw === undefined,
     git: raw?.showGitControl ?? true,
-    browser: true,
-    graphify: false,
-    aiMemory: false,
     mcp: true,
-    taskBoard: true,
-    canvasFlows: false,
   }
 }

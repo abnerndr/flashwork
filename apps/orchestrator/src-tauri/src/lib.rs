@@ -2,34 +2,24 @@ mod activity_stats;
 mod agent_cost;
 mod agent_events;
 mod agent_library;
-mod ai_memory;
 mod antigravity_sessions;
 mod antigravity_usage;
-mod backup;
 mod claude_sessions;
 mod claude_usage;
 mod cli_launch;
 mod cli_resolver;
 mod cli_shim;
-mod codex_app_server;
 mod codex_sessions;
 mod codex_usage;
 mod context_hub;
 mod contract_check;
 mod crash_watch;
 mod diagnostics;
-mod discord_presence;
-mod economy_agents;
 mod event_bus;
 mod filesystem;
-mod flows;
 mod gemini_sessions;
-mod ghostty_bridge;
-#[cfg(all(target_os = "macos", ghostty_linked))]
-mod ghostty_ffi;
 mod git_control;
 mod github_auth;
-mod github_sync;
 mod graphify;
 mod handoff;
 mod health_probe;
@@ -40,7 +30,6 @@ mod mcp_health;
 mod mcp_model;
 mod mcp_store;
 mod opencode_bridge;
-mod opencode_gsd_plugin;
 mod opencode_sessions;
 mod paths;
 mod planning;
@@ -55,22 +44,17 @@ mod prompt_run;
 mod provider_common;
 mod providers;
 mod pty;
-mod remote;
 mod resource_manager;
 mod resources;
 mod scheduler;
 mod session_watcher;
 mod skills;
-mod spotify;
 mod stats;
 mod supervisor;
-mod task_board;
-mod telemetry;
 mod validation;
 mod window_style;
-#[cfg(windows)]
-mod windows_webview;
 mod worktrees;
+mod wsl;
 
 use crate::pty::{PtySession, PtySessions};
 use std::collections::HashMap;
@@ -117,13 +101,9 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        let is_wsl = std::env::var_os("WSL_DISTRO_NAME").is_some()
-            || std::fs::read_to_string("/proc/version")
-                .map(|version| version.to_ascii_lowercase().contains("microsoft"))
-                .unwrap_or(false);
-        if is_wsl {
-            // Sem dispositivo Vulkan no WSL o Mesa cai no Zink e spamma
-            // "ZINK: failed to choose pdev" / dri2. llvmpipe evita isso.
+        if wsl::is_wsl() {
+            // Without a Vulkan device under WSL, Mesa falls back to Zink and spams
+            // "ZINK: failed to choose pdev" / dri2. llvmpipe avoids that.
             if std::env::var_os("GALLIUM_DRIVER").is_none() {
                 std::env::set_var("GALLIUM_DRIVER", "llvmpipe");
             }
@@ -153,7 +133,6 @@ pub fn run() {
 
     pty::install_kill_on_close_guard();
     let sessions: PtySessions = Arc::new(Mutex::new(HashMap::<String, PtySession>::new()));
-    let codex_app_server_state = codex_app_server::CodexAppServerState::default();
     let sessions_for_exit = Arc::clone(&sessions);
     let sessions_for_resources = Arc::clone(&sessions);
     let resource_supervisor = Arc::new(resources::ResourceSupervisor::default());
@@ -161,12 +140,8 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default()
         .manage(sessions.clone())
-        .manage(codex_app_server_state)
-        .manage(remote::hub())
         .manage(resource_supervisor)
-        .manage(ghostty_bridge::GhosttySurfaces::default())
         .manage(filesystem::FileWatchers::default())
-        .manage(discord_presence::DiscordPresence::new())
         .manage(planning::PlanningWatchers::default())
         .manage(cli_launch::PendingOpen::default())
         .plugin(tauri_plugin_dialog::init())
@@ -229,8 +204,7 @@ pub fn run() {
             opencode_bridge::ensure_installed();
             session_watcher::start_watcher(app.handle().clone());
 
-            // Multi-Agent & Telemetry Event Loops
-            telemetry::start_telemetry_watcher(app.handle().clone());
+            // Multi-agent event loops
             planning::start_planning_autocommit_loop();
             scheduler::start_scheduler_event_loop();
             supervisor::start_supervisor_event_loop();
@@ -244,23 +218,17 @@ pub fn run() {
             agent_events::agent_hooks_settings_path,
             agent_events::agent_hooks_endpoint,
             agent_events::agent_hooks_token,
-            codex_app_server::codex_app_server_start,
-            codex_app_server::codex_app_server_send,
-            codex_app_server::codex_app_server_stop,
             activity_stats::record_activity_samples,
             activity_stats::get_activity_summary,
             activity_stats::clear_activity_stats,
             agent_library::list_installed_agents,
             agent_library::install_agent,
             agent_library::uninstall_agent,
-            economy_agents::set_economy_agents,
-            economy_agents::economy_agents_enabled,
             filesystem::list_directory,
             filesystem::read_text_file,
             filesystem::write_text_file,
             filesystem::rename_filesystem_entry,
             filesystem::delete_filesystem_entry,
-            filesystem::ensure_todo_template,
             filesystem::watch_file,
             filesystem::unwatch_file,
             pty::pty_exists,
@@ -269,17 +237,6 @@ pub fn run() {
             pty::clear_pty_scrollback,
             pty::restart_pty,
             pty::write_pty,
-            remote::remote_control_connected_devices,
-            remote::remote_control_info,
-            remote::remote_control_open_pairing,
-            remote::remote_control_close_pairing,
-            remote::remote_control_revoke,
-            remote::remote_control_revoke_device,
-            remote::remote_control_set_max_devices,
-            remote::remote_control_set_session_expiry,
-            remote::remote_control_set_read_only,
-            remote::remote_control_set_shell_input,
-            remote::remote_control_set_enabled,
             pty::resize_pty,
             pty::kill_pty,
             pty::suspend_pty,
@@ -287,14 +244,6 @@ pub fn run() {
             pty::set_pty_read_state,
             pty::set_pty_visible,
             pty::set_pty_priority,
-            ghostty_bridge::ghostty_spawn,
-            ghostty_bridge::ghostty_sync_frame,
-            ghostty_bridge::ghostty_set_hidden,
-            ghostty_bridge::ghostty_set_focus,
-            ghostty_bridge::ghostty_surface_exited,
-            ghostty_bridge::ghostty_kill,
-            ghostty_bridge::ghostty_kill_all,
-            ghostty_bridge::ghostty_debug_send_read,
             pty::list_pty_processes,
             resource_manager::get_resource_metrics,
             process_tree::get_pty_tree_info,
@@ -314,18 +263,12 @@ pub fn run() {
             cli_resolver::refresh_cli_path,
             cli_resolver::probe_install_toolchain,
             cli_resolver::agent_cli_version,
+            wsl::wsl_list_distros,
+            wsl::detect_agents_for_cwd,
             cli_launch::cli_take_pending_open,
             cli_shim::cli_shim_status,
             cli_shim::cli_shim_install,
             cli_shim::cli_shim_uninstall,
-            backup::export_backup,
-            backup::export_profile_backup,
-            backup::import_backup,
-            github_sync::github_sync_status,
-            github_sync::github_sync_set_token,
-            github_sync::github_sync_logout,
-            github_sync::github_sync_push,
-            github_sync::github_sync_pull,
             github_auth::github_repo_auth_status,
             github_auth::github_repo_device_start,
             github_auth::github_repo_device_poll,
@@ -359,16 +302,10 @@ pub fn run() {
             diagnostics::export_logs,
             logging::record_frontend_error,
             logging::record_app_event,
-            discord_presence::set_discord_presence,
-            discord_presence::clear_discord_presence,
             stats::get_memory_stats,
             resources::get_runtime_snapshot,
             resources::set_resource_policy,
             resources::update_pty_runtime_meta,
-            spotify::spotify_login,
-            spotify::spotify_logout,
-            spotify::spotify_status,
-            spotify::spotify_get_current,
             claude_sessions::snapshot_claude_sessions,
             claude_sessions::list_claude_sessions,
             claude_sessions::get_claude_session_title,
@@ -385,24 +322,13 @@ pub fn run() {
             prompt_run::append_prompt_run_journal,
             prompt_run::write_prompt_run_file,
             prompt_run::read_prompt_run_file,
-            prompt_run::write_prompt_run_board,
-            prompt_run::append_prompt_run_board,
             prompt_run::ensure_prompt_run_context,
+            prompt_run::read_spec_markdown,
+            prompt_run::write_project_run_board,
+            prompt_run::append_project_run_board,
+            prompt_run::run_planner_cli,
             context_hub::ingest_run_context,
             context_hub::search_run_context,
-            task_board::save_task_card,
-            task_board::list_task_cards,
-            task_board::delete_task_card,
-            task_board::run_planner_cli,
-            task_board::task_attach_markdown,
-            task_board::task_write_tools_json,
-            flows::save_flow_graph,
-            flows::list_flow_graphs,
-            flows::delete_flow_graph,
-            flows::flow_http,
-            flows::flow_http_allowlist,
-            flows::flow_http_allowlist_set,
-            flows::flow_mcp_call,
             antigravity_sessions::snapshot_antigravity_sessions,
             gemini_sessions::snapshot_gemini_sessions,
             gemini_sessions::get_gemini_usage,
@@ -425,8 +351,6 @@ pub fn run() {
             worktrees::worktree_lock,
             worktrees::worktree_unlock,
             event_bus::publish_event,
-            telemetry::get_telemetry_metrics,
-            telemetry::get_telemetry_traces,
             validation::run_validation,
             planning::start_gsd_watcher,
             planning::stop_gsd_watcher,
@@ -434,13 +358,6 @@ pub fn run() {
             planning::planning_audit_history,
             planning::set_planning_autocommit,
             planning::get_planning_autocommit,
-            planning_gate::read_planning_status,
-            planning_gate::read_gsd_child_session,
-            planning_gate::read_gsd_child_state,
-            planning_gate::read_gsd_child_busy,
-            planning_gate::read_gsd_child_error,
-            planning_gate::read_gsd_procedure,
-            opencode_gsd_plugin::gsd_opencode_plugin_write,
             scheduler::get_scheduler_tasks,
             scheduler::trigger_scheduler_tick,
             scheduler::cancel_task,
@@ -452,6 +369,9 @@ pub fn run() {
             health_probe::health_probe,
             graphify::graphify_ensure_graph,
             graphify::graphify_detect,
+            graphify::graphify_status,
+            graphify::graphify_install,
+            graphify::graphify_gemini_config_write,
             graphify::graphify_mcp_config_path,
             graphify::graphify_opencode_config_write,
             graphify::graphify_codex_config_write,
@@ -461,10 +381,6 @@ pub fn run() {
             graphify::graphify_diff_snapshot,
             graphify::graphify_rollback,
             graphify::graphify_prune_snapshots,
-            ai_memory::ai_memory_detect,
-            ai_memory::ai_memory_mcp_config_path,
-            ai_memory::ai_memory_opencode_config_write,
-            ai_memory::ai_memory_codex_config_write,
             plugins::plugins_list,
             plugins::plugin_install,
             plugins::plugin_uninstall,

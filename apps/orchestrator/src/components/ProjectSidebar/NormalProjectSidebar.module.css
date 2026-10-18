@@ -764,11 +764,6 @@
   flex-shrink: 0;
 }
 
-.agentProjectIcon {
-  color: var(--agent-claude);
-  flex-shrink: 0;
-}
-
 .rosterLoading {
   color: var(--status-working);
 }

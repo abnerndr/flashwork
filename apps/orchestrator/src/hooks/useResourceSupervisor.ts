@@ -65,25 +65,6 @@ function collectRuntimeMetas(): PtyRuntimeMeta[] {
     }
   }
 
-  const canvasId = ui.agentCanvasSession?.ptyId
-  if (canvasId && !known.has(canvasId)) {
-    const runtime = terminalsState.byPtyId[canvasId]
-    const visible = ui.activeView === 'agentCanvas'
-    metas.push({
-      id: canvasId,
-      kind: 'claude',
-      status: runtime?.status ?? 'waiting',
-      visible,
-      focused: visible,
-      protected: visible,
-      lastIoAtMs: runtime?.lastIoAt ?? now,
-      spawnedAtMs: runtime?.spawnedAt ?? now,
-      lastUsedAtMs: runtime?.lastIoAt ?? now,
-      reportedAtMs: now,
-    })
-    known.add(canvasId)
-  }
-
   for (const runtime of Object.values(terminalsState.byPtyId)) {
     if (known.has(runtime.ptyId)) continue
     metas.push({

@@ -34,7 +34,6 @@ export function EditProjectModal() {
   const setGsdWatcherEnabled = useProjectsStore((s) => s.setGsdWatcherEnabled)
   const setConflictAgentProvider = useProjectsStore((s) => s.setConflictAgentProvider)
   const setConflictAgentModel = useProjectsStore((s) => s.setConflictAgentModel)
-  const setGraphifyEnabled = useProjectsStore((s) => s.setGraphifyEnabled)
   const setAutoWorktree = useProjectsStore((s) => s.setAutoWorktree)
   const cleanupOrphanWorktrees = useProjectsStore((s) => s.cleanupOrphanWorktrees)
   const isCleaningOrphans = useProjectsStore((s) => s.isCleaningOrphans)
@@ -54,7 +53,6 @@ export function EditProjectModal() {
   const [loadingWorktrees, setLoadingWorktrees] = useState(false)
   const [conflictProvider, setConflictProviderState] = useState<AgentType>('claude')
   const [conflictModel, setConflictModelState] = useState('')
-  const [graphifyEnabled, setGraphifyEnabledState] = useState(false)
   const [autoWorktree, setAutoWorktreeState] = useState(false)
   const [newAgentName, setNewAgentName] = useState('')
   const [creatingAgent, setCreatingAgent] = useState(false)
@@ -102,7 +100,6 @@ export function EditProjectModal() {
 
     setConflictProviderState(project.conflictAgentProvider ?? 'claude')
     setConflictModelState(project.conflictAgentModel ?? '')
-    setGraphifyEnabledState(project.graphifyEnabled ?? false)
     setAutoWorktreeState(project.autoWorktree ?? false)
     setActiveTab('focus')
     setIsColorPopoverOpen(false)
@@ -198,10 +195,6 @@ export function EditProjectModal() {
 
     if (conflictModel !== (project.conflictAgentModel ?? '')) {
       setConflictAgentModel(project.id, conflictModel)
-    }
-
-    if (graphifyEnabled !== (project.graphifyEnabled ?? false)) {
-      setGraphifyEnabled(project.id, graphifyEnabled)
     }
 
     if (autoWorktree !== (project.autoWorktree ?? false)) {
@@ -405,8 +398,6 @@ export function EditProjectModal() {
             onConflictModelChange={setConflictModelState}
             autoWorktree={autoWorktree}
             onAutoWorktreeChange={setAutoWorktreeState}
-            graphifyEnabled={graphifyEnabled}
-            onGraphifyEnabledChange={setGraphifyEnabledState}
             gsdWatcherEnabled={gsdWatcherEnabled}
             onGsdWatcherEnabledChange={setGsdWatcherEnabledState}
           />

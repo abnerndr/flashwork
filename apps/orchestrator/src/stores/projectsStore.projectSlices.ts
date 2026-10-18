@@ -15,6 +15,7 @@ import { cleanupPtys } from '../lib/terminalLifecycle'
 import type { Group, Project } from '../lib/types'
 import { agentCliCommand, GROUP_COLORS } from '../lib/types'
 import { sanitizeWorkspaceSnapshot } from '../lib/workspaceNavigation'
+import { wslDistroFromPath } from '../lib/wsl'
 import type { ProjectsState } from './projectsStore'
 import { collectGroupProjectIds } from './projectsStore.migrations'
 import type { SliceCtx } from './projectsStore.slices'
@@ -375,7 +376,6 @@ type ProjectsSlice = Pick<
   | 'setConflictAgentModel'
   | 'setReviewAgentProvider'
   | 'setReviewAgentModel'
-  | 'setGraphifyEnabled'
   | 'setAutoWorktree'
   | 'migrateProjectTerminalsToWorktrees'
   | 'addOrphanWorktree'
@@ -390,22 +390,24 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
     createProject: ({
       id,
       name,
-      mode = 'standard',
       color,
       iconUrl,
       groupId = null,
       defaultCwd,
+      wslDistro,
       githubUrl,
       firstBootPending,
     }) => {
+      const cwd = defaultCwd.trim()
+      const distro = wslDistro ?? wslDistroFromPath(cwd)
       const project: Project = {
         id: id ?? nanoid(),
         name,
-        mode,
         color,
         iconUrl,
         groupId,
-        defaultCwd: defaultCwd.trim(),
+        defaultCwd: cwd,
+        ...(distro ? { wslDistro: distro } : {}),
         githubUrl,
         firstBootPending,
         terminals: [],
@@ -477,9 +479,6 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
     setReviewAgentModel: (id, reviewAgentModel) =>
       updateProject(id, (p) => ({ ...p, reviewAgentModel })),
 
-    setGraphifyEnabled: (id, graphifyEnabled) =>
-      updateProject(id, (p) => ({ ...p, graphifyEnabled })),
-
                                                                          
                                                                                
                                                                               
@@ -488,7 +487,7 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
                                                           
     setAutoWorktree: (id, autoWorktree) => updateProject(id, (p) => ({ ...p, autoWorktree })),
 
-    migrateProjectTerminalsToWorktrees: async (projectId, gsdWatcherEnabledOverride) => {
+    migrateProjectTerminalsToWorktrees: async (projectId) => {
       if (migratingWorktreeProjectIds.has(projectId)) return                                             
       const project = get().projects.find((p) => p.id === projectId)
       if (!project) return
@@ -503,8 +502,7 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
 
       migratingWorktreeProjectIds.add(projectId)
       try {
-        const { worktreeProvision, restartPty, gitStatus, gsdOpenCodePluginWrite } =
-          await import('../lib/tauri')
+        const { worktreeProvision, restartPty, gitStatus } = await import('../lib/tauri')
 
                                                                                  
                                                                             
@@ -534,7 +532,7 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
 
         const targets = project.terminals.filter(
           (terminal) =>
-            !terminal.worktreeAgentId && terminal.kind !== 'web' && terminal.kind !== 'file',
+            !terminal.worktreeAgentId && terminal.kind !== 'file',
         )
         const succeeded: string[] = []
         const failed: { name: string; error: string }[] = []
@@ -551,23 +549,6 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
               project.worktreeMode ?? 'gitWorktree',
             )
 
-            // Terminal migrado com watcher GSD ligado e rodando OpenCode nunca
-                                                                                
-                                                                              
-                                                                               
-                                                                           
-                                                                                
-                                                           
-            const gsdWatcherEnabled = gsdWatcherEnabledOverride ?? project.gsdWatcherEnabled
-            if (gsdWatcherEnabled && terminal.tabs.some((tab) => tab.type === 'opencode')) {
-              const modelChain = get().preferences.gsdSyncModelChain ?? []
-              await gsdOpenCodePluginWrite(info.path, modelChain).catch((error) => {
-                console.error(
-                  `[projectsStore] gsdOpenCodePluginWrite falhou pra ${info.path}:`,
-                  error,
-                )
-              })
-            }
 
                                                                                
                                                                                
@@ -768,12 +749,6 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
         if (!project) return
         cleanupPtys(collectTerminalPtyIds(project.terminals))
         const projects = state.projects.filter((p) => p.id !== id)
-        const todos = state.todos.map((item) => {
-          if (item.projectId !== id) return item
-          const next = { ...item }
-          delete next.projectId
-          return next
-        })
         const groups = state.groups.map((g) =>
           g.id === project.groupId
             ? { ...g, projectIds: g.projectIds.filter((pid) => pid !== id) }
@@ -811,7 +786,6 @@ export function createProjectsSlice({ set, get, update, updateProject }: SliceCt
           }))
         return {
           projects,
-          todos,
           groups,
           ungroupedOrder,
           workspace: {

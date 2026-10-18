@@ -12,6 +12,8 @@ use crate::stats::MemoryStats;
 const SAMPLE_INTERVAL: Duration = Duration::from_secs(5);
 const META_STALE_MS: u64 = 30_000;
 const RESOURCE_LOG_INTERVAL_MS: u64 = 60_000;
+/// Skip tiny panes when forcing a critical suspend — freeing them will not save the host.
+const EMERGENCY_MIN_MEMORY_MB: f64 = 128.0;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -429,6 +431,44 @@ fn eligible_candidates(
     candidates.into_iter().map(|entry| entry.0).collect()
 }
 
+/// Last-resort targets when system memory is critical and no idle-hidden candidate exists.
+/// Visible / focused / working panes are allowed — otherwise Flashwork can sit at
+/// `level=critical action=none` while a single agent tree holds several GB (WSL freezes).
+fn emergency_candidates(
+    snapshot: &RuntimeSnapshot,
+    metas: &HashMap<String, PtyRuntimeMeta>,
+    now: u64,
+) -> Vec<String> {
+    let mut ranked = Vec::new();
+
+    for pty in &snapshot.ptys {
+        if pty.effective_memory_mb < EMERGENCY_MIN_MEMORY_MB {
+            continue;
+        }
+        let meta = metas.get(&pty.id);
+        if let Some(meta) = meta {
+            if now.saturating_sub(meta.reported_at_ms) > META_STALE_MS {
+                continue;
+            }
+        }
+        let focused = meta.map(|m| m.focused).unwrap_or(false);
+        let last_used = meta.map(|m| m.last_used_at_ms).unwrap_or(0);
+        ranked.push((
+            pty.id.clone(),
+            focused,
+            last_used,
+            pty.effective_memory_mb,
+        ));
+    }
+
+    ranked.sort_by(|a, b| {
+        b.3.total_cmp(&a.3)
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
+    ranked.into_iter().map(|entry| entry.0).collect()
+}
+
 fn pressure_level(memory: &MemoryStats, previous: &'static str) -> &'static str {
     let total = memory.system_total_mb.max(1.0);
     let available = memory.system_available_mb;
@@ -459,16 +499,31 @@ fn run_cycle(app: &AppHandle, sessions: &PtySessions, supervisor: &ResourceSuper
     let candidates = eligible_candidates(&snapshot, &metas, &policy, now);
     let level = pressure_level(&snapshot.memory, previous_level);
     // Manual mode remains non-destructive during ordinary pressure. At critical
-    // Windows memory pressure, however, preserving an idle hidden session is
-    // less important than keeping the desktop responsive. Suspending one
-    // eligible runtime per cycle preserves its scrollback and resume identity.
+    // system memory pressure (Windows host or WSL cgroup view), keeping the
+    // machine responsive beats preserving a fat visible agent. Prefer idle-hidden
+    // LRU targets; if none qualify (or suspend fails), force-suspend the heaviest
+    // live PTY (≥128 MB). One suspend per cycle preserves scrollback + resume id.
+    let mut force_emergency = false;
     let suspended_id = if level == "critical" {
-        candidates.first().and_then(|id| {
+        let mut suspended = candidates.first().and_then(|id| {
             match pty::suspend_session_with_reason(app, sessions, id, "memory-pressure") {
                 Ok(true) => Some(id.clone()),
                 _ => None,
             }
-        })
+        });
+        if suspended.is_none() {
+            force_emergency = true;
+            suspended = emergency_candidates(&snapshot, &metas, now)
+                .into_iter()
+                .find_map(|id| {
+                    match pty::suspend_session_with_reason(app, sessions, &id, "memory-pressure")
+                    {
+                        Ok(true) => Some(id),
+                        _ => None,
+                    }
+                });
+        }
+        suspended
     } else {
         None
     };
@@ -496,16 +551,21 @@ fn run_cycle(app: &AppHandle, sessions: &PtySessions, supervisor: &ResourceSuper
     }
 
     if should_log {
+        let action = if suspended_id.is_some() {
+            if force_emergency {
+                "emergency-force-suspend"
+            } else {
+                "emergency-suspend"
+            }
+        } else {
+            "none"
+        };
         crate::logging::record_resource_snapshot(
             app,
             level,
             &snapshot,
             candidates.len(),
-            if suspended_id.is_some() {
-                "emergency-suspend"
-            } else {
-                "none"
-            },
+            action,
         );
     }
 
@@ -709,6 +769,73 @@ mod tests {
         assert_eq!(pressure_level(&sample.memory, "normal"), "warning");
         sample.memory.system_available_mb = 600.0;
         assert_eq!(pressure_level(&sample.memory, "normal"), "critical");
+    }
+
+    #[test]
+    fn emergency_picks_heaviest_visible_working_agent() {
+        let mut sample = snapshot("light");
+        sample.ptys[0].effective_memory_mb = 200.0;
+        let mut heavy = sample.ptys[0].clone();
+        heavy.id = "heavy".to_string();
+        heavy.effective_memory_mb = 4_000.0;
+        sample.ptys.push(heavy);
+
+        let mut light_meta = meta("light");
+        light_meta.visible = true;
+        light_meta.focused = true;
+        light_meta.status = "working".to_string();
+        light_meta.protected = true;
+
+        let mut heavy_meta = meta("heavy");
+        heavy_meta.visible = true;
+        heavy_meta.focused = false;
+        heavy_meta.status = "working".to_string();
+        heavy_meta.protected = true;
+
+        let metas = HashMap::from([
+            ("light".to_string(), light_meta),
+            ("heavy".to_string(), heavy_meta),
+        ]);
+
+        assert!(eligible_candidates(&sample, &metas, &ResourcePolicy::default(), 1_000_000).is_empty());
+        assert_eq!(
+            emergency_candidates(&sample, &metas, 1_000_000),
+            vec!["heavy".to_string(), "light".to_string()]
+        );
+    }
+
+    #[test]
+    fn emergency_skips_tiny_panes() {
+        let mut sample = snapshot("tiny");
+        sample.ptys[0].effective_memory_mb = 40.0;
+        let metas = HashMap::from([("tiny".to_string(), meta("tiny"))]);
+        assert!(emergency_candidates(&sample, &metas, 1_000_000).is_empty());
+    }
+
+    #[test]
+    fn emergency_prefers_unfocused_when_memory_ties() {
+        let mut sample = snapshot("focused");
+        sample.ptys[0].effective_memory_mb = 500.0;
+        let mut other = sample.ptys[0].clone();
+        other.id = "background".to_string();
+        other.effective_memory_mb = 500.0;
+        sample.ptys.push(other);
+
+        let mut focused = meta("focused");
+        focused.focused = true;
+        focused.visible = true;
+        let mut background = meta("background");
+        background.focused = false;
+        background.visible = true;
+
+        let metas = HashMap::from([
+            ("focused".to_string(), focused),
+            ("background".to_string(), background),
+        ]);
+        assert_eq!(
+            emergency_candidates(&sample, &metas, 1_000_000).first().map(String::as_str),
+            Some("background")
+        );
     }
 
     #[test]

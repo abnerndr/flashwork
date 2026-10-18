@@ -1,19 +1,21 @@
-import { Folder, Network, Palette, Terminal } from 'lucide-react'
+import { Folder, Palette } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { useEffect, useRef, useState } from 'react'
 
 import { pickDirectory } from '../../lib/dialog'
-import { AGENT_SANDBOX_ENABLED } from '../../lib/featureFlags'
 import { useT } from '../../lib/i18n'
+import { isWindows } from '../../lib/platform'
 import { bootstrapProjectRag } from '../../lib/projectRagBootstrap'
 import {
-  aiMemoryMcpConfigPath,
   graphifyEnsureGraph,
   projectBootstrap,
   projectDetect,
   projectWriteRagStatus,
+  wslListDistros,
 } from '../../lib/tauri'
 import { GROUP_COLORS, type Project } from '../../lib/types'
+import { resolveProjectFolder, wslDistroFromPath } from '../../lib/wsl'
+import { useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { Dropdown } from '../ui/Dropdown'
@@ -41,21 +43,41 @@ export function NewProjectModal() {
   const createProject = useProjectsStore((s) => s.createProject)
   const setActiveProject = useProjectsStore((s) => s.setActiveProject)
   const openModal = useUiStore((s) => s.openModal_)
-  const setActiveView = useUiStore((s) => s.setActiveView)
   const groups = useProjectsStore((s) => s.groups)
 
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(GROUP_COLORS[0])
   const [iconUrl, setIconUrl] = useState('')
   const [defaultCwd, setDefaultCwd] = useState('')
-  const [mode, setMode] = useState<'standard' | 'agentSandbox'>('standard')
   const [groupId, setGroupId] = useState<string | null>(context?.groupId ?? null)
   const [isColorPopoverOpen, setIsColorPopoverOpen] = useState(false)
   const [folderMissing, setFolderMissing] = useState(false)
   const [flashworkExists, setFlashworkExists] = useState(false)
   const [operationError, setOperationError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [wslDistros, setWslDistros] = useState<string[]>([])
+  const [wslDistro, setWslDistro] = useState('')
   const submitRequestId = useRef(0)
+
+  // WSL projects only exist on the Windows build.
+  useEffect(() => {
+    if (!open || !isWindows()) return
+    let cancelled = false
+    void wslListDistros()
+      .then((list) => {
+        if (!cancelled) setWslDistros(list)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  // A folder picked or typed under \\wsl.localhost\<distro> selects that distro.
+  useEffect(() => {
+    const derived = wslDistroFromPath(defaultCwd)
+    if (derived) setWslDistro(derived)
+  }, [defaultCwd])
 
                                                                         
                                                                        
@@ -74,7 +96,7 @@ export function NewProjectModal() {
     setColor(GROUP_COLORS[0])
     setIconUrl('')
     setDefaultCwd('')
-    setMode('standard')
+    setWslDistro('')
     setGroupId(context?.groupId ?? null)
     setIsColorPopoverOpen(false)
     const cleared = clearedNewProjectConflictState()
@@ -103,22 +125,16 @@ export function NewProjectModal() {
 
   const registration = (): NewProjectRegistration => ({
     name: name.trim(),
-    mode,
     color,
     iconUrl: iconUrl.trim() || undefined,
     groupId,
-    defaultCwd,
+    defaultCwd: resolveProjectFolder(defaultCwd, wslDistro || undefined),
+    wslDistro: wslDistro || undefined,
   })
 
   const finish = (project: Project) => {
     reset()
     setActiveProject(project.id)
-
-    if (project.mode === 'agentSandbox') {
-      setActiveView('agentSandbox')
-      closeModal()
-      return
-    }
 
     openModal('newTerminal', { projectId: project.id })
   }
@@ -142,12 +158,10 @@ export function NewProjectModal() {
         generateId: nanoid,
         projectBootstrap,
         bootstrapRag: async (folder) => {
-          const features = useProjectsStore.getState().preferences.enabledFeatures
           await bootstrapProjectRag(folder, {
-            graphifyEnabled: features.graphify,
-            aiMemoryEnabled: features.aiMemory,
             graphifyEnsureGraph,
-            aiMemoryMcpConfigPath,
+            onGraphifyUnavailable: (missing) =>
+              useGraphifySetupStore.getState().notifyMissing(missing),
             writeRagStatus: projectWriteRagStatus,
           })
         },
@@ -209,9 +223,7 @@ export function NewProjectModal() {
           >
             {flashworkExists
               ? t('crud.openExisting')
-              : mode === 'agentSandbox'
-                ? t('crud.createAgentSandboxProject')
-                : t('crud.create')}
+              : t('crud.create')}
           </button>
         </>
       }
@@ -231,46 +243,6 @@ export function NewProjectModal() {
         />
       </div>
 
-      {AGENT_SANDBOX_ENABLED ? (
-        <div className={controls.field}>
-          <label className={controls.label}>{t('crud.projectModeLabel')}</label>
-          <div
-            className={controls.modeChoices}
-            role="radiogroup"
-            aria-label={t('crud.projectModeLabel')}
-          >
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'standard'}
-              className={`${controls.modeChoice} ${mode === 'standard' ? controls.modeChoiceActive : ''}`}
-              onClick={() => setMode('standard')}
-            >
-              <Terminal size={16} aria-hidden="true" />
-              <span className={controls.modeChoiceBody}>
-                <strong>{t('crud.projectModeStandard')}</strong>
-                <small>{t('crud.projectModeStandardHint')}</small>
-              </span>
-              <span className={controls.modeChoiceIndicator} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'agentSandbox'}
-              className={`${controls.modeChoice} ${mode === 'agentSandbox' ? controls.modeChoiceActive : ''}`}
-              onClick={() => setMode('agentSandbox')}
-            >
-              <Network size={16} aria-hidden="true" />
-              <span className={controls.modeChoiceBody}>
-                <strong>{t('crud.projectModeSandbox')}</strong>
-                <small>{t('crud.projectModeSandboxHint')}</small>
-              </span>
-              <span className={controls.modeChoiceIndicator} aria-hidden="true" />
-            </button>
-          </div>
-          <span className={controls.hint}>{t('crud.projectModeSelectionHint')}</span>
-        </div>
-      ) : null}
 
       {groups.length > 0 ? (
         <div className={controls.field}>
@@ -283,6 +255,22 @@ export function NewProjectModal() {
             options={[
               { value: '', label: t('crud.noGroup') },
               ...groups.map((g) => ({ value: g.id, label: g.name })),
+            ]}
+          />
+        </div>
+      ) : null}
+
+      {wslDistros.length > 0 ? (
+        <div className={controls.field}>
+          <label className={controls.label}>{t('crud.wslDistroLabel')}</label>
+          <Dropdown
+            className={controls.input}
+            value={wslDistro}
+            onChange={(value) => setWslDistro(value)}
+            ariaLabel={t('crud.wslDistroLabel')}
+            options={[
+              { value: '', label: t('crud.wslDistroNone') },
+              ...wslDistros.map((distro) => ({ value: distro, label: distro })),
             ]}
           />
         </div>
@@ -312,7 +300,9 @@ export function NewProjectModal() {
             {t('term.browse')}
           </button>
         </div>
-        <span className={controls.hint}>{t('crud.projectPathHint')}</span>
+        <span className={controls.hint}>
+          {wslDistro ? t('crud.wslDistroHint') : t('crud.projectPathHint')}
+        </span>
         {folderMissing ? (
           <span className={controls.fieldError}>{t('crud.folderRequired')}</span>
         ) : null}

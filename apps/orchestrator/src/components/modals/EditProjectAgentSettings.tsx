@@ -42,8 +42,6 @@ export function EditProjectAgentSettings({
   onConflictModelChange,
   autoWorktree,
   onAutoWorktreeChange,
-  graphifyEnabled,
-  onGraphifyEnabledChange,
   gsdWatcherEnabled,
   onGsdWatcherEnabledChange,
 }: {
@@ -59,8 +57,6 @@ export function EditProjectAgentSettings({
   onConflictModelChange: (modelId: string) => void
   autoWorktree: boolean
   onAutoWorktreeChange: (enabled: boolean) => void
-  graphifyEnabled: boolean
-  onGraphifyEnabledChange: (enabled: boolean) => void
   gsdWatcherEnabled: boolean
   onGsdWatcherEnabledChange: (enabled: boolean) => void
 }) {
@@ -287,7 +283,7 @@ export function EditProjectAgentSettings({
             if (migratingWorktrees) return
             if (!confirm(t('multiAgent.migrateExistingConfirm'))) return
             setMigratingWorktrees(true)
-            void migrateProjectTerminalsToWorktrees(projectId, gsdWatcherEnabled).finally(() =>
+            void migrateProjectTerminalsToWorktrees(projectId).finally(() =>
               setMigratingWorktrees(false),
             )
           }}
@@ -297,23 +293,6 @@ export function EditProjectAgentSettings({
         <p style={{ fontSize: 10, color: 'var(--fg-muted)', marginTop: 4 }}>
           {t('multiAgent.migrateExistingHint')}
         </p>
-      </div>
-
-      <div
-        className={`${controls.field} ${styles.toggleRow}`}
-      >
-        <input
-          type="checkbox"
-          id="graphifyEnabled"
-          checked={graphifyEnabled}
-          onChange={(e) => onGraphifyEnabledChange(e.target.checked)}
-        />
-        <label
-          htmlFor="graphifyEnabled"
-          className={styles.toggleLabel}
-        >
-          {t('project.graphifyEnabled')}
-        </label>
       </div>
 
       <div

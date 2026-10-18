@@ -13,7 +13,7 @@ import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../lib/promptRu
 import { appendPromptRunJournal, ingestRunContext, listenPtyData } from '../lib/tauri'
 import { shouldIngestContext } from '../lib/promptRun/ingestContext'
 import { AGENT_TYPE_LABELS, ALL_AGENT_TYPES, UNRESTRICTED_FLAG, type AgentType, type PromptRun, type PromptRunStepReason, type RoutedAgent } from '../lib/types'
-import { boardLaneContext, failBoardLane, retargetBoardRun } from '../lib/taskBoard/submitBoardTask'
+import { failSpecLane, retargetSpecRun, specLaneContext } from '../lib/promptRun/runSpec'
 import { useProjectsStore } from '../stores/projectsStore'
 import { usePromptRunStore } from '../stores/promptRunStore'
 import { useUiStore } from '../stores/uiStore'
@@ -120,13 +120,13 @@ export function usePromptRunWatcher() {
     try {
       const enabled = useProjectsStore.getState().preferences.enabledAgents
       const candidates = ALL_AGENT_TYPES.filter((agent) => agent !== 'shell' && enabled[agent])
-      const installed = excludeFailedAgents(await probeInstalledAgents(candidates))
+      const installed = excludeFailedAgents(await probeInstalledAgents(candidates, run.cwd))
       const occupied = run.steps
         .map((step) => step.agent)
         .filter((agent): agent is AgentType => agent !== sourceAgent && !isApiAgentId(agent))
       const target = handoffTarget(sourceAgent, installed, occupied)
       if (!target) {
-        failBoardLane(sourceTerminalId)
+        failSpecLane(sourceTerminalId)
         endLaneStep(run, sourceTerminalId)
         useUiStore.getState().pushToast({
           title: t('promptRun.handoffBlockedTitle'),
@@ -178,7 +178,7 @@ export function usePromptRunWatcher() {
         activeTerminalId: options.pauseRun ? created.id : (latest ?? run).activeTerminalId,
         steps,
       })
-      retargetBoardRun(run.id, sourceTerminalId, { agent: target, terminalId: created.id })
+      retargetSpecRun(run.id, sourceTerminalId, { agent: target, terminalId: created.id })
       completed = true
       try {
         await appendPromptRunJournal(
@@ -236,7 +236,7 @@ export function usePromptRunWatcher() {
     const loginBlocked = isAgentLoginBlock(ptyChunk) || isAgentAuthError(ptyChunk)
     if (loginBlocked) markAgentAuthFailed(sourceAgent)
     const liveSteps = run.steps.filter((step) => step.terminalId && !step.endedAt)
-    const lane = boardLaneContext(run.id, sourceTerminalId)
+    const lane = specLaneContext(run.id, sourceTerminalId)
     const action = decideLaneFailure({
       liveStepCount: Math.max(liveSteps.length, 1),
       failedKind: lane.failedKind,
@@ -248,7 +248,7 @@ export function usePromptRunWatcher() {
     if (action === 'drop-lane') {
       if (seenRef.current.has(laneKey)) return
       seenRef.current.add(laneKey)
-      failBoardLane(sourceTerminalId)
+      failSpecLane(sourceTerminalId)
       endLaneStep(run, sourceTerminalId)
       return
     }

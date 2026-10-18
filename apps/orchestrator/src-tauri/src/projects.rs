@@ -1,6 +1,4 @@
-use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use tauri::AppHandle;
@@ -19,61 +17,6 @@ fn save_mutex() -> &'static AsyncMutex<()> {
     SAVE_MUTEX.get_or_init(|| AsyncMutex::new(()))
 }
 
-fn external_todo_path(content: &str) -> Option<PathBuf> {
-    let parsed: Value = serde_json::from_str(content).ok()?;
-    let directory = parsed
-        .get("preferences")?
-        .get("todoStoragePath")?
-        .as_str()?
-        .trim();
-    if directory.is_empty() {
-        return None;
-    }
-    Some(PathBuf::from(directory).join("todos.jsonc"))
-}
-
-fn merge_external_todos(content: String) -> String {
-    let Some(path) = external_todo_path(&content) else {
-        return content;
-    };
-    let Ok(external) = fs::read_to_string(path) else {
-        return content;
-    };
-    let Ok(external_json) = serde_json::from_str::<Value>(&external) else {
-        return content;
-    };
-    let Some(todos) = external_json.get("todos").filter(|value| value.is_array()) else {
-        return content;
-    };
-    let Ok(mut parsed) = serde_json::from_str::<Value>(&content) else {
-        return content;
-    };
-    parsed["todos"] = todos.clone();
-    serde_json::to_string(&parsed).unwrap_or(content)
-}
-
-fn save_external_todos(content: &str) -> Result<(), String> {
-    let Some(path) = external_todo_path(content) else {
-        return Ok(());
-    };
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    let parsed: Value = serde_json::from_str(content).map_err(|error| error.to_string())?;
-    let external = serde_json::json!({
-        "version": 1,
-        "todos": parsed.get("todos").cloned().unwrap_or_else(|| Value::Array(Vec::new())),
-    });
-    let temporary = path.with_extension("jsonc.tmp");
-    fs::write(
-        &temporary,
-        serde_json::to_string_pretty(&external).map_err(|error| error.to_string())?,
-    )
-    .map_err(|error| error.to_string())?;
-    fs::rename(&temporary, &path).map_err(|error| error.to_string())
-}
-
 #[tauri::command]
 pub fn load_projects(app: AppHandle) -> Result<Option<String>, String> {
     let path = projects_file_path(&app)?;
@@ -81,7 +24,7 @@ pub fn load_projects(app: AppHandle) -> Result<Option<String>, String> {
         return Ok(None);
     }
     fs::read_to_string(&path)
-        .map(|content| Some(merge_external_todos(content)))
+        .map(Some)
         .map_err(|error| error.to_string())
 }
 
@@ -116,7 +59,6 @@ pub async fn save_projects(app: AppHandle, content: String, sequence: u64) -> Re
         let tmp = path.with_extension("json.tmp");
         fs::write(&tmp, &content).map_err(|error| error.to_string())?;
         fs::rename(&tmp, &path).map_err(|error| error.to_string())?;
-        save_external_todos(&content)?;
         Ok(())
     })
     .await

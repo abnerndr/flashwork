@@ -5,61 +5,36 @@ import { normalizeEnabledFeatures } from './features'
 describe('normalizeEnabledFeatures', () => {
   it('enables the initial modules for a fresh profile', () => {
     expect(normalizeEnabledFeatures(undefined)).toEqual({
-      todos: true,
       git: true,
-      browser: true,
-      graphify: false,
-      aiMemory: false,
       mcp: true,
-      taskBoard: true,
-      canvasFlows: false,
     })
   })
 
-  it('preserves legacy Git and keeps Todo off for existing profiles', () => {
+  it('preserves legacy Git visibility', () => {
     expect(normalizeEnabledFeatures({ showGitControl: false })).toEqual({
-      todos: false,
       git: false,
-      browser: true,
-      graphify: false,
-      aiMemory: false,
       mcp: true,
-      taskBoard: true,
-      canvasFlows: false,
     })
   })
 
   it('preserves explicit modular preferences', () => {
-    expect(normalizeEnabledFeatures({ enabledFeatures: { todos: false, git: true } })).toEqual({
-      todos: false,
-      git: true,
-      browser: true,
-      graphify: false,
-      aiMemory: false,
-      mcp: true,
-      taskBoard: true,
-      canvasFlows: false,
+    expect(normalizeEnabledFeatures({ enabledFeatures: { git: false, mcp: false } })).toEqual({
+      git: false,
+      mcp: false,
     })
   })
 
-  it('keeps AI Memory off unless explicitly enabled', () => {
-    expect(
-      normalizeEnabledFeatures({ enabledFeatures: { todos: true, git: true, aiMemory: true } }),
-    ).toEqual({
-      todos: true,
-      git: true,
-      browser: true,
-      graphify: false,
-      aiMemory: true,
-      mcp: true,
-      taskBoard: true,
-      canvasFlows: false,
+  it('drops ids of removed features', () => {
+    const features = normalizeEnabledFeatures({
+      enabledFeatures: {
+        todos: true,
+        browser: true,
+        aiMemory: true,
+        canvasFlows: true,
+        taskBoard: true,
+        graphify: false,
+      },
     })
-  })
-
-  it('keeps Flows off unless explicitly enabled', () => {
-    expect(normalizeEnabledFeatures({ enabledFeatures: { canvasFlows: true } }).canvasFlows).toBe(
-      true,
-    )
+    expect(Object.keys(features).sort()).toEqual(['git', 'mcp'])
   })
 })

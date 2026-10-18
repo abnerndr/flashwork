@@ -1,4 +1,4 @@
-import { BrainCircuit, FolderKanban, GitBranch, Globe2, ListTodo, Network, Plug, Workflow } from 'lucide-react'
+import { GitBranch, Plug } from 'lucide-react'
 
 import { FEATURES } from '../../../lib/features'
 import { useT } from '../../../lib/i18n'
@@ -9,14 +9,8 @@ import styles from '../PreferencesModal.module.css'
 
                                                                      
 const FEATURE_ICONS = {
-  todos: ListTodo,
   git: GitBranch,
-  aiMemory: BrainCircuit,
-  browser: Globe2,
-  graphify: Network,
   mcp: Plug,
-  taskBoard: FolderKanban,
-  canvasFlows: Workflow,
 } as const
 
 export function FeaturesPage() {
@@ -41,7 +35,6 @@ export function FeaturesPage() {
                     ...preferences.enabledFeatures,
                     [feature.id]: !enabled,
                   },
-                  ...(feature.id === 'todos' && !enabled ? { rightSidebarVisible: true } : {}),
                 })
               }
               aria-pressed={enabled}
@@ -63,18 +56,6 @@ export function FeaturesPage() {
           )
         })}
       </div>
-      {preferences.enabledFeatures.canvasFlows ? (
-        <button
-          type="button"
-          className={controls.btnLink}
-          onClick={() => setPreferences({ flowsAllowLoopback: !preferences.flowsAllowLoopback })}
-          aria-pressed={preferences.flowsAllowLoopback}
-        >
-          {preferences.flowsAllowLoopback
-            ? t('flows.loopbackOn')
-            : t('flows.loopbackOff')}
-        </button>
-      ) : null}
       {preferences.enabledFeatures.mcp ? (
         <button
           type="button"

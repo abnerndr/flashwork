@@ -19,8 +19,6 @@ import { GridCellHandles } from '../GridCellHandles'
 const GraphifyView = lazy(() => import('../GraphifyView').then(m => ({ default: m.GraphifyView })))
 const MarkdownPane = lazy(() => import('../MarkdownPane').then(m => ({ default: m.MarkdownPane })))
 import { TerminalPane } from '../TerminalPane'
-import { VideoPane } from '../VideoPane'
-import { WebPane } from '../WebPane'
 import { PersistentPanelGroup as Group } from './PersistentPanelGroup'
 import styles from './WorkspaceView.module.css'
 
@@ -55,12 +53,6 @@ function Pane({
         <MarkdownPane projectId={projectId} terminal={terminal} />
       </Suspense>
     )
-  }
-  if (terminal.kind === 'web') {
-    return <WebPane projectId={projectId} terminal={terminal} />
-  }
-  if (terminal.kind === 'video') {
-    return <VideoPane projectId={projectId} terminal={terminal} />
   }
   if (terminal.kind === 'diff') {
     return <DiffPane projectId={projectId} terminal={terminal} />

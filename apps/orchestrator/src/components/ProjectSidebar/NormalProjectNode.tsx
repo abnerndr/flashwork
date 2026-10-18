@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
-import { ChevronDown, Folder, MoreHorizontal, Network, Pause, Plus } from 'lucide-react'
+import { ChevronDown, Folder, MoreHorizontal, Pause, Plus } from 'lucide-react'
 
 import { useT } from '../../lib/i18n'
 import { type SidebarDropEdge } from '../../lib/sidebarDrag'
@@ -61,7 +61,7 @@ export function NormalProjectNode({
                                                                           
                                                                              
                                                            
-  const visibleTerminals = project.terminals.filter((term) => !term.gsdSyncViewer)
+  const visibleTerminals = project.terminals
   const isEmpty = visibleTerminals.length === 0
 
   const allDisabled = visibleTerminals.length > 0 && visibleTerminals.every((term) => term.disabled)
@@ -109,9 +109,6 @@ export function NormalProjectNode({
         <span className={styles.projectName} title={project.name}>
           {project.name}
         </span>
-        {project.mode === 'agentSandbox' ? (
-          <Network size={16} className={styles.agentProjectIcon} />
-        ) : null}
         {allDisabled ? <Pause size={11} className={styles.projectPauseIcon} /> : null}
         <button
           type="button"

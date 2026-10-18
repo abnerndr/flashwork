@@ -7,7 +7,6 @@ import { getLocale, translate } from '../lib/i18n'
 import { quitApp, recordFrontendError } from '../lib/tauri'
 import { flushProjectsState } from '../stores/projectsStore'
 import { usePromptRunStore } from '../stores/promptRunStore'
-import { flushTaskBoardState } from '../stores/taskBoardStore'
 import { useUiStore } from '../stores/uiStore'
 
 function errorDetails(error: unknown): { message: string; stack: string | null } {
@@ -47,7 +46,6 @@ const closeCoordinator = createCloseCoordinator({
   confirmFallback: () => window.confirm(translate(getLocale(), 'appClose.message')),
   beforeClose: async () => {
     await usePromptRunStore.getState().markActiveRunsInterrupted('quit')
-    await flushTaskBoardState()
     await flushProjectsState()
   },
   destroyWindow: () => appWindow.destroy(),

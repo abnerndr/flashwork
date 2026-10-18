@@ -451,11 +451,7 @@ mod unix_clipboard {
     /// Edge/Chrome/Notepad lands on the Windows clipboard, so paste into PTYs
     /// must bridge via `powershell.exe` interop.
     fn is_wsl() -> bool {
-        std::env::var_os("WSL_DISTRO_NAME").is_some()
-            || std::env::var_os("WSL_INTEROP").is_some()
-            || std::fs::read_to_string("/proc/version")
-                .map(|v| v.to_ascii_lowercase().contains("microsoft"))
-                .unwrap_or(false)
+        crate::wsl::is_wsl()
     }
 
     fn powershell_exe() -> Option<String> {

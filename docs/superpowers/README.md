@@ -17,6 +17,7 @@ Program started 2026-09-17. Implementation happens only when the owner names a p
 | P09 Remove OmniRoute | [plans/2026-09-17-09-remove-omniroute.md](plans/2026-09-17-09-remove-omniroute.md) |
 | P10 CLI install/update | [plans/2026-09-17-10-cli-install-update.md](plans/2026-09-17-10-cli-install-update.md) |
 | P11 Provider APIs | [plans/2026-09-17-11-provider-apis.md](plans/2026-09-17-11-provider-apis.md) |
+| P15 SPEC orchestrator | [plans/2026-10-17-15-spec-orchestrator.md](plans/2026-10-17-15-spec-orchestrator.md) |
 | P12 Token metrics all agents | [plans/2026-09-17-12-token-metrics-all-agents.md](plans/2026-09-17-12-token-metrics-all-agents.md) |
 
 ADRs and memory live at the repo root: `.claude/adr/`, `.claude/memory/`.

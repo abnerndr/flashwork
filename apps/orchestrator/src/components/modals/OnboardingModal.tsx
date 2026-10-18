@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { BrainCircuit, Check, FolderKanban, GitBranch, Globe, ListTodo, Network, Plug, Workflow } from 'lucide-react'
+import { Check, GitBranch, Globe, Plug } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getThemeIcon } from '../../lib/themeIcons'
@@ -54,14 +54,8 @@ const AGENTS: { id: CodingAgent; label: string }[] = [
 ]
 
 const FEATURE_ICONS = {
-  todos: ListTodo,
   git: GitBranch,
-  browser: Globe,
-  aiMemory: BrainCircuit,
-  graphify: Network,
   mcp: Plug,
-  taskBoard: FolderKanban,
-  canvasFlows: Workflow,
 } as const
 
 export function OnboardingModal() {
@@ -529,9 +523,6 @@ export function OnboardingModal() {
                                     ...preferences.enabledFeatures,
                                     [feature.id]: !active,
                                   },
-                                  ...(feature.id === 'todos' && !active
-                                    ? { rightSidebarVisible: true }
-                                    : {}),
                                 })
                               }
                               data-autofocus={active ? 'true' : undefined}

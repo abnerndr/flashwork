@@ -42,10 +42,6 @@ const FILE_EXT_BOUNDARY_PATTERN =
   /\.(?:md|markdown|mdx|png|jpe?g|gif|webp|bmp|avif|ico|svg|txt|tsx?|jsx?|json|ya?ml|toml|csv|pdf|mp4|m4v|mov|avi|mkv|webm|mp3|wav|flac|m4a|zip|7z|rar|tar|gz|exe|msi|dll)(?=$|[\s),.;:])/i
 const LINK_TRAILING_PUNCTUATION = /[\s),.;:]+$/
 
-export function isVideoFilePath(path: string): boolean {
-  return VIDEO_EXT_PATTERN.test(stripLineColumn(path.trim()))
-}
-
 export function isMarkdownFilePath(path: string): boolean {
   return MARKDOWN_EXT_PATTERN.test(stripLineColumn(path.trim()))
 }

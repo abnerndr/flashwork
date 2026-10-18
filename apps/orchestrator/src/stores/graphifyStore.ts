@@ -45,7 +45,7 @@ export const useGraphifyStore = create<GraphifyState>((set, get) => ({
     set({ repo, loading: true, error: null })
     try {
       const [status, snapshots] = await Promise.all([
-        graphifyDetect().catch(() => null),
+        graphifyDetect(undefined, repo).catch(() => null),
         graphifyListSnapshots(repo).catch(() => []),
       ])
       let graph: GraphData | null = null

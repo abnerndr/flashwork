@@ -19,25 +19,22 @@ describe('mapGraphifyBootstrapStatus', () => {
 })
 
 describe('bootstrapProjectRag', () => {
-  it('skips Graphify and AI Memory when those features are off', async () => {
-    const graphifyEnsureGraph = vi.fn()
-    const aiMemoryMcpConfigPath = vi.fn()
+  it('always starts Graphify and offers the install when it is missing', async () => {
+    const graphifyEnsureGraph = vi.fn(async () => 'unavailable' as const)
+    const onGraphifyUnavailable = vi.fn()
     const writeRagStatus = vi.fn()
 
     const status = await bootstrapProjectRag('/workspace/example', {
-      graphifyEnabled: false,
-      aiMemoryEnabled: false,
       graphifyEnsureGraph,
-      aiMemoryMcpConfigPath,
+      onGraphifyUnavailable,
       writeRagStatus,
       now: () => '2026-09-19T05:00:00.000Z',
     })
 
-    expect(graphifyEnsureGraph).not.toHaveBeenCalled()
-    expect(aiMemoryMcpConfigPath).not.toHaveBeenCalled()
+    expect(graphifyEnsureGraph).toHaveBeenCalledWith('/workspace/example')
+    expect(onGraphifyUnavailable).toHaveBeenCalledWith('/workspace/example')
     expect(status).toEqual({
       graphify: 'unavailable',
-      aiMemory: false,
       updatedAt: '2026-09-19T05:00:00.000Z',
     })
     expect(writeRagStatus).toHaveBeenCalledWith('/workspace/example', status)
@@ -47,59 +44,46 @@ describe('bootstrapProjectRag', () => {
     const writeRagStatus = vi.fn()
 
     const status = await bootstrapProjectRag('/workspace/example', {
-      graphifyEnabled: true,
-      aiMemoryEnabled: true,
       graphifyEnsureGraph: async () => {
         throw new Error('graphify missing')
       },
-      aiMemoryMcpConfigPath: async () => '/workspace/example/.claude/mcp.json',
       writeRagStatus,
       now: () => '2026-09-19T05:00:00.000Z',
     })
 
     expect(status).toEqual({
       graphify: 'unavailable',
-      aiMemory: true,
       updatedAt: '2026-09-19T05:00:00.000Z',
     })
     expect(writeRagStatus).toHaveBeenCalledWith('/workspace/example', status)
   })
 
-  it('records AI Memory only when the MCP config write succeeds', async () => {
-    const writeRagStatus = vi.fn()
-
+  it('records an existing graph when Graphify starts', async () => {
+    const onGraphifyUnavailable = vi.fn()
     const status = await bootstrapProjectRag('/workspace/example', {
-      graphifyEnabled: true,
-      aiMemoryEnabled: true,
       graphifyEnsureGraph: async () => 'started',
-      aiMemoryMcpConfigPath: async () => {
-        throw new Error('mcp write failed')
-      },
-      writeRagStatus,
+      onGraphifyUnavailable,
+      writeRagStatus: vi.fn(),
       now: () => '2026-09-19T05:00:00.000Z',
     })
 
     expect(status).toEqual({
       graphify: 'exists',
-      aiMemory: false,
       updatedAt: '2026-09-19T05:00:00.000Z',
     })
+    expect(onGraphifyUnavailable).not.toHaveBeenCalled()
   })
 
   it('does not throw when writing STATUS.json fails', async () => {
     await expect(
       bootstrapProjectRag('/workspace/example', {
-        graphifyEnabled: false,
-        aiMemoryEnabled: false,
-        graphifyEnsureGraph: vi.fn(),
-        aiMemoryMcpConfigPath: vi.fn(),
+        graphifyEnsureGraph: async () => 'unavailable',
         writeRagStatus: async () => {
           throw new Error('disk full')
         },
       }),
     ).resolves.toEqual({
       graphify: 'unavailable',
-      aiMemory: false,
       updatedAt: expect.any(String),
     })
   })

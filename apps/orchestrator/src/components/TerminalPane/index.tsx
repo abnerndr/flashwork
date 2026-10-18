@@ -14,13 +14,11 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
-import { buildGhosttyCommand } from '../../lib/ghosttyCommand'
 import { useT } from '../../lib/i18n'
-import { shouldUseNativeBackend } from '../../lib/platform'
 import { providerSpawnFlags } from '../../lib/providers/envForCli'
 import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { getActiveSessions, resolveClaudeResumeId, savedConversationIdFor, saveSession } from '../../lib/sessionResume'
-import { noteBoardTerminalComplete } from '../../lib/taskBoard/submitBoardTask'
+import { noteSpecTerminalComplete } from '../../lib/promptRun/runSpec'
 import {
   completeAgentHandoff,
   getPtyCwd,
@@ -38,7 +36,6 @@ import {
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
 import { useUiStore } from '../../stores/uiStore'
-import { GhosttySurface } from '../GhosttySurface'
 import { AgentIcon, VSCodeIcon } from '../icons/AgentIcons'
 import { SubTabsLane } from '../SubTabsLane'
 import { XTermView } from '../XTermView'
@@ -133,21 +130,12 @@ export const TerminalPane = memo(function TerminalPane({
   const terminalTheme = useProjectsStore(
     (s) => s.preferences.terminalTheme ?? s.preferences.uiTheme,
   )
-  // Native Ghostty rendering is opt-in and macOS-only; other platforms use xterm.js.
-  const nativeTerminalMacos = useProjectsStore((s) => s.preferences.nativeTerminalMacos ?? false)
-  const useNativeBackend = shouldUseNativeBackend(nativeTerminalMacos)
 
-  // repo para injetar o MCP (o XTermView resolve o config/bootstrap).
+  // Graphify is always on: the project folder whose graph every agent CLI gets over MCP
+  // (worktree panes share the main project's graph).
   const graphifyRepo = useProjectsStore((s) => {
     const p = s.projects.find((p) => p.id === projectId)
-    if (!p?.graphifyEnabled) return null
-    return terminal.cwd || p.terminals[0]?.cwd || null
-  })
-
-  // sozinho (ver XTermView, gatilho condicionado a command === 'opencode').
-  const gsdWatcherEnabled = useProjectsStore((s) => {
-    const p = s.projects.find((p) => p.id === projectId)
-    return Boolean(p?.gsdWatcherEnabled)
+    return p?.defaultCwd || terminal.cwd || p?.terminals[0]?.cwd || null
   })
 
   const activeTab: SubTab | undefined = useMemo(
@@ -511,73 +499,55 @@ export const TerminalPane = memo(function TerminalPane({
             />
           ) : activeTab ? (
             <>
-              {useNativeBackend && !activeTab.handoff ? (
-                <GhosttySurface
-                  key={`${activeTab.id}:${resumeNonce}`}
-                  surfaceId={activeTab.id}
-                  cwd={activeTab.cwd?.trim() || terminal.cwd?.trim() || undefined}
-                  command={buildGhosttyCommand(activeTab.type, activeTab.extraArgs)}
-                  onSpawned={(id) => {
-                    setResumePending(false)
-                    if (activeTab.ptyId !== id) {
-                      setSubTabPtyId(projectId, terminal.id, activeTab.id, id)
-                    }
-                  }}
-                />
-              ) : (
-                <XTermView
-                  key={`${activeTab.id}:${resumeNonce}`}
-                  projectId={projectId}
-                  ptyId={activeTab.ptyId ?? activeTab.id}
-                  sessionKey={activeTab.id}
-                  command={activeTab.type === 'shell' ? null : activeTab.type}
-                  cwd={activeTab.cwd || null}
-                  extraArgs={runtimeExtraArgs}
-                  initialInput={activeTab.initialInput}
-                  runtimeProfile={activeTab.runtimeProfile}
-                  sessionId={activeTab.sessionId}
-                  sessionCreate={activeTab.sessionCreate}
-                  lockOwnerId={terminal.id}
-                  graphifyRepo={graphifyRepo}
-                  gsdWatcherEnabled={gsdWatcherEnabled}
-                  trustSessionId={terminal.gsdSyncViewer}
-                  readOnly={terminal.gsdSyncViewer}
-                  terminalTheme={terminalTheme}
-                  onSpawned={(id) => {
-                    setResumePending(false)
-                    if (activeTab.ptyId !== id) {
-                      setSubTabPtyId(projectId, terminal.id, activeTab.id, id)
-                    }
-                  }}
-                  onSessionId={(sessionId) => {
-                    if (activeTab.sessionId !== sessionId) {
-                      setSubTabSessionId(projectId, terminal.id, activeTab.id, sessionId)
-                    }
-                  }}
-                  onInitialInputSent={() =>
-                    setSubTabInitialInput(projectId, terminal.id, activeTab.id, undefined)
+              <XTermView
+                key={`${activeTab.id}:${resumeNonce}`}
+                projectId={projectId}
+                ptyId={activeTab.ptyId ?? activeTab.id}
+                sessionKey={activeTab.id}
+                command={activeTab.type === 'shell' ? null : activeTab.type}
+                cwd={activeTab.cwd || null}
+                extraArgs={runtimeExtraArgs}
+                initialInput={activeTab.initialInput}
+                runtimeProfile={activeTab.runtimeProfile}
+                sessionId={activeTab.sessionId}
+                sessionCreate={activeTab.sessionCreate}
+                lockOwnerId={terminal.id}
+                graphifyRepo={graphifyRepo}
+                terminalTheme={terminalTheme}
+                onSpawned={(id) => {
+                  setResumePending(false)
+                  if (activeTab.ptyId !== id) {
+                    setSubTabPtyId(projectId, terminal.id, activeTab.id, id)
                   }
-                  onLaunchError={(error) => {
-                    if (!resumePending || !activeTab.ptyId) return
-                    setResumePending(false)
-                    useTerminalsStore.getState().markSuspended(activeTab.ptyId)
-                    pushToast({ title: t('ui.terminal.resumeFailed'), body: String(error) })
-                  }}
-                  onAgentComplete={() => {
-                    setSubTabCompletionUnread(projectId, terminal.id, activeTab.id, true)
-                    void noteBoardTerminalComplete(terminal.id)
-                    if (!activeTab.handoff) return
-                    void completeAgentHandoff(activeTab.handoff.id)
-                      .then(() =>
-                        setSubTabHandoff(projectId, terminal.id, activeTab.id, undefined),
-                      )
-                      .catch((cause) =>
-                        console.warn('[handoff] could not clean the completed packet:', cause),
-                      )
-                  }}
-                />
-              )}
-              {ptyExited && !useNativeBackend ? (
+                }}
+                onSessionId={(sessionId) => {
+                  if (activeTab.sessionId !== sessionId) {
+                    setSubTabSessionId(projectId, terminal.id, activeTab.id, sessionId)
+                  }
+                }}
+                onInitialInputSent={() =>
+                  setSubTabInitialInput(projectId, terminal.id, activeTab.id, undefined)
+                }
+                onLaunchError={(error) => {
+                  if (!resumePending || !activeTab.ptyId) return
+                  setResumePending(false)
+                  useTerminalsStore.getState().markSuspended(activeTab.ptyId)
+                  pushToast({ title: t('ui.terminal.resumeFailed'), body: String(error) })
+                }}
+                onAgentComplete={() => {
+                  setSubTabCompletionUnread(projectId, terminal.id, activeTab.id, true)
+                  void noteSpecTerminalComplete(terminal.id)
+                  if (!activeTab.handoff) return
+                  void completeAgentHandoff(activeTab.handoff.id)
+                    .then(() =>
+                      setSubTabHandoff(projectId, terminal.id, activeTab.id, undefined),
+                    )
+                    .catch((cause) =>
+                      console.warn('[handoff] could not clean the completed packet:', cause),
+                    )
+                }}
+              />
+              {ptyExited ? (
                 <div className={styles.exitedOverlay}>
                   <RefreshCw size={24} style={{ opacity: 0.5 }} />
                   {!ptyParked ? (

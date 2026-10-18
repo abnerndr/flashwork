@@ -6,9 +6,12 @@
 
 ## 1. What it is
 
-**Flashwork** is a **Windows-first** desktop app that organizes, operates, and resumes multiple coding
-agents (Claude Code, Codex, OpenCode) and shells in parallel, inside a persistent workspace with
-real terminals (PTYs), layouts, themes, history, and RAM control.
+**Flashwork** is a **Windows-first** desktop orchestrator of coding agents on projects. A project is
+a folder with `.flashwork/` and a Graphify graph wired into every CLI over MCP. **Run SPEC** takes a
+prompt or `.md` SPEC, a free Gemini CLI pre-pass splits it into tasks, and Flashwork opens one CLI
+(Claude Code, Codex, OpenCode, Gemini, …) or terminal per task. Agents share
+`.flashwork/runs/<runId>/board.md` so they do not redo each other's work. WSL projects run inside
+their distro.
 
 > Tagline: **Reveal the state of every agent, shell, and project.**
 > Status: **v1.3.0**, functional MVP in polish. Identifier: `com.ruperth.flashwork`.
@@ -89,7 +92,9 @@ path relative to the repository.
 - `projects.rs` — atomic load/save of `projects.json`. `profiles` — isolated multi-profile support.
 - `cli_resolver.rs` — discovers CLIs (pwsh/powershell, Node managers, VS Code) on Windows.
 - `claude_sessions.rs` / `codex_sessions.rs` / `claude_usage.rs` — session and usage reading.
-- `spotify.rs`, `backup.rs`, `diagnostics.rs`, `agent_library.rs`, `agent_events.rs`, `stats.rs`.
+- `prompt_run.rs` — run ledger, SPEC planner (`run_planner_cli`), project run board.
+- `graphify.rs` — Graphify install/build and MCP wiring per CLI. `wsl.rs` — WSL paths and `wsl.exe` spawn.
+- `diagnostics.rs`, `agent_library.rs`, `agent_events.rs`, `stats.rs`.
 
 **Communication:** the frontend calls `invoke(...)` through `lib/tauri/`; the terminal receives
 streaming through the Tauri events `pty://data/{id}` and `pty://exit/{id}`.
@@ -109,7 +114,7 @@ streaming through the Tauri events `pty://data/{id}` and `pty://exit/{id}`.
   untrusted.
 - `spawn_pty` runs a shell with the command/args coming from the frontend — **validate input on the
   frontend** before spawning.
-- OAuth tokens (Spotify, Claude) are stored in **plaintext** in app data; do not log or expose them.
+- OAuth tokens (Claude) are stored in **plaintext** in app data; do not log or expose them.
 - The Windows build requires `vcvars64`. The Rust toolchain on `C:` can be corrupted by Windows
   Defender — prefer building from `D:`.
 - Local data: `%APPDATA%/Flashwork/` (profiles, `projects.json`, scrollback `*.bin`, `spawn.log`).

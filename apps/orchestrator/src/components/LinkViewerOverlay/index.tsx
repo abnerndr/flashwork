@@ -6,10 +6,9 @@ import { useT } from '../../lib/i18n'
 import { openInBrowser, readTextFile } from '../../lib/tauri'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
-import { VideoPreview } from '../VideoPreview'
 
 const MarkdownRenderer = lazy(() => import('../MarkdownPane/MarkdownRenderer').then(m => ({ default: m.MarkdownRenderer })))
-import { isMarkdownFilePath, isVideoFilePath } from '../XTermView/terminalLinks'
+import { isMarkdownFilePath } from '../XTermView/terminalLinks'
 import styles from './LinkViewerOverlay.module.css'
 
    
@@ -26,7 +25,6 @@ export function LinkViewerOverlay() {
     (s) => s.preferences.uiTheme !== 'light' && s.preferences.uiTheme !== 'min-light',
   )
   const [markdown, setMarkdown] = useState<string | null>(null)
-  const video = Boolean(url && isVideoFilePath(url))
   const markdownFile = Boolean(url && isMarkdownFilePath(url))
 
   useOnEscape(
@@ -85,9 +83,7 @@ export function LinkViewerOverlay() {
           </button>
         </div>
         <div className={styles.body}>
-          {video ? (
-            <VideoPreview path={url} className={styles.video} />
-          ) : markdownFile && markdown !== null ? (
+          {markdownFile && markdown !== null ? (
             <div className={styles.markdown}>
               <Suspense fallback={<span>{t('ui.markdown.loading')}</span>}>
                 <MarkdownRenderer content={markdown} dark={dark} />

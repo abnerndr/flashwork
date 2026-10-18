@@ -4,11 +4,12 @@ import type { ProjectHomeMeta } from '../../lib/tauri'
 export type NewProjectRegistration = {
   id?: string
   name: string
-  mode?: Project['mode']
   color?: string
   iconUrl?: string
   groupId?: string | null
   defaultCwd: string
+  /** WSL distro chosen explicitly (Windows build); otherwise derived from the path. */
+  wslDistro?: string
 }
 
 type CreateProject = (args: NewProjectRegistration) => Project

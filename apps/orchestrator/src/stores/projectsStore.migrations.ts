@@ -7,20 +7,23 @@
 import { nanoid } from 'nanoid'
 
 import { normalizeEnabledFeatures } from '../lib/features'
-import { normalizeTodoTags, normalizeTodoTitle } from '../lib/todos'
+import { wslDistroFromPath } from '../lib/wsl'
 import {
   type AppliedVsxTheme,
   DEFAULT_PREFERENCES,
   EMPTY_PROJECTS_FILE,
   type Group,
   GROUP_COLORS,
+  type GridLayout,
   type Preferences,
   type Project,
   type ProjectsFile,
-  type TodoItem,
+  REMOVED_PANE_KINDS,
+  type Terminal,
   type WorkspaceContainer,
   type WorkspaceRecentTab,
   type WorkspaceTab,
+  type WorkspaceViewSnapshot,
 } from '../lib/types'
 import {
   captureWorkspaceSnapshot,
@@ -40,6 +43,30 @@ type LegacyPreferences = Partial<Preferences> & {
   omniRouteBaseUrl?: string
   omniRouteCaveman?: boolean
 }
+
+/**
+ * P15: preference keys of removed features (Spotify, Discord presence, remote control, gist
+ * sync, Flows, Todos, dictation, Ghostty renderer, GSD sync). Stripped on every load.
+ */
+export const REMOVED_PREFERENCE_KEYS = [
+  'spotifyClientId',
+  'spotifyClientSecret',
+  'discordRichPresenceEnabled',
+  'topbarShowSync',
+  'remoteEnabled',
+  'remoteMaxDevices',
+  'remoteSessionExpirySecs',
+  'remoteReadOnly',
+  'remoteAllowShellInput',
+  'flowsAllowLoopback',
+  'todoStoragePath',
+  'dictationEnabled',
+  'nativeTerminalMacos',
+  'gsdSyncModelChain',
+] as const
+
+/** P15: per-pane fields of removed features (browser pane, GSD sync viewer, remote control). */
+const REMOVED_TERMINAL_FIELDS = ['url', 'browserConfig', 'gsdSyncViewer', 'remoteExcluded'] as const
 
 function normalizeStoredAccent(value: unknown, fallback?: string): string | undefined {
   if (typeof value !== 'string') return fallback
@@ -90,6 +117,8 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
   delete preferences.omniRouteEnabled
   delete preferences.omniRouteBaseUrl
   delete preferences.omniRouteCaveman
+  const record = preferences as unknown as Record<string, unknown>
+  for (const key of REMOVED_PREFERENCE_KEYS) delete record[key]
   const rawResourcePolicy = raw?.resourcePolicy
   const resourcePolicy = {
     ...DEFAULT_PREFERENCES.resourcePolicy,
@@ -118,7 +147,6 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     enabledAgents: { ...DEFAULT_PREFERENCES.enabledAgents, ...preferences.enabledAgents },
                                                                                  
     enabledFeatures: normalizeEnabledFeatures(raw),
-    flowsAllowLoopback: Boolean(raw?.flowsAllowLoopback),
     leftSidebarVisible: raw?.leftSidebarVisible ?? true,
     rightSidebarVisible: raw?.rightSidebarVisible ?? true,
     leftSidebarWidth: Math.min(380, Math.max(220, Math.round(raw?.leftSidebarWidth ?? 286))),
@@ -134,9 +162,6 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     appliedVsxTheme: normalizeAppliedVsxTheme(raw?.appliedVsxTheme),
     displayName: preferences.displayName.trim(),
     profileImageUrl: preferences.profileImageUrl.trim(),
-    todoStoragePath: preferences.todoStoragePath.trim(),
-    spotifyClientId: preferences.spotifyClientId.trim(),
-    spotifyClientSecret: preferences.spotifyClientSecret.trim(),
     uiZoom: clampUiZoom(preferences.uiZoom),
     spawnConcurrency: clampSpawnConcurrency(preferences.spawnConcurrency),
     resourcePolicy: {
@@ -158,28 +183,6 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
       spawnGraceSeconds: Math.min(900, Math.max(30, Math.round(resourcePolicy.spawnGraceSeconds))),
     },
   }
-}
-
-export function normalizeTodos(raw: unknown): TodoItem[] {
-  if (!Array.isArray(raw)) return []
-  const seen = new Set<string>()
-  const result: TodoItem[] = []
-  for (const item of raw) {
-    const id = typeof item?.id === 'string' ? item.id : ''
-    const title = normalizeTodoTitle(item?.title)
-    if (!id || !title || seen.has(id)) continue
-    seen.add(id)
-    result.push({
-      id,
-      title,
-      completed: Boolean(item?.completed),
-      tags: normalizeTodoTags(item?.tags),
-      ...(typeof item?.projectId === 'string' && item.projectId
-        ? { projectId: item.projectId }
-        : {}),
-    })
-  }
-  return [...result.filter((item) => !item.completed), ...result.filter((item) => item.completed)]
 }
 
 export function migrateWorkspaceNavigation(base: {
@@ -316,10 +319,15 @@ function migrateToV7(parsed: any): ProjectsFile {
   return normalizeStoredAccents({
     ...parsed,
     version: 7,
-    projects: (parsed.projects ?? []).map((project: any) => ({
-      ...project,
-      gridLayoutHistory: project.gridLayoutHistory ?? [],
-    })),
+    projects: (parsed.projects ?? []).map((project: any) => {
+      // Backfill: a project stored under a WSL UNC path belongs to that distro.
+      const wslDistro = project.wslDistro ?? wslDistroFromPath(project.defaultCwd)
+      return {
+        ...project,
+        gridLayoutHistory: project.gridLayoutHistory ?? [],
+        ...(wslDistro ? { wslDistro } : {}),
+      }
+    }),
     groups: (parsed.groups ?? []).map((group: any) => ({
       ...group,
       gridLayoutHistory: group.gridLayoutHistory ?? [],
@@ -331,11 +339,11 @@ function migrateToV7(parsed: any): ProjectsFile {
   })
 }
 
-function dropEditorIdsFromLayout(layout: Project['gridLayout'], editorIds: Set<string>) {
-  if (!layout?.cells) return layout
+function dropPaneIdsFromLayout<T extends GridLayout | undefined>(layout: T, paneIds: Set<string>): T {
+  if (!layout?.cells || paneIds.size === 0) return layout
   const cells = { ...layout.cells }
   let changed = false
-  for (const id of editorIds) {
+  for (const id of paneIds) {
     if (id in cells) {
       delete cells[id]
       changed = true
@@ -344,44 +352,102 @@ function dropEditorIdsFromLayout(layout: Project['gridLayout'], editorIds: Set<s
   return changed ? { ...layout, cells } : layout
 }
 
-/** P13: persisted Monaco panes and VSX theme do not load. */
-export function dropEditorWorkbench(file: ProjectsFile): ProjectsFile {
-  const editorIds = new Set<string>()
+/** True for panes whose feature no longer exists (P13 editor, P15 browser/video/GSD sync). */
+function isRemovedPane(term: Terminal): boolean {
+  const legacy = term as Terminal & { gsdSyncViewer?: unknown }
+  return (term.kind != null && REMOVED_PANE_KINDS.includes(term.kind)) || Boolean(legacy.gsdSyncViewer)
+}
+
+function stripRemovedTerminalFields(term: Terminal): Terminal {
+  if (!REMOVED_TERMINAL_FIELDS.some((field) => field in term)) return term
+  const next = { ...term } as Record<string, unknown>
+  for (const field of REMOVED_TERMINAL_FIELDS) delete next[field]
+  return next as Terminal
+}
+
+/**
+ * Drops persisted state of removed features: panes of removed kinds (P13 Monaco editor,
+ * P15 web/browser, video, GSD sync viewer) with every layout reference to them, the Open VSX
+ * theme, the Agent Sandbox project mode, the per-project Graphify switch (always on now),
+ * removed per-pane fields and the global Todos list.
+ */
+export function dropRemovedFeatures(file: ProjectsFile): ProjectsFile {
+  const removedIds = new Set<string>()
   for (const project of file.projects) {
     for (const term of project.terminals ?? []) {
-      if (term.kind === 'editor') editorIds.add(term.id)
+      if (isRemovedPane(term)) removedIds.add(term.id)
     }
   }
-  if (editorIds.size === 0 && file.preferences.appliedVsxTheme == null) return file
 
-  const stripPaneIds = (ids: string[]) => ids.filter((id) => !editorIds.has(id))
+  const stripPaneIds = (ids: string[]) => ids.filter((id) => !removedIds.has(id))
   const stripContainers = (containers: WorkspaceContainer[]) =>
     containers.map((container) => ({
       ...container,
       paneIds: stripPaneIds(container.paneIds),
     }))
+  const stripSnapshot = (snapshot: WorkspaceViewSnapshot): WorkspaceViewSnapshot => ({
+    ...snapshot,
+    containers: stripContainers(snapshot.containers ?? []),
+    focusedTerminalId:
+      snapshot.focusedTerminalId && removedIds.has(snapshot.focusedTerminalId)
+        ? null
+        : snapshot.focusedTerminalId,
+    workspaceGridLayout: dropPaneIdsFromLayout(snapshot.workspaceGridLayout, removedIds),
+  })
+  const stripTabs = (tabs: WorkspaceTab[] | undefined) =>
+    tabs?.map((tab) => (tab.snapshot ? { ...tab, snapshot: stripSnapshot(tab.snapshot) } : tab))
 
+  const { todos: _legacyTodos, ...rest } = file as ProjectsFile & { todos?: unknown }
+  const preferences = file.preferences
   return {
-    ...file,
-    preferences: { ...file.preferences, appliedVsxTheme: null },
-    projects: file.projects.map((project) => ({
-      ...project,
-      terminals: (project.terminals ?? []).filter((term) => term.kind !== 'editor'),
-      gridLayout: dropEditorIdsFromLayout(project.gridLayout, editorIds),
-    })),
+    ...rest,
+    preferences: {
+      ...preferences,
+      appliedVsxTheme: null,
+      workspaceGridLayout: dropPaneIdsFromLayout(preferences.workspaceGridLayout, removedIds),
+      isolatedPaneId:
+        preferences.isolatedPaneId && removedIds.has(preferences.isolatedPaneId)
+          ? null
+          : preferences.isolatedPaneId,
+    },
+    groups: file.groups.map((group) =>
+      group.gridLayout
+        ? { ...group, gridLayout: dropPaneIdsFromLayout(group.gridLayout, removedIds) }
+        : group,
+    ),
+    projects: file.projects.map((project) => {
+      // `graphifyEnabled`: Graphify is always on for every project folder now.
+      const {
+        mode: _legacyMode,
+        graphifyEnabled: _legacyGraphifyEnabled,
+        ...kept
+      } = project as Project & { mode?: unknown; graphifyEnabled?: unknown }
+      return {
+        ...kept,
+        terminals: (project.terminals ?? [])
+          .filter((term) => !removedIds.has(term.id))
+          .map(stripRemovedTerminalFields),
+        gridLayout: dropPaneIdsFromLayout(project.gridLayout, removedIds),
+        ...(project.paneGroups
+          ? {
+              paneGroups: project.paneGroups
+                .map((group) => ({ ...group, paneIds: stripPaneIds(group.paneIds) }))
+                .filter((group) => group.paneIds.length > 0),
+            }
+          : {}),
+      }
+    }),
     workspace: {
       ...file.workspace,
       containers: stripContainers(file.workspace.containers),
-      tabs: (file.workspace.tabs ?? []).map((tab) =>
-        tab.snapshot
-          ? {
-              ...tab,
-              snapshot: {
-                ...tab.snapshot,
-                containers: stripContainers(tab.snapshot.containers),
-              },
-            }
-          : tab,
+      focusedTerminalId:
+        file.workspace.focusedTerminalId && removedIds.has(file.workspace.focusedTerminalId)
+          ? null
+          : file.workspace.focusedTerminalId,
+      tabs: stripTabs(file.workspace.tabs) ?? [],
+      closedTabs: stripTabs(file.workspace.closedTabs),
+      history: (file.workspace.history ?? []).map((entry) =>
+        entry.snapshot ? { ...entry, snapshot: stripSnapshot(entry.snapshot) } : entry,
       ),
     },
   }
@@ -389,8 +455,8 @@ export function dropEditorWorkbench(file: ProjectsFile): ProjectsFile {
 
 /** Migrates older files and normalizes restorable snapshots. */
 export function migrate(parsed: any): ProjectsFile {
-  if (parsed.version === 7) return dropEditorWorkbench(migrateToV7(parsed))
-  if (parsed.version === 6) return dropEditorWorkbench(migrateToV7(parsed))
+  if (parsed.version === 7) return dropRemovedFeatures(migrateToV7(parsed))
+  if (parsed.version === 6) return dropRemovedFeatures(migrateToV7(parsed))
 
   const v5Result = parsed.version === 5 ? parsed : migrateToV5(parsed)
 
@@ -400,7 +466,7 @@ export function migrate(parsed: any): ProjectsFile {
     orphanWorktrees: p.orphanWorktrees ?? [],
   }))
 
-  return dropEditorWorkbench(
+  return dropRemovedFeatures(
     migrateToV7({
       ...v5Result,
       version: 6,
@@ -426,7 +492,6 @@ function migrateToV5(parsed: any): any {
       preferences,
       groups,
       ungroupedOrder: parsed.ungroupedOrder ?? [],
-      todos: normalizeTodos(parsed.todos),
     }
     v4Result = {
       ...base,
@@ -467,7 +532,6 @@ function migrateToV5(parsed: any): any {
       groups: [],
       ungroupedOrder: projects.map((p) => p.id),
       projects,
-      todos: [],
       activeProjectId: parsed.activeProjectId ?? projects[0]?.id ?? null,
       workspace: migrateWorkspaceNavigation({
         workspace: {

@@ -302,35 +302,6 @@
   border-left: 1px solid var(--border);
 }
 
-.remoteDevicePill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 22px;
-  padding: 2px 8px;
-  border: 1px solid var(--status-working);
-  border-radius: 8px;
-  color: var(--status-working);
-  background: var(--status-working-soft);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    color 140ms ease;
-}
-
-.remoteDevicePill:hover {
-  color: var(--fg);
-  background: var(--panel-hover);
-}
-
-.remoteDevicePill svg {
-  flex-shrink: 0;
-}
-
 .rightSidebarBtn {
   width: 28px;
   height: 28px;
@@ -568,24 +539,6 @@
   }
 }
 
-.syncPill {
-  display: inline-grid;
-  place-items: center;
-  width: 26px;
-  height: 22px;
-  color: var(--fg-muted);
-  background: var(--bg-sunken);
-  border-radius: 8px;
-  margin-right: 0;
-  cursor: pointer;
-  border: 1px solid transparent;
-  flex-shrink: 0;
-}
-.syncPill:hover {
-  color: var(--fg);
-  border-color: var(--border-strong);
-}
-
 .windowBtn {
   width: 36px;
   height: 32px;
@@ -661,7 +614,6 @@
 .bar[data-style='three-areas'] .usageWidget,
 .bar[data-style='three-areas'] .usagePill,
 .bar[data-style='three-areas'] .profilePill,
-.bar[data-style='three-areas'] .syncPill,
 .bar[data-style='three-areas'] .ramPill {
   margin-right: 0;
 }
@@ -753,9 +705,7 @@
 
 :global([data-visual-style='clean']) .usagePill,
 :global([data-visual-style='clean']) .profilePill,
-:global([data-visual-style='clean']) .syncPill,
-:global([data-visual-style='clean']) .ramPill,
-:global([data-visual-style='clean']) .remoteDevicePill {
+:global([data-visual-style='clean']) .ramPill {
   border-radius: 4px;
   border-color: transparent;
   background: transparent;
@@ -765,9 +715,7 @@
 
 :global([data-visual-style='clean']) .usagePill:hover,
 :global([data-visual-style='clean']) .profilePill:hover,
-:global([data-visual-style='clean']) .syncPill:hover,
-:global([data-visual-style='clean']) .ramPill:hover,
-:global([data-visual-style='clean']) .remoteDevicePill:hover {
+:global([data-visual-style='clean']) .ramPill:hover {
   color: var(--fg);
   background: var(--panel-hover);
   border-color: transparent;

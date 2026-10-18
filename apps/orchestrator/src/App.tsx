@@ -5,14 +5,11 @@ import { type CSSProperties, lazy, Suspense, useEffect, useRef } from 'react'
 import { Group as PanelGroup, Panel, Separator, usePanelRef } from 'react-resizable-panels'
 
 import styles from './App.module.css'
-import { AgentSandbox } from './components/AgentSandbox'
-import { DictationButton } from './components/DictationButton'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { FocusOverlay } from './components/FocusOverlay'
 import { AgentIcon } from './components/icons/AgentIcons'
 import { LinkViewerOverlay } from './components/LinkViewerOverlay'
 import { MainMenu } from './components/MainMenu'
-import { AddBrowserModal } from './components/modals/AddBrowserModal'
 import { AddContentModal } from './components/modals/AddContentModal'
 import { AiUsageModal } from './components/modals/AiUsageModal'
 import { EditGroupModal } from './components/modals/EditGroupModal'
@@ -20,6 +17,7 @@ import { EditProjectModal } from './components/modals/EditProjectModal'
 import { FindJumpModal } from './components/modals/FindJumpModal'
 import { HandoffModal } from './components/modals/HandoffModal'
 import { InterruptedResumeModal } from './components/modals/InterruptedResumeModal'
+import { RunSpecModal } from './components/modals/RunSpecModal'
 import { McpIntroModal } from './components/modals/McpIntroModal'
 import { McpManagerModal } from './components/modals/McpManagerModal'
 import { NewGroupModal } from './components/modals/NewGroupModal'
@@ -30,12 +28,9 @@ import { OnboardingModal } from './components/modals/OnboardingModal'
 import { PreferencesModal } from './components/modals/PreferencesModal'
 import { ProfilesModal } from './components/modals/ProfilesModal'
 import { RecentChatsModal } from './components/modals/RecentChatsModal'
-import { RemoteControlModal } from './components/modals/RemoteControlModal'
 import { SuspendGroupModal } from './components/modals/SuspendGroupModal'
 import { GitHubLoginModal } from './components/modals/GitHubLoginModal'
-import { SyncModal } from './components/modals/SyncModal'
 import { ThemePickerModal } from './components/modals/ThemePickerModal'
-import { TodoSettingsModal } from './components/modals/TodoSettingsModal'
 import { TopbarSettingsModal } from './components/modals/TopbarSettingsModal'
 import { UpdateModal } from './components/modals/UpdateModal'
 import { WelcomeModal } from './components/modals/WelcomeModal'
@@ -47,36 +42,25 @@ import { TokenHud } from './components/TokenHud'
 import { WorkspaceView } from './components/WorkspaceView'
 import { useCliOpenRequests } from './hooks/useCliOpenRequests'
 import { useCloseConfirmation } from './hooks/useCloseConfirmation'
-import { useDiscordPresence } from './hooks/useDiscordPresence'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
 import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
-import { useRemoteControlService } from './hooks/useRemoteControlService'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
-import { useTaskBoardScheduler } from './hooks/useTaskBoardScheduler'
 import { startActivityTracker } from './lib/activityTracker'
 import { APP_SHELL_ID } from './lib/appShell'
-import { AGENT_SANDBOX_ENABLED } from './lib/featureFlags'
 import { intlLocale, translate, useT } from './lib/i18n'
 import { visibilityFromPanelResize, widthFromPanelResize } from './lib/sidebarPanelState'
 import { setMaxConcurrentSpawns } from './lib/spawnQueue'
-import { ghosttyKillAll, setWindowOpacity } from './lib/tauri'
+import { setWindowOpacity } from './lib/tauri'
 import { getLastCrashReport } from './lib/tauri'
 import { loadThemeIconBytes } from './lib/themeIcons'
 import { checkForUpdate } from './lib/updater'
 import { useProjectsStore } from './stores/projectsStore'
 import { listOfferableInterruptedRuns, usePromptRunStore } from './stores/promptRunStore'
-import { useTaskBoardStore } from './stores/taskBoardStore'
 import { type InAppToast, useUiStore } from './stores/uiStore'
 
 const HomeView = lazy(() =>
   import('./components/HomeView').then((module) => ({ default: module.HomeView })),
-)
-const TaskBoardView = lazy(() =>
-  import('./components/TaskBoardView').then((module) => ({ default: module.TaskBoardView })),
-)
-const FlowsView = lazy(() =>
-  import('./components/FlowsView').then((module) => ({ default: module.FlowsView })),
 )
 const LayoutDesignerModal = lazy(() =>
   import('./components/modals/LayoutDesignerModal').then((module) => ({
@@ -182,12 +166,10 @@ export default function App() {
   const rightSidebarVisible = useProjectsStore((s) => s.preferences.rightSidebarVisible)
   const leftSidebarWidth = useProjectsStore((s) => s.preferences.leftSidebarWidth)
   const rightSidebarWidth = useProjectsStore((s) => s.preferences.rightSidebarWidth)
-  const todosEnabled = useProjectsStore((s) => s.preferences.enabledFeatures.todos)
   const gitEnabled = useProjectsStore((s) => s.preferences.enabledFeatures.git)
   const mcpEnabled = useProjectsStore((s) => s.preferences.enabledFeatures.mcp)
   const gitControlPlacement = useProjectsStore((s) => s.preferences.gitControlPlacement)
-  const rightPanelEnabled =
-    todosEnabled || mcpEnabled || (gitEnabled && gitControlPlacement === 'right')
+  const rightPanelEnabled = mcpEnabled || (gitEnabled && gitControlPlacement === 'right')
   const setPreferences = useProjectsStore((s) => s.setPreferences)
   // Keep panel defaults stable while dragging. Updating defaultSize on every
   // resize event can make react-resizable-panels rebuild the layout mid-drag.
@@ -214,14 +196,11 @@ export default function App() {
   }
 
   useKeybindings()
-  useDiscordPresence()
   useMcpIntroPrompt()
-  useRemoteControlService()
   useCloseConfirmation()
   useResourceSupervisor(hydrated)
   useCliOpenRequests(hydrated)
   usePromptRunWatcher()
-  useTaskBoardScheduler()
 
   useEffect(() => {
     void hydrate()
@@ -230,12 +209,6 @@ export default function App() {
   useEffect(() => {
     if (hydrated) restoreMarkdownSidebarHistory()
   }, [activeProfileId, hydrated, restoreMarkdownSidebarHistory])
-
-  useEffect(() => {
-    void ghosttyKillAll().catch(() => {
-      /* No-op on unsupported platforms. */
-    })
-  }, [])
 
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -394,8 +367,6 @@ export default function App() {
     if (!hydrated) return
     let cancelled = false
     void (async () => {
-      await useTaskBoardStore.getState().hydrate()
-      if (cancelled) return
       const projectIds = useProjectsStore.getState().projects.map((project) => project.id)
       await Promise.all(
         projectIds.map((projectId) => usePromptRunStore.getState().hydrate(projectId)),
@@ -499,12 +470,6 @@ export default function App() {
                 <Suspense fallback={<LoadingScreen />}>
                   {activeView === 'home' ? (
                     <HomeView />
-                  ) : activeView === 'tasks' ? (
-                    <TaskBoardView />
-                  ) : activeView === 'flows' ? (
-                    <FlowsView />
-                  ) : activeView === 'agentSandbox' && AGENT_SANDBOX_ENABLED ? (
-                    <AgentSandbox />
                   ) : (
                     <WorkspaceView />
                   )}
@@ -589,7 +554,6 @@ export default function App() {
       </div>
       <FocusOverlay />
       <LinkViewerOverlay />
-      <DictationButton />
       <MainMenu />
       <ErrorBoundary label="modals">
         <NewProjectModal />
@@ -598,11 +562,9 @@ export default function App() {
         <EditProjectModal />
         <NewTerminalModal />
         <AddContentModal />
-        <AddBrowserModal />
         <NewSubTabModal />
         <PreferencesModal />
         <ProfilesModal />
-        <SyncModal />
         <GitHubLoginModal />
         <FindJumpModal />
         <OnboardingModal />
@@ -619,7 +581,6 @@ export default function App() {
           </Suspense>
         ) : null}
         <ThemePickerModal />
-        <TodoSettingsModal />
         <TopbarSettingsModal />
         <AiUsageModal />
         <UpdateModal />
@@ -627,9 +588,9 @@ export default function App() {
         <RecentChatsModal />
         <HandoffModal />
         <InterruptedResumeModal />
+        <RunSpecModal />
         <McpManagerModal />
         <McpIntroModal />
-        <RemoteControlModal />
       </ErrorBoundary>
       <InAppNotifications />
       {activeView === 'workspace' ? <TokenHud /> : null}

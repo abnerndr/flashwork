@@ -1,6 +1,6 @@
 # Flashwork IDE program — execution progress
 
-Last updated: 2026-09-23
+Last updated: 2026-10-17
 
 Resume here if the session context runs out. Implement **one numbered plan at a time**. Default order: **P09 → P10 → P12 → P11 → P01 → P02 → P04 → P07 → P03 → P05 → P06 → P08**.
 
@@ -24,6 +24,7 @@ Owner (2026-09-17): after each numbered plan, **commit and merge locally to `mas
 | P08 Canvas beta | `1cda5d6` | done |
 | P13 Withdraw in-app IDE | (local) | done |
 | P14 Interrupted Auto resume | (local) | done |
+| P15 SPEC orchestrator (simplify) | (working tree) | done, uncommitted |
 
 ## Current slice
 

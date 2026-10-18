@@ -7,7 +7,7 @@ import {
   FolderOpen,
   FolderPlus,
   Layers,
-  Route,
+  ListChecks,
   Send,
   TerminalSquare,
 } from 'lucide-react'
@@ -17,37 +17,23 @@ import { useShallow } from 'zustand/react/shallow'
 import { getCachedActivity } from '../../lib/activityCache'
 import { pickDirectory } from '../../lib/dialog'
 import { formatHomeDate, formatRelativeTimestamp, getGreeting } from '../../lib/greeting'
-import { useT, type MessageKey, type TFunction } from '../../lib/i18n'
+import { useT, type TFunction } from '../../lib/i18n'
 import { formatShortcut } from '../../lib/platform'
 import { getFirstName, getProfileImageUrl, getProfileInitial } from '../../lib/profile'
 import { resolveHomeQuickPrompt } from '../../lib/homeQuickPrompt'
 import { handleUncontrolledPaste } from '../../lib/clipboardPaste'
 import { resolveCliSessionSnapshot } from '../../lib/cliSessionLimit'
-import { AUTO_LAUNCH_VALUE, HOME_DEFAULT_QUICK_PICK } from '../../lib/promptRun/constants'
-import { promptRunOutcomeToast } from '../../lib/promptRun/promptRunToast'
-import { submitAutoPromptRun, toAutoPromptRunProject } from '../../lib/promptRun/submitAutoPromptRun'
-import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../../lib/promptRun/routedAgent'
-import {
-  AGENT_TYPE_LABELS,
-  ALL_AGENT_TYPES,
-  UNRESTRICTED_FLAG,
-  type AgentType,
-  type Project,
-  type PromptRunStepReason,
-} from '../../lib/types'
+import { UNRESTRICTED_FLAG, type AgentType, type Project } from '../../lib/types'
 import { getProjectDefaultCwd, useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import { useUiStore } from '../../stores/uiStore'
-import { AgentInstallModal } from '../AgentInstall/AgentInstallModal'
 import { AgentIcon } from '../icons/AgentIcons'
 import { Avatar } from '../ui/Avatar'
 import { EmptyState } from '../EmptyState'
 import { computeStreak } from './ActivityGraph'
-import { NowPlayingWidget } from './NowPlayingWidget'
 import { UsageStrip } from './UsageStrip'
 import { ActivityGraph } from './ActivityGraph'
 import { TimeAnalytics } from './TimeAnalytics'
-import { FlashworkFloors } from '../FlashworkFloors'
 import styles from './HomeView.module.css'
 
 const RECENT_PROJECTS_LIMIT = 6
@@ -60,20 +46,6 @@ const QUICK_AGENTS: Array<{ type: AgentType; label: string }> = [
   { type: 'gemini', label: 'Gemini' },
   { type: 'opencode', label: 'OpenCode' },
 ]
-
-type QuickPick = AgentType | typeof AUTO_LAUNCH_VALUE
-
-const PROMPT_RUN_REASON_KEYS: Record<PromptRunStepReason, MessageKey> = {
-  heuristic: 'promptRun.reason.heuristic',
-  quota: 'promptRun.reason.quota',
-  error: 'promptRun.reason.error',
-  user: 'promptRun.reason.user',
-  'only-installed': 'promptRun.reason.only-installed',
-  'project-preference': 'promptRun.reason.project-preference',
-  'last-used': 'promptRun.reason.last-used',
-  skill: 'promptRun.reason.skill',
-  orchestrator: 'promptRun.reason.orchestrator',
-}
 
 function compactWorkspacePath(path: string): string {
   const homeCollapsed = path.replace(/^[A-Za-z]:[\\/]Users[\\/][^\\/]+/i, '~')
@@ -126,7 +98,6 @@ export function HomeView() {
     requestPaneFocus,
     notifications,
     clearNotifications,
-    pushToast,
     setHomeQuickPromptDraft,
     claudeUsage,
     codexUsage,
@@ -141,7 +112,6 @@ export function HomeView() {
       requestPaneFocus: s.requestPaneFocus,
       notifications: s.notifications,
       clearNotifications: s.clearNotifications,
-      pushToast: s.pushToast,
       setHomeQuickPromptDraft: s.setHomeQuickPromptDraft,
       claudeUsage: s.claudeUsage,
       codexUsage: s.codexUsage,
@@ -231,24 +201,19 @@ export function HomeView() {
   const [quickProjectId, setQuickProjectId] = useState(() => fallbackQuickTarget?.id ?? '')
   const quickTarget =
     projects.find((project) => project.id === quickProjectId) ?? fallbackQuickTarget
-  const [quickPick, setQuickPick] = useState<QuickPick>(HOME_DEFAULT_QUICK_PICK)
+  const [quickPick, setQuickPick] = useState<AgentType | null>(null)
   const quickAgentMenuRef = useRef<HTMLDetailsElement>(null)
   const quickModeMenuRef = useRef<HTMLDetailsElement>(null)
   const [quickUnrestricted, setQuickUnrestricted] = useState(false)
   const quickPromptRef = useRef<HTMLInputElement>(null)
   const [quickCwd, setQuickCwd] = useState('')
-  const [installAgent, setInstallAgent] = useState<AgentType | null>(null)
-  const autoSubmittingRef = useRef(false)
-  const [autoSubmitting, setAutoSubmitting] = useState(false)
 
-  const isAutoPick = quickPick === AUTO_LAUNCH_VALUE
   const quickAgent: AgentType =
-    !isAutoPick && quickAgents.some((agent) => agent.type === quickPick)
+    quickPick && quickAgents.some((agent) => agent.type === quickPick)
       ? quickPick
       : (quickAgents[0]?.type ?? 'claude')
-  const quickAgentLabel = isAutoPick
-    ? t('home.quickAgentAuto')
-    : (QUICK_AGENTS.find((agent) => agent.type === quickAgent)?.label ?? quickAgent)
+  const quickAgentLabel =
+    QUICK_AGENTS.find((agent) => agent.type === quickAgent)?.label ?? quickAgent
 
   useEffect(() => {
     if (quickTarget && quickTarget.id !== quickProjectId) setQuickProjectId(quickTarget.id)
@@ -278,89 +243,6 @@ export function HomeView() {
     event.preventDefault()
     const prompt = quickPromptRef.current?.value.trim() ?? ''
     if (prompt) setHomeQuickPromptDraft(prompt)
-    if (quickPick === AUTO_LAUNCH_VALUE) {
-      if (!prompt) return
-      if (autoSubmittingRef.current) return
-      autoSubmittingRef.current = true
-      setAutoSubmitting(true)
-      try {
-        const cwd =
-          quickCwd.trim() || (quickTarget ? getProjectDefaultCwd(quickTarget, projects) : '')
-        const result = await submitAutoPromptRun({
-          project: toAutoPromptRunProject(quickTarget),
-          cwd,
-          prompt,
-        })
-        if (!result.ok) {
-          if (result.code === 'no-project') {
-            openModal('newProject')
-            pushToast({ title: t('promptRun.noProjectTitle'), body: t('promptRun.noProjectBody') })
-            return
-          }
-          if (result.code === 'no-cwd') {
-            pushToast({ title: t('promptRun.noCwdTitle'), body: t('promptRun.noCwdBody') })
-            return
-          }
-          if (result.code === 'run-active') {
-            if (quickTarget) {
-              setActiveProjectOnly(quickTarget.id)
-              openContainerWithAllPanes(quickTarget.id)
-              setActiveView('workspace')
-            }
-            pushToast({
-              title: t('promptRun.runActiveTitle'),
-              body: t('promptRun.runActiveBody'),
-            })
-            return
-          }
-          if (result.code === 'needs-setup-api') {
-            openModal('preferences', { category: 'providers' })
-            pushToast({
-              title: t('promptRun.needsSetupApiTitle'),
-              body: t('promptRun.needsSetupApiBody'),
-            })
-            return
-          }
-          const candidate = preferences.enabledAgents.claude
-            ? 'claude'
-            : (ALL_AGENT_TYPES.find(
-                (agent) => agent !== 'shell' && preferences.enabledAgents[agent],
-              ) ?? 'claude')
-          setInstallAgent(candidate)
-          pushToast({
-            title: t('promptRun.needsInstallTitle'),
-            body: t('promptRun.needsInstallBody'),
-          })
-          return
-        }
-        setActiveProjectOnly(result.run.projectId)
-        const skipFocus =
-          isApiAgentId(result.run.activeAgent) || isApiTerminalId(result.run.activeTerminalId)
-        if (!skipFocus) {
-          useProjectsStore
-            .getState()
-            .focusWorkspaceTerminal(result.run.projectId, result.run.activeTerminalId)
-          setActiveTerminal(result.run.projectId, result.run.activeTerminalId)
-          requestPaneFocus(result.run.activeTerminalId)
-        }
-        setHomeQuickPromptDraft('')
-        if (quickPromptRef.current) quickPromptRef.current.value = ''
-        if (!skipFocus) setActiveView('workspace')
-        const reason = result.run.steps[0]?.reason ?? 'heuristic'
-        const outcome = promptRunOutcomeToast(result.run.status)
-        pushToast({
-          title: t(outcome.titleKey),
-          body: t(outcome.bodyKey, {
-            agent: routedAgentLabel(result.run.activeAgent),
-            reason: t(PROMPT_RUN_REASON_KEYS[reason]),
-          }),
-        })
-      } finally {
-        autoSubmittingRef.current = false
-        setAutoSubmitting(false)
-      }
-      return
-    }
     if (!quickTarget || !prompt) return
     const cwd = quickCwd.trim() || getProjectDefaultCwd(quickTarget, projects)
     const flag = quickUnrestricted ? UNRESTRICTED_FLAG[quickAgent] : null
@@ -417,9 +299,6 @@ export function HomeView() {
               <strong>{activityStreak ?? '–'}</strong>
             </div>
             <Avatar key={avatarUrl} src={avatarUrl} initial={initial} className={styles.avatar} />
-            <div className={styles.homePlayerDock}>
-              <NowPlayingWidget enabled />
-            </div>
           </div>
           <div className={styles.heroCopy}>
             <h1 className={styles.greeting}>
@@ -458,35 +337,13 @@ export function HomeView() {
                   event.currentTarget.open = false
               }}
             >
-              <summary
-                title={isAutoPick ? t('home.quickAgentAutoHint') : t('home.quickAgent')}
-                aria-label={isAutoPick ? t('home.quickAgentAuto') : t('home.quickAgent')}
-              >
-                {isAutoPick ? (
-                  <Route size={15} />
-                ) : (
-                  <AgentIcon type={quickAgent} size={15} theme={preferences.uiTheme} />
-                )}
+              <summary title={t('home.quickAgent')} aria-label={t('home.quickAgent')}>
+                <AgentIcon type={quickAgent} size={15} theme={preferences.uiTheme} />
                 <span className={styles.quickControlLabel}>{t('home.quickAgentChoose')}:</span>
                 <span>{quickAgentLabel}</span>
                 <ChevronDown size={16} />
               </summary>
               <div className={styles.quickAgentOptions}>
-                <button
-                  type="button"
-                  className={`${styles.quickAgentAuto}${isAutoPick ? ` ${styles.quickAgentActive}` : ''}`}
-                  title={t('home.quickAgentAutoHint')}
-                  aria-label={t('home.quickAgentAuto')}
-                  aria-pressed={isAutoPick}
-                  onClick={() => {
-                    setQuickPick(AUTO_LAUNCH_VALUE)
-                    quickAgentMenuRef.current?.removeAttribute('open')
-                  }}
-                >
-                  <Route size={19} />
-                  <span>{t('home.quickAgentAuto')}</span>
-                  {isAutoPick ? <CheckCircle2 size={16} /> : null}
-                </button>
                 {quickAgents.map((agent) => {
                   const session = resolveCliSessionSnapshot(agent.type, cliUsage)
                   return (
@@ -494,7 +351,7 @@ export function HomeView() {
                       key={agent.type}
                       type="button"
                       className={
-                        !isAutoPick && quickAgent === agent.type ? styles.quickAgentActive : ''
+                        quickAgent === agent.type ? styles.quickAgentActive : ''
                       }
                       title={
                         session
@@ -526,7 +383,7 @@ export function HomeView() {
                           {session.badge}
                         </span>
                       ) : null}
-                      {!isAutoPick && quickAgent === agent.type ? <CheckCircle2 size={16} /> : null}
+                      {quickAgent === agent.type ? <CheckCircle2 size={16} /> : null}
                     </button>
                   )
                 })}
@@ -546,17 +403,6 @@ export function HomeView() {
               </span>
               <ChevronDown size={16} />
             </button>
-            {isAutoPick ? (
-              <div
-                className={`${styles.quickMode} ${styles.quickModeLocked}`}
-                title={t('home.quickUnrestrictedAutoHint')}
-                aria-label={t('home.quickUnrestrictedAutoHint')}
-              >
-                <span className={styles.quickModeDot} aria-hidden="true" />
-                <span className={styles.quickControlLabel}>{t('home.quickMode')}:</span>
-                <span>{t('home.quickUnrestricted')}</span>
-              </div>
-            ) : (
               <details
                 ref={quickModeMenuRef}
                 className={styles.quickMode}
@@ -598,13 +444,12 @@ export function HomeView() {
                   ))}
                 </div>
               </details>
-            )}
             <button
               type="submit"
               className={styles.quickSend}
-              disabled={!quickTarget || autoSubmitting || (!isAutoPick && quickAgents.length === 0)}
-              title={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
-              aria-label={isAutoPick ? t('home.quickSendAuto') : t('home.quickSend')}
+              disabled={!quickTarget || quickAgents.length === 0}
+              title={t('home.quickSend')}
+              aria-label={t('home.quickSend')}
             >
               <Send size={16} />
             </button>
@@ -613,6 +458,19 @@ export function HomeView() {
 
         <div className={styles.heroFooter}>
           <div className={styles.heroActions}>
+            <button
+              type="button"
+              className={styles.heroSecondaryAction}
+              onClick={() =>
+                quickTarget
+                  ? openModal('runSpec', { projectId: quickTarget.id })
+                  : openModal('newProject')
+              }
+              title={t('runSpec.openHint')}
+            >
+              <ListChecks size={16} />
+              {t('runSpec.open')}
+            </button>
             <button
               type="button"
               className={styles.heroSecondaryAction}
@@ -701,10 +559,6 @@ export function HomeView() {
         </section>
       </div>
 
-      <div className={styles.overviewGrid}>
-        <FlashworkFloors />
-      </div>
-
       <section className={styles.section}>
         <div className={styles.sectionHeader}>{t('home.usageActivity')}</div>
         <UsageStrip />
@@ -783,14 +637,6 @@ export function HomeView() {
           <FooterShortcut keys="?" label={t('home.helpShortcut')} />
         </div>
       </footer>
-      {installAgent ? (
-        <AgentInstallModal
-          agent={installAgent}
-          label={AGENT_TYPE_LABELS[installAgent]}
-          open
-          onClose={() => setInstallAgent(null)}
-        />
-      ) : null}
     </section>
   )
 }

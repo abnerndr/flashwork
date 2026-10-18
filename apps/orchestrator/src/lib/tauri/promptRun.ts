@@ -22,10 +22,6 @@ export function appendPromptRunJournal(
   return invoke('append_prompt_run_journal', { runId, heading, body })
 }
 
-export function writePromptRunBoard(runId: string, contents: string): Promise<string> {
-  return invoke('write_prompt_run_board', { runId, contents })
-}
-
 export function writePromptRunFile(
   runId: string,
   fileName: string,
@@ -38,10 +34,33 @@ export function readPromptRunFile(runId: string, fileName: string): Promise<stri
   return invoke('read_prompt_run_file', { runId, fileName })
 }
 
-export function appendPromptRunBoard(
+
+/** Reads a user-picked SPEC markdown file (`.md`/`.markdown`/`.mdx`, at most 1 MiB). */
+export function readSpecMarkdown(path: string): Promise<string> {
+  return invoke('read_spec_markdown', { path })
+}
+
+/** Writes `<cwd>/.flashwork/runs/<runId>/board.md`; resolves to the project-relative path. */
+export function writeProjectRunBoard(cwd: string, runId: string, contents: string): Promise<string> {
+  return invoke('write_project_run_board', { cwd, runId, contents })
+}
+
+export function appendProjectRunBoard(
+  cwd: string,
   runId: string,
   heading: string,
   body: string,
 ): Promise<string> {
-  return invoke('append_prompt_run_board', { runId, heading, body })
+  return invoke('append_project_run_board', { cwd, runId, heading, body })
+}
+
+/** Runs a planner CLI headless; `stdin` carries the long prompt. */
+export function runPlannerCli(
+  bin: string,
+  args: string[],
+  cwd: string,
+  timeoutMs: number,
+  stdin?: string,
+): Promise<string> {
+  return invoke('run_planner_cli', { bin, args, cwd, timeoutMs, stdin: stdin ?? null })
 }

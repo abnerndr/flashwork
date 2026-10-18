@@ -28,10 +28,6 @@ export async function deleteFilesystemEntry(path: string): Promise<void> {
   await invoke('delete_filesystem_entry', { path })
 }
 
-export async function ensureTodoTemplate(directory: string): Promise<string> {
-  return invoke<string>('ensure_todo_template', { directory })
-}
-
 export async function watchFile(path: string): Promise<void> {
   await invoke('watch_file', { path })
 }

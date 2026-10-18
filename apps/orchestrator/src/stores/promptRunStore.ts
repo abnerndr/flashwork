@@ -88,18 +88,6 @@ async function persistNow(run: PromptRun): Promise<void> {
   }
 }
 
-/** Move linked Task Board cards into blocked + needsResume for an interrupted run. */
-async function flagBoardNeedsResume(runId: string): Promise<void> {
-  const { useTaskBoardStore } = await import('./taskBoardStore')
-  const board = useTaskBoardStore.getState()
-  for (const card of board.cards) {
-    if (card.runId !== runId) continue
-    if (card.column === 'doing' || card.column === 'verify' || card.needsResume) {
-      board.patchCard(card.id, { needsResume: true, column: 'blocked' })
-    }
-  }
-}
-
 export const usePromptRunStore = create<PromptRunState>((set, get) => ({
   byProjectId: {},
   hydrate: async (projectId) => {
@@ -133,7 +121,6 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
         if (memory && memory.id !== offerable.id && memory.status === 'running') return state
         return { byProjectId: { ...state.byProjectId, [projectId]: offerable } }
       })
-      await flagBoardNeedsResume(offerable.id)
       return
     }
     const { useProjectsStore } = await import('./projectsStore')
@@ -157,7 +144,6 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
         return { byProjectId: { ...state.byProjectId, [projectId]: interrupted } }
       })
       await persistNow(interrupted)
-      await flagBoardNeedsResume(interrupted.id)
       return
     }
     let appliedId: string | undefined
@@ -216,9 +202,6 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
     if (toSave.length === 0) return
     set({ byProjectId: nextMap })
     await Promise.all(toSave.map((run) => persistNow(run)))
-    for (const run of toSave) {
-      await flagBoardNeedsResume(run.id)
-    }
   },
   discardInterrupted: async (projectId, runId) => {
     const current = get().byProjectId[projectId]
@@ -236,13 +219,6 @@ export const usePromptRunStore = create<PromptRunState>((set, get) => ({
       return { byProjectId }
     })
     await persistNow(cancelled)
-    const { useTaskBoardStore } = await import('./taskBoardStore')
-    const board = useTaskBoardStore.getState()
-    for (const card of board.cards) {
-      if (card.runId === runId) {
-        board.patchCard(card.id, { needsResume: false, error: undefined })
-      }
-    }
   },
 }))
 

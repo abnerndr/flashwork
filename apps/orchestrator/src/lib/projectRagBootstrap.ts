@@ -4,7 +4,6 @@ export type RagGraphifyStatus = 'exists' | 'unavailable'
 
 export type RagStatusJson = {
   graphify: RagGraphifyStatus
-  aiMemory: boolean
   updatedAt: string
 }
 
@@ -20,36 +19,25 @@ export function mapGraphifyBootstrapStatus(
 export async function bootstrapProjectRag(
   folder: string,
   dependencies: {
-    graphifyEnabled: boolean
-    aiMemoryEnabled: boolean
     graphifyEnsureGraph: (repo: string) => Promise<GraphifyEnsureStatus>
-    aiMemoryMcpConfigPath: (repo: string) => Promise<string>
+    /** Graphify is not installed for this folder (host or WSL distro): offer the install. */
+    onGraphifyUnavailable?: (folder: string) => void
     writeRagStatus: (folder: string, status: RagStatusJson) => Promise<unknown>
     now?: () => string
   },
 ): Promise<RagStatusJson> {
-  let graphify: RagGraphifyStatus = 'unavailable'
-  if (dependencies.graphifyEnabled) {
-    try {
-      graphify = mapGraphifyBootstrapStatus(await dependencies.graphifyEnsureGraph(folder))
-    } catch {
-      graphify = 'unavailable'
-    }
+  // Every project folder gets Graphify: a code-only build starts in the background.
+  let ensured: GraphifyEnsureStatus | undefined
+  try {
+    ensured = await dependencies.graphifyEnsureGraph(folder)
+  } catch {
+    ensured = undefined
   }
-
-  let aiMemory = false
-  if (dependencies.aiMemoryEnabled) {
-    try {
-      await dependencies.aiMemoryMcpConfigPath(folder)
-      aiMemory = true
-    } catch {
-      aiMemory = false
-    }
-  }
+  const graphify = mapGraphifyBootstrapStatus(ensured)
+  if (ensured === 'unavailable') dependencies.onGraphifyUnavailable?.(folder)
 
   const status: RagStatusJson = {
     graphify,
-    aiMemory,
     updatedAt: dependencies.now?.() ?? new Date().toISOString(),
   }
 

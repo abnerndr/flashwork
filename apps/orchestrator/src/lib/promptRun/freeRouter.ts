@@ -1,6 +1,6 @@
 import { pickEffectiveRouterModel } from '../providers/catalogOverlay'
 import type { ProviderId } from '../providers/modelCatalog'
-import { extractJsonObject } from '../taskBoard/planner'
+import { extractJsonObject } from './specPlan'
 import { providerChat, providerKeyStatus, ROUTER_TIMEOUT_MS } from '../tauri/providers'
 import type { AgentType } from '../types'
 import { firstSavedProvider } from './routedAgent'

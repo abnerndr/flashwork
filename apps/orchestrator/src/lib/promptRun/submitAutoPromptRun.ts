@@ -63,8 +63,6 @@ export async function submitAutoPromptRun(args: {
   project: AutoPromptRunProject | null
   cwd: string
   prompt: string
-  attachmentsDir?: string
-  toolsJsonPath?: string
 }): Promise<StartPromptRunResult> {
   const preferences = useProjectsStore.getState().preferences
   const existing = args.project
@@ -73,6 +71,7 @@ export async function submitAutoPromptRun(args: {
   const installed = excludeFailedAgents(
     await probeInstalledAgents(
       ALL_AGENT_TYPES.filter((agent) => preferences.enabledAgents[agent] && agent !== 'shell'),
+      args.cwd,
     ),
   )
   const [claudeUsage, codexUsage, skillSnapshots] = await Promise.all([
@@ -133,8 +132,6 @@ export async function submitAutoPromptRun(args: {
     skills,
     lanes: lanesFromRoutedChoice(routed, args.prompt),
     includeOrchestrator: false,
-    attachmentsDir: args.attachmentsDir,
-    toolsJsonPath: args.toolsJsonPath,
     ensureContextDir: ensurePromptRunContext,
     createAgentTerminal: (projectId, launch) =>
       useProjectsStore.getState().createAgentTerminal(projectId, launch),

@@ -12,17 +12,14 @@ import {
 } from '@dnd-kit/core'
 import {
   Folder,
-  FolderKanban,
   FolderPlus,
   GitBranch,
   Grid3x3,
   Home,
   MoreHorizontal,
   Plus,
-  RefreshCw,
   Search,
   Users,
-  Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -38,7 +35,6 @@ import { type Group, type Project } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { EmptyState } from '../EmptyState'
-import { SidebarNowPlaying } from '../SidebarNowPlaying'
 import { UserProfile } from '../UserProfile'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { FileExplorer } from './FileExplorer'
@@ -148,7 +144,6 @@ export function NormalProjectSidebar() {
       reorderGroups: s.reorderGroups,
       togglePane: s.togglePane,
       setLaneVisible: s.setLaneVisible,
-      setTerminalRemoteExcluded: s.setTerminalRemoteExcluded,
       setSubTabCompletionUnread: s.setSubTabCompletionUnread,
       createFilePane: s.createFilePane,
       createGraphifyPane: s.createGraphifyPane,
@@ -341,8 +336,6 @@ export function NormalProjectSidebar() {
 
   const { projectMenu, groupMenu, terminalMenu } = createSidebarMenus({
     t,
-    graphifyEnabled: preferences.enabledFeatures.graphify,
-    browserEnabled: preferences.enabledFeatures.browser,
     groups: groups.filter((group) => !group.archived),
     openPaneSets,
     actions: { ...actions, setPreferences },
@@ -357,7 +350,7 @@ export function NormalProjectSidebar() {
   const activateProject = (project: Project, mode: 'open' | 'focus' = 'focus') => {
     void mode
     actions.openProjectWorkspace(project.id)
-    setActiveView(project.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+    setActiveView('workspace')
   }
 
   const renderProject = (p: Project) => (
@@ -375,11 +368,6 @@ export function NormalProjectSidebar() {
                                                                            
                                                                            
                                                                
-        if (t.gsdSyncViewer) {
-          actions.setFullscreenPane(t.id)
-          setActiveView('workspace')
-          return
-        }
         actions.focusWorkspaceTerminal(p.id, t.id)
         setActiveTerminal(p.id, t.id)
         const activeTab = t.tabs.find((tab) => tab.id === t.activeTabId) ?? t.tabs[0]
@@ -387,18 +375,13 @@ export function NormalProjectSidebar() {
           actions.setSubTabCompletionUnread(p.id, t.id, activeTab.id, false)
         }
         requestPaneFocus(t.id)
-        setActiveView(p.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+        setActiveView('workspace')
       }}
       onTerminalDoubleClick={(t) => {
-        if (t.gsdSyncViewer) {
-          actions.setFullscreenPane(t.id)
-          setActiveView('workspace')
-          return
-        }
         actions.openTerminalWorkspace(p.id, t.id)
         setActiveTerminal(p.id, t.id)
         requestPaneFocus(t.id)
-        setActiveView(p.mode === 'agentSandbox' ? 'agentSandbox' : 'workspace')
+        setActiveView('workspace')
       }}
       onProjectMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, items: projectMenu(p) })}
       onTerminalMenu={(t, e) =>
@@ -407,7 +390,7 @@ export function NormalProjectSidebar() {
       onAddTerminal={() => openModal('newTerminal', { projectId: p.id })}
       onQuickOpen={() => activateProject(p, 'open')}
       onToggleDisabled={() => {
-        const visible = p.terminals.filter((term) => !term.gsdSyncViewer)
+        const visible = p.terminals
         const allDisabled = visible.length > 0 && visible.every((term) => term.disabled)
         actions.setProjectDisabled(p.id, !allDisabled)
       }}
@@ -487,35 +470,6 @@ export function NormalProjectSidebar() {
           <Home size={16} />
           <span>{t('ui.sidebar.home')}</span>
         </button>
-        {preferences.enabledFeatures.taskBoard ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeView === 'tasks'}
-            className={`${styles.sidebarTab} ${activeView === 'tasks' ? styles.sidebarTabActive : ''}`}
-            onClick={() => setActiveView('tasks')}
-            title={t('ui.sidebar.tasksTitle')}
-            aria-label={t('ui.sidebar.tasks')}
-          >
-            <FolderKanban size={16} />
-            <span>{t('ui.sidebar.tasks')}</span>
-          </button>
-        ) : null}
-        {preferences.enabledFeatures.canvasFlows ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeView === 'flows'}
-            className={`${styles.sidebarTab} ${activeView === 'flows' ? styles.sidebarTabActive : ''}`}
-            onClick={() => setActiveView('flows')}
-            title={t('ui.sidebar.flowsTitle')}
-            aria-label={t('ui.sidebar.flows')}
-          >
-            <Workflow size={16} />
-            <span>{t('ui.sidebar.flows')}</span>
-            <span className={styles.betaMark}>{t('flows.beta')}</span>
-          </button>
-        ) : null}
         <button
           type="button"
           role="tab"
@@ -722,17 +676,6 @@ export function NormalProjectSidebar() {
         <div className={styles.systemFooter}>
           <span className={styles.systemFooterLabel}>{t('ui.sidebar.system')}</span>
           <div className={styles.systemFooterActions}>
-            {preferences.topbarShowSync ? (
-              <button
-                type="button"
-                className={styles.systemFooterBtn}
-                onClick={() => openModal('sync')}
-                title={t('sync.title')}
-                aria-label={t('sync.title')}
-              >
-                <RefreshCw size={16} />
-              </button>
-            ) : null}
             {preferences.topbarShowProfile ? (
               <button
                 type="button"
@@ -747,7 +690,6 @@ export function NormalProjectSidebar() {
           </div>
         </div>
       ) : null}
-      <SidebarNowPlaying />
       <SidebarUpdate />
       <UserProfile />
     </aside>

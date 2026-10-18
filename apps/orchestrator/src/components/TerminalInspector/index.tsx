@@ -1,5 +1,4 @@
 import {
-  ExternalLink,
   Eye,
   EyeOff,
   FolderOpen,
@@ -22,7 +21,6 @@ import { buildAgentLaunch } from '../../lib/sessionLaunch'
 import { resolveClaudeResumeId } from '../../lib/sessionResume'
 import {
   getPtyCwd,
-  openInBrowser,
   openInFileExplorer,
   openInVscode,
   restartPty,
@@ -88,10 +86,9 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
   const isFocusMode = focusedTerminalId === terminal.id
   const effectiveLaneVisible = terminal.tabs.length > 1 ? true : terminal.laneVisible === true
   const cwd = activeTab?.cwd?.trim() || terminal.cwd?.trim() || ''
-  const detailsPath = terminal.url || terminal.filePath || cwd
+  const detailsPath = terminal.filePath || cwd
   const isTerminalPane = !terminal.kind || terminal.kind === 'terminal'
   const isFilePane = terminal.kind === 'markdown' || terminal.kind === 'file'
-  const isWebPane = terminal.kind === 'web'
   const isAgentWithHistory =
     activeTab &&
     (activeTab.type === 'claude' || activeTab.type === 'codex' || activeTab.type === 'opencode')
@@ -165,8 +162,7 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
   }
 
   const onDeletePane = () => {
-    const key = isWebPane ? 'webPane.confirmClose' : 'ui.markdown.confirmClose'
-    if (!window.confirm(t(key, { name: terminal.name }))) return
+    if (!window.confirm(t('ui.markdown.confirmClose', { name: terminal.name }))) return
     deleteTerminal(projectId, terminal.id)
     if (isFocusMode) setFocusedTerminal(null)
   }
@@ -268,22 +264,6 @@ function InspectorBody({ projectId, terminal }: { projectId: string; terminal: T
             <InspectorAction
               icon={<Trash2 size={16} />}
               label={t('ui.markdown.close')}
-              onClick={onDeletePane}
-              danger
-            />
-          </>
-        ) : null}
-        {isWebPane ? (
-          <>
-            <InspectorAction
-              icon={<ExternalLink size={16} />}
-              label={t('xterm.openInBrowser')}
-              onClick={() => void openInBrowser(terminal.url ?? '')}
-              disabled={!terminal.url}
-            />
-            <InspectorAction
-              icon={<Trash2 size={16} />}
-              label={t('webPane.close')}
               onClick={onDeletePane}
               danger
             />

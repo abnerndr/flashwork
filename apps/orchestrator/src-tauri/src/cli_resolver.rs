@@ -138,6 +138,17 @@ pub fn command_builder_for_terminal(
         }
         builder.env("Path", combined);
     }
+    #[cfg(not(windows))]
+    {
+        // A GUI-launched app (and `bash -lc`, which skips .bashrc) misses the
+        // user-level bin dirs where nvm/bun/pipx/cargo put agent CLIs.
+        let existing = builder
+            .get_env("PATH")
+            .map(|value| value.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let extras: Vec<PathBuf> = unix_user_bin_dirs().into_iter().filter(|d| d.is_dir()).collect();
+        builder.env("PATH", append_unix_path_entries(&existing, &extras));
+    }
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
 
@@ -722,6 +733,38 @@ pub async fn probe_install_toolchain() -> InstallToolchain {
     })
     .await
     .unwrap_or_default()
+}
+
+/// User-level bin dirs appended to a Unix PTY's PATH (Linux, WSL, macOS).
+#[cfg(not(windows))]
+fn unix_user_bin_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
+        for rel in [".local/bin", ".bun/bin", ".cargo/bin", ".npm-global/bin", ".volta/bin", ".local/share/pnpm"] {
+            dirs.push(home.join(rel));
+        }
+        dirs.extend(nvm_node_bin_dirs(&home));
+    }
+    dirs.extend(homebrew_dirs());
+    dirs
+}
+
+/// Appends `extras` missing from the `:`-separated `existing` PATH, in order.
+/// Appending keeps the user's own PATH order authoritative.
+#[cfg_attr(windows, allow(dead_code))]
+pub(crate) fn append_unix_path_entries(existing: &str, extras: &[PathBuf]) -> String {
+    let mut parts: Vec<String> = existing
+        .split(':')
+        .filter(|p| !p.is_empty())
+        .map(str::to_string)
+        .collect();
+    for extra in extras {
+        let extra = extra.to_string_lossy().to_string();
+        if !extra.is_empty() && !parts.contains(&extra) {
+            parts.push(extra);
+        }
+    }
+    parts.join(":")
 }
 
 /// Default Homebrew prefixes on macOS (Apple Silicon uses `/opt/homebrew`, Intel
@@ -1385,6 +1428,20 @@ mod tests {
     fn resolves_cli_launcher_on_unix() {
         assert!(find_windows_cli_launcher("sh").is_some());
         assert!(find_windows_cli_launcher("non_existent_binary_xyz_123").is_none());
+    }
+
+    #[test]
+    fn appends_missing_unix_path_entries_in_order() {
+        let extras = vec![
+            PathBuf::from("/home/u/.local/bin"),
+            PathBuf::from("/usr/bin"),
+            PathBuf::from("/home/u/.bun/bin"),
+        ];
+        assert_eq!(
+            append_unix_path_entries("/usr/bin:/bin", &extras),
+            "/usr/bin:/bin:/home/u/.local/bin:/home/u/.bun/bin"
+        );
+        assert_eq!(append_unix_path_entries("", &extras[..1]), "/home/u/.local/bin");
     }
 
     #[test]

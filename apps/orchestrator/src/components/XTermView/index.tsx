@@ -55,7 +55,6 @@ export type XTermViewProps = {
 
   graphifyRepo?: string | null
 
-  gsdWatcherEnabled?: boolean
 
   trustSessionId?: boolean
 
@@ -88,7 +87,6 @@ export function XTermView({
   sessionKey,
   env,
   graphifyRepo,
-  gsdWatcherEnabled,
   trustSessionId,
   readOnly,
 
@@ -312,7 +310,6 @@ export function XTermView({
     lockOwnerId,
     env,
     graphifyRepo,
-    gsdWatcherEnabled,
     trustSessionId,
     readOnly,
     runtimeProfile,
@@ -448,9 +445,7 @@ export function XTermView({
             </button>
           </div>
           <div className={styles.linkMenuItems}>
-            {(linkActions.fileKind === 'markdown' ||
-              linkActions.fileKind === 'text' ||
-              linkActions.fileKind === 'video') &&
+            {(linkActions.fileKind === 'markdown' || linkActions.fileKind === 'text') &&
             projectId ? (
               <button
                 type="button"
@@ -465,7 +460,7 @@ export function XTermView({
                 <span>{t('xterm.openInGrid')}</span>
               </button>
             ) : null}
-            {linkActions.kind === 'url' || linkActions.fileKind === 'video' ? (
+            {linkActions.kind === 'url' ? (
               <button
                 type="button"
                 className={styles.linkMenuItem}
@@ -476,9 +471,7 @@ export function XTermView({
                 }}
               >
                 <AppWindow size={15} />
-                <span>
-                  {t(linkActions.fileKind === 'video' ? 'xterm.playInApp' : 'xterm.openInApp')}
-                </span>
+                <span>{t('xterm.openInApp')}</span>
               </button>
             ) : null}
             {linkActions.fileKind === 'markdown' ? (

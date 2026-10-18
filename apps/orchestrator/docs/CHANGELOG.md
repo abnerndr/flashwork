@@ -10,6 +10,29 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Run SPEC** is the single way to run work on a project: paste a prompt or attach a `.md`
+  SPEC. A free **Gemini CLI** pre-pass splits it into tasks (one per independent area of the
+  repo) and picks the best installed and configured CLI per task (Claude, Codex, OpenCode,
+  Gemini, …). Review the plan, change a task's CLI or drop tasks, then launch one CLI pane per
+  task (shell tasks open a terminal). Falls back to a local heuristic when Gemini is missing.
+- The shared board that keeps agents from redoing each other's work now lives in the project at
+  `.flashwork/runs/<runId>/board.md` (gitignored), so every CLI, including ones in WSL, reads it.
+- **Graphify** in every project: Flashwork installs `graphifyy[mcp]` (uv → pipx → pip), builds
+  a code-only offline graph on project creation, and wires the Graphify MCP server into every
+  Claude, Codex, OpenCode, and Gemini session of the project. No feature flag.
+- **WSL projects on Windows:** projects on `\\wsl.localhost\<distro>\…` (or a distro chosen when
+  creating the project) run shells, CLIs, Graphify, and the planner inside the distro via
+  `wsl.exe`, and CLIs are detected inside the distro.
+
+### Removed
+
+- Task Board and the Auto prompt bar (replaced by Run SPEC), Flows, AgentCanvas, Agent Sandbox,
+  web/browser and video panes, Todos sidebar and GSD sync, AI Memory, Spotify, Discord
+  presence, remote control, gist sync and backup, dictation, the Ghostty renderer, telemetry
+  panels, and the Home "floors" widget. Saved panes of removed kinds are dropped on load.
+
 ### Changed
 
 - Project versioning starts at **1.0.0**. Every push to `master` auto-bumps the patch
@@ -23,6 +46,13 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Claude session discovery matches project folders whose path contains `.`, `_`, or other
+  non-alphanumeric characters, and reads `HOME` before `USERPROFILE` on Linux/WSL.
+- Parallel Claude lanes in one run no longer resume the same Claude session.
+- Graphify MCP now starts the real stdio server (`graphify-mcp`) instead of an extraction run.
+- Critical memory pressure now force-suspends the heaviest live PTY (≥128 MB) when no
+  idle-hidden candidate exists, so Flashwork no longer stays at `action=none` while agent
+  trees hold multiple GB and freeze WSL/Windows. Idle LRU targets are still preferred first.
 - WSL: paste from Windows (browser, Notepad, …) into terminals and Auto/Home/Task Board
   composers reads the Windows clipboard via `powershell.exe` when the Linux clipboard is
   empty. Copy from Flashwork also mirrors text to Windows.

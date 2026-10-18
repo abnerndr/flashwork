@@ -8,10 +8,13 @@ pub struct OpenCodeSessionSnapshot {
     pub modified_at_ms: u128,
 }
 
-/// `/home/u/project`).
-///
-
+/// Canonical spelling for comparing an OpenCode session `directory` with a cwd.
+/// A WSL UNC path (`\\wsl.localhost\Ubuntu\home\u\p`) compares as the Linux
+/// path the in-distro CLI records (`/home/u/p`).
 fn normalize_path(path: &str) -> String {
+    if let Some(wsl) = crate::wsl::parse_wsl_unc(path) {
+        return wsl.linux_path.trim_end_matches('/').to_string();
+    }
     let trimmed = path
         .trim()
         .trim_end_matches(|c: char| c == '\\' || c == '/');
@@ -19,6 +22,9 @@ fn normalize_path(path: &str) -> String {
         .strip_prefix(r"\\?\UNC\")
         .map(|rest| format!(r"\\{rest}"))
         .unwrap_or_else(|| trimmed.strip_prefix(r"\\?\").unwrap_or(trimmed).to_string());
+    if unprefixed.starts_with('/') {
+        return unprefixed;
+    }
     if cfg!(windows) {
         unprefixed.replace('/', "\\").to_ascii_lowercase()
     } else {
@@ -26,9 +32,7 @@ fn normalize_path(path: &str) -> String {
     }
 }
 
-///
-/// `async` + `spawn_blocking`: roda um subprocesso (`opencode session list`)
-
+/// `async` + `spawn_blocking`: runs a subprocess (`opencode session list`).
 #[tauri::command]
 pub async fn snapshot_opencode_sessions(
     cwd: String,
@@ -39,11 +43,24 @@ pub async fn snapshot_opencode_sessions(
 }
 
 fn snapshot_opencode_sessions_inner(cwd: String) -> Result<Vec<OpenCodeSessionSnapshot>, String> {
-    let mut command = Command::new("opencode");
-    command.args(["session", "list", "--format", "json", "--max-count", "50"]);
-    if !cwd.is_empty() && Path::new(&cwd).is_dir() {
-        command.current_dir(crate::worktrees::git_arg(Path::new(&cwd)));
-    }
+    const LIST_ARGS: [&str; 6] = ["session", "list", "--format", "json", "--max-count", "50"];
+    let mut command = if let Some(target) = crate::wsl::wsl_target_for_cwd(Some(&cwd)) {
+        // Project inside a distro: ask the distro's opencode, from the Linux cwd.
+        let args: Vec<String> = LIST_ARGS.iter().map(|a| a.to_string()).collect();
+        let script = crate::wsl::agent_exec_script(&["opencode"], &args);
+        crate::wsl::wsl_command(&crate::wsl::wsl_exec_args(
+            &target.distro,
+            &target.linux_path,
+            Some(&script),
+        ))
+    } else {
+        let mut command = Command::new("opencode");
+        command.args(LIST_ARGS);
+        if !cwd.is_empty() && Path::new(&cwd).is_dir() {
+            command.current_dir(crate::worktrees::git_arg(Path::new(&cwd)));
+        }
+        command
+    };
     let output = command
         .output()
         .map_err(|e| format!("falha ao executar opencode: {e}"))?;
@@ -84,4 +101,16 @@ fn snapshot_opencode_sessions_inner(cwd: String) -> Result<Vec<OpenCodeSessionSn
 
     sessions.sort_by(|a, b| b.modified_at_ms.cmp(&a.modified_at_ms));
     Ok(sessions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wsl_unc_and_linux_spellings_compare_equal() {
+        assert_eq!(normalize_path(r"\\wsl.localhost\Ubuntu\home\u\p\"), "/home/u/p");
+        assert_eq!(normalize_path(r"\\?\UNC\wsl$\Ubuntu\home\u\p"), "/home/u/p");
+        assert_eq!(normalize_path("/home/u/p/"), "/home/u/p");
+    }
 }

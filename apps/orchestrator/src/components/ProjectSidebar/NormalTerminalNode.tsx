@@ -6,7 +6,6 @@ import { useT } from '../../lib/i18n'
 import { type AgentType, type Project, type Terminal } from '../../lib/types'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useTerminalsStore } from '../../stores/terminalsStore'
-import { Favicon } from '../Favicon'
 import { AgentIcon } from '../icons/AgentIcons'
 import { DotmCircular2 } from '../ui/dotm-circular-2'
 import styles from './NormalProjectSidebar.module.css'
@@ -69,14 +68,10 @@ export function NormalTerminalNode({
         e.stopPropagation()
         onMenu(e)
       }}
-      title={terminal.url || terminal.filePath || displayName}
+      title={terminal.filePath || displayName}
     >
       <span className={styles.agentStack}>
-        {terminal.kind === 'web' ? (
-          <span className={styles.agentIcon}>
-            <Favicon url={terminal.url ?? ''} size={16} />
-          </span>
-        ) : terminal.kind && terminal.kind !== 'terminal' ? (
+        {terminal.kind && terminal.kind !== 'terminal' ? (
           <span className={styles.agentIcon}>
             <FileText size={16} />
           </span>

@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import type {
-  EventBusPayload,
-  MetricData,
-  PlanningCommit,
-  PluginManifest,
-} from '../../../lib/tauri'
+import type { PlanningCommit, PluginManifest } from '../../../lib/tauri'
 import {
   getPlanningAutocommit,
-  getTelemetryMetrics,
-  getTelemetryTraces,
   planningAuditHistory,
   pluginInstall,
   pluginsList,
@@ -28,28 +21,12 @@ export function MultiagentPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id ?? '')
   const schedulerStore = useSchedulerStore()
 
-  const [metrics, setMetrics] = useState<Record<string, MetricData>>({})
-  const [traces, setTraces] = useState<EventBusPayload[]>([])
-  const [loadingTelemetry, setLoadingTelemetry] = useState(true)
-
   const [plugins, setPlugins] = useState<PluginManifest[]>([])
   const [loadingPlugins, setLoadingPlugins] = useState(true)
 
   const [autocommit, setAutocommit] = useState(false)
   const [auditLogs, setAuditLogs] = useState<PlanningCommit[]>([])
   const [loadingAudit, setLoadingAudit] = useState(false)
-
-  const loadTelemetry = useCallback(async () => {
-    try {
-      const [m, tr] = await Promise.all([getTelemetryMetrics(), getTelemetryTraces()])
-      setMetrics(m)
-      setTraces(tr.slice(-15).reverse())
-    } catch (err) {
-      console.error('Falha ao carregar telemetria:', err)
-    } finally {
-      setLoadingTelemetry(false)
-    }
-  }, [])
 
   const loadPlugins = useCallback(async () => {
     try {
@@ -86,12 +63,6 @@ export function MultiagentPage() {
       setLoadingAudit(false)
     }
   }, [])
-
-  useEffect(() => {
-    void loadTelemetry()
-    const interval = setInterval(loadTelemetry, 3000)
-    return () => clearInterval(interval)
-  }, [loadTelemetry])
 
   useEffect(() => {
     void loadPlugins()
@@ -298,119 +269,6 @@ export function MultiagentPage() {
         ) : (
           <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
             Select a project to inspect and orchestrate its tasks.
-          </div>
-        )}
-      </SettingsSection>
-
-      <SettingsSection
-        id="multiagent-metrics"
-        title="Execution metrics (phases 1/2)"
-        description="Accumulated global counters from the internal event bus."
-      >
-        {loadingTelemetry ? (
-          <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Loading metrics...</div>
-        ) : Object.keys(metrics).length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
-            No accumulated event metrics.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-              gap: 8,
-            }}
-          >
-            {Object.entries(metrics).map(([key, data]) => {
-              const name = key.replace('flashwork_event_', '').toUpperCase()
-              return (
-                <div
-                  key={key}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-active)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  <div style={{ fontSize: 10, color: 'var(--fg-muted)', fontWeight: 600 }}>
-                    {name}
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{data.count}</div>
-                  {data.last_value > 0 && (
-                    <div style={{ fontSize: 9, color: 'var(--accent)', marginTop: 2 }}>
-                      Last: {data.last_value.toFixed(2)}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </SettingsSection>
-
-      <SettingsSection
-        id="multiagent-traces"
-        title="Recent event history"
-        description="Real-time tracking of structured Event Bus logs."
-      >
-        {loadingTelemetry ? (
-          <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Loading traces...</div>
-        ) : traces.length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontStyle: 'italic' }}>
-            No recent events recorded.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-              maxHeight: 180,
-              overflowY: 'auto',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 8,
-              background: 'var(--bg-active)',
-            }}
-          >
-            {traces.map((trace, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 10,
-                  paddingBottom: 4,
-                  borderBottom: '1px solid color-mix(in srgb, var(--border) 40%, transparent)',
-                }}
-              >
-                <div style={{ overflow: 'hidden', marginRight: 12 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                    {trace.event_type}
-                  </span>
-                  {trace.task_id && (
-                    <span style={{ color: 'var(--fg-muted)', marginLeft: 6 }}>
-                      Task: {trace.task_id}
-                    </span>
-                  )}
-                  <div
-                    style={{
-                      color: 'var(--fg-muted)',
-                      fontSize: 9,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    CorrId: {trace.correlation_id}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', color: 'var(--fg-muted)', flexShrink: 0 }}>
-                  {new Date(trace.timestamp_ms).toLocaleTimeString()}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </SettingsSection>

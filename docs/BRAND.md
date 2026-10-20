@@ -9,13 +9,13 @@ This file documents the public app assets and the core design tokens used by the
 - Wordmark, dark background: [src/assets/brand/flashwork-logo-clara.svg](../src/assets/brand/flashwork-logo-clara.svg)
 - Previous mark, kept on disk: [src/assets/flashwork-mark.svg](../src/assets/flashwork-mark.svg)
 - Loading mark: [src/assets/flashwork-loading-mark.png](../src/assets/flashwork-loading-mark.png)
-- Default profile avatar: [src/assets/default-profile.svg](../src/assets/default-profile.svg)
-- App icons: [src-tauri/icons/](../src-tauri/icons/)
+- Default profile avatar: [src/assets/default-profile.svg](../src/assets/default-profile.svg) (same bolt)
+- App icons (installer, taskbar, window): [src-tauri/icons/](../src-tauri/icons/), generated from `flashwork-icone.png`
 
-To regenerate Tauri app icons from a new source image:
+To regenerate Tauri app icons from the source mark:
 
 ```sh
-npx tauri icon ./logo.png
+npx tauri icon /path/to/flashwork-icone.png -o src-tauri/icons
 ```
 
 ## Agent Assets

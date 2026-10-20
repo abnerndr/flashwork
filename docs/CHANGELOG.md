@@ -65,7 +65,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 ### Fixed
 
 - Adding a folder again after deleting its project no longer stops with “this folder already belongs to a Flashwork project.” The `.flashwork` home left on disk is registered back into the list.
-- The title bar and loading screen use the Flashwork bolt mark, and the interface uses Manrope.
+- The title bar, loading screen, default account avatar, window/taskbar icon, and installer icons use the Flashwork bolt mark. The interface uses Manrope.
 - Run SPEC never assigns Gemini as a task worker (planner-only). Suggested `agent: gemini` in
   the plan is remapped to another installed coding CLI; the task CLI picker omits Gemini.
   Before planning, the run lists the installed CLIs so only the checked ones open panes.

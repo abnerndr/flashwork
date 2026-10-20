@@ -56,7 +56,7 @@ import { visibilityFromPanelResize, widthFromPanelResize } from './lib/sidebarPa
 import { setMaxConcurrentSpawns } from './lib/spawnQueue'
 import { setWindowOpacity } from './lib/tauri'
 import { getLastCrashReport } from './lib/tauri'
-import { loadThemeIconBytes } from './lib/themeIcons'
+import brandAppIcon from './assets/brand/app-icon.png'
 import { checkForUpdate } from './lib/updater'
 import { useProjectsStore } from './stores/projectsStore'
 import { listOfferableInterruptedRuns, usePromptRunStore } from './stores/promptRunStore'
@@ -157,7 +157,6 @@ export default function App() {
   const hydrated = useProjectsStore((s) => s.hydrated)
   const uiTheme = useProjectsStore((s) => s.preferences.uiTheme)
   const visualStyle = useProjectsStore((s) => s.preferences.visualStyle ?? 'normal')
-  const appIconTheme = useProjectsStore((s) => s.preferences.appIconTheme)
   const uiZoom = useProjectsStore((s) => s.preferences.uiZoom)
   const windowOpacity = useProjectsStore((s) => s.preferences.windowOpacity)
   const language = useProjectsStore((s) => s.preferences.language)
@@ -225,12 +224,13 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    void loadThemeIconBytes(appIconTheme)
-      .then((bytes) => getCurrentWindow().setIcon(bytes))
+    void fetch(brandAppIcon)
+      .then((response) => response.arrayBuffer())
+      .then((buffer) => getCurrentWindow().setIcon(Array.from(new Uint8Array(buffer))))
       .catch((error) => {
         console.error('[app-icon] failed to apply window icon', error)
       })
-  }, [appIconTheme, hydrated])
+  }, [hydrated])
 
   useEffect(() => {
     document.documentElement.lang = language === 'pt-BR' ? 'pt-BR' : 'en'

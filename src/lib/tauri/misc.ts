@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { invokeWithWsl } from './invokeWithWsl'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 import type { InstallToolchain } from '../agentInstall'
@@ -43,6 +44,14 @@ export async function wslListDistros(): Promise<string[]> {
   return invoke<string[]>('wsl_list_distros')
 }
 
+export function wslStatus(): Promise<{ distros: string[]; running: string[] }> {
+  return invoke('wsl_status')
+}
+
+export function wslPrepareFolder(distro: string, folder: string, create = false): Promise<string> {
+  return invoke('wsl_prepare_folder', { distro, folder, create })
+}
+
 export type AgentDetection = {
   /** CLI command name as asked (`claude`, `agy`, …). */
   agent: string
@@ -61,7 +70,7 @@ export async function detectAgentsForCwd(
   cwd: string | undefined,
   agents?: string[],
 ): Promise<AgentDetection[]> {
-  return invoke<AgentDetection[]>('detect_agents_for_cwd', { cwd: cwd ?? null, agents: agents ?? null })
+  return invokeWithWsl<AgentDetection[]>('detect_agents_for_cwd', { cwd: cwd ?? null, agents: agents ?? null })
 }
 
 /** Drop the launcher cache and resolve again, including the user's login PATH. Post-install only. */

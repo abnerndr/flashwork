@@ -1,5 +1,3 @@
-                                                                  
-
 .field {
   display: flex;
   flex-direction: column;
@@ -84,6 +82,51 @@ select.input {
 .hint {
   font-size: 10px;
   color: var(--fg-muted);
+}
+
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.choice {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.choice:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--panel-hover);
+  border-color: var(--border-strong);
+}
+
+.choice:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.choiceActive {
+  color: var(--fg);
+  border-color: var(--accent);
+  background: var(--panel-hover);
+}
+
+.statusActive {
+  color: var(--status-working);
+}
+
+.statusIdle {
+  color: var(--status-waiting);
+}
+
+.statusBad {
+  color: var(--status-offline);
 }
 
 .fieldError {
@@ -318,7 +361,6 @@ select.input {
   line-height: 1.35;
 }
 
-                                         
 .tabRow {
   display: flex;
   gap: 6px;
@@ -432,7 +474,6 @@ select.input {
   flex-shrink: 0;
 }
 
-                                                                             
 .gitInitBanner {
   display: flex;
   align-items: center;

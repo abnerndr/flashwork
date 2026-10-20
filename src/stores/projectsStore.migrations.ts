@@ -139,6 +139,8 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
   const rawWindowOpacity = Number(raw?.windowOpacity ?? 1)
   return {
     ...preferences,
+    wslEnabled: raw?.wslEnabled === true,
+    wslDefaultDistro: typeof raw?.wslDefaultDistro === 'string' ? raw.wslDefaultDistro : '',
     windowOpacity: Number.isFinite(rawWindowOpacity)
       ? Math.min(1, Math.max(0.6, rawWindowOpacity))
       : 1,

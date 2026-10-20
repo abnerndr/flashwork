@@ -424,6 +424,9 @@ export type AppliedVsxTheme = {
 }
 
 export type Preferences = {
+  /** Default environment for newly opened terminals and projects on Windows. */
+  wslEnabled: boolean
+  wslDefaultDistro: string
   /** Idioma da UI. Default 'en'. */
   language: Locale
   uiTheme: Theme
@@ -557,6 +560,8 @@ export type ProjectsFile = {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  wslEnabled: false,
+  wslDefaultDistro: '',
   language: 'en',
   uiTheme: 'dark',
   appliedVsxTheme: null,

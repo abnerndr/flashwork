@@ -11,10 +11,10 @@ import {
   projectBootstrap,
   projectDetect,
   projectWriteRagStatus,
-  wslListDistros,
+  wslPrepareFolder,
 } from '../../lib/tauri'
 import { GROUP_COLORS, type Project } from '../../lib/types'
-import { resolveProjectFolder, wslDistroFromPath } from '../../lib/wsl'
+import { folderForNewProject, resolveProjectFolder, wslDistroFromPath } from '../../lib/wsl'
 import { useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -23,6 +23,7 @@ import { ColorPalettePopover } from './ColorPalettePopover'
 import controls from './controls.module.css'
 import { ImageInput } from './ImageInput'
 import { Modal } from './Modal'
+import { WslEnvironmentField } from './WslEnvironmentField'
 import {
   clearedNewProjectConflictState,
   createProjectInFolder,
@@ -55,23 +56,17 @@ export function NewProjectModal() {
   const [flashworkExists, setFlashworkExists] = useState(false)
   const [operationError, setOperationError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [wslDistros, setWslDistros] = useState<string[]>([])
   const [wslDistro, setWslDistro] = useState('')
   const submitRequestId = useRef(0)
 
-  // WSL projects only exist on the Windows build.
   useEffect(() => {
     if (!open || !isWindows()) return
-    let cancelled = false
-    void wslListDistros()
-      .then((list) => {
-        if (!cancelled) setWslDistros(list)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [open])
+    const preferences = useProjectsStore.getState().preferences
+    setWslDistro(
+      wslDistroFromPath(context?.defaultCwd) ??
+        (preferences.wslEnabled ? preferences.wslDefaultDistro : ''),
+    )
+  }, [open, context?.defaultCwd])
 
   // A folder picked or typed under \\wsl.localhost\<distro> selects that distro.
   useEffect(() => {
@@ -79,9 +74,6 @@ export function NewProjectModal() {
     if (derived) setWslDistro(derived)
   }, [defaultCwd])
 
-                                                                        
-                                                                       
-                                        
   useEffect(() => {
     if (open && context?.defaultCwd) {
       submitRequestId.current += 1
@@ -112,25 +104,35 @@ export function NewProjectModal() {
   }
 
   const browse = async () => {
-    const directory = await pickDirectory({ defaultPath: defaultCwd || undefined })
-    if (directory) {
-      submitRequestId.current += 1
-      setSubmitting(false)
-      setDefaultCwd(directory)
-      setFolderMissing(false)
-      setFlashworkExists(false)
-      setOperationError('')
+    try {
+      const start = wslDistro
+        ? await wslPrepareFolder(wslDistro, defaultCwd.trim() || '~')
+        : defaultCwd || undefined
+      const directory = await pickDirectory({ defaultPath: start })
+      if (directory) {
+        submitRequestId.current += 1
+        setSubmitting(false)
+        setDefaultCwd(directory)
+        setFolderMissing(false)
+        setFlashworkExists(false)
+        setOperationError('')
+      }
+    } catch (error) {
+      setOperationError(String(error))
     }
   }
 
-  const registration = (): NewProjectRegistration => ({
-    name: name.trim(),
-    color,
-    iconUrl: iconUrl.trim() || undefined,
-    groupId,
-    defaultCwd: resolveProjectFolder(defaultCwd, wslDistro || undefined),
-    wslDistro: wslDistro || undefined,
-  })
+  const registration = (): NewProjectRegistration => {
+    const folder = folderForNewProject(defaultCwd, wslDistro || undefined, name)
+    return {
+      name: name.trim(),
+      color,
+      iconUrl: iconUrl.trim() || undefined,
+      groupId,
+      defaultCwd: resolveProjectFolder(folder, wslDistro || undefined),
+      wslDistro: wslDistro || undefined,
+    }
+  }
 
   const finish = (project: Project) => {
     reset()
@@ -140,7 +142,7 @@ export function NewProjectModal() {
   }
 
   const submit = async () => {
-    if (!name.trim()) return
+    if (!name.trim() || submitting) return
     if (isProjectFolderMissing(defaultCwd)) {
       setFolderMissing(true)
       return
@@ -151,10 +153,16 @@ export function NewProjectModal() {
     setOperationError('')
     setSubmitting(true)
     const requestId = ++submitRequestId.current
-    const shouldApplyResult = () =>
-      shouldApplySubmitResult(requestId, submitRequestId.current)
+    const shouldApplyResult = () => shouldApplySubmitResult(requestId, submitRequestId.current)
     try {
-      const result = await createProjectInFolder(registration(), {
+      const details = registration()
+      if (wslDistro) details.defaultCwd = await wslPrepareFolder(wslDistro, defaultCwd, true)
+      if (!shouldApplyResult()) return
+      if (isWindows())
+        useProjectsStore
+          .getState()
+          .setPreferences({ wslEnabled: Boolean(wslDistro), wslDefaultDistro: wslDistro })
+      const result = await createProjectInFolder(details, {
         generateId: nanoid,
         projectBootstrap,
         bootstrapRag: async (folder) => {
@@ -186,10 +194,12 @@ export function NewProjectModal() {
     setOperationError('')
     setSubmitting(true)
     const requestId = ++submitRequestId.current
-    const shouldApplyResult = () =>
-      shouldApplySubmitResult(requestId, submitRequestId.current)
+    const shouldApplyResult = () => shouldApplySubmitResult(requestId, submitRequestId.current)
     try {
-      const project = await openExistingProject(registration(), {
+      const details = registration()
+      if (wslDistro) details.defaultCwd = await wslPrepareFolder(wslDistro, defaultCwd)
+      if (!shouldApplyResult()) return
+      const project = await openExistingProject(details, {
         projectDetect,
         findProject: (id) => useProjectsStore.getState().projects.find((item) => item.id === id),
         createProject,
@@ -218,12 +228,10 @@ export function NewProjectModal() {
           <button
             type="button"
             className={`${controls.btn} ${controls.btnPrimary}`}
-            disabled={!name.trim() || !defaultCwd.trim() || submitting}
+            disabled={!name.trim() || (!defaultCwd.trim() && !wslDistro) || submitting}
             onClick={() => void (flashworkExists ? openExisting() : submit())}
           >
-            {flashworkExists
-              ? t('crud.openExisting')
-              : t('crud.create')}
+            {flashworkExists ? t('crud.openExisting') : t('crud.create')}
           </button>
         </>
       }
@@ -243,7 +251,6 @@ export function NewProjectModal() {
         />
       </div>
 
-
       {groups.length > 0 ? (
         <div className={controls.field}>
           <label className={controls.label}>{t('crud.groupLabel')}</label>
@@ -260,21 +267,18 @@ export function NewProjectModal() {
         </div>
       ) : null}
 
-      {wslDistros.length > 0 ? (
-        <div className={controls.field}>
-          <label className={controls.label}>{t('crud.wslDistroLabel')}</label>
-          <Dropdown
-            className={controls.input}
-            value={wslDistro}
-            onChange={(value) => setWslDistro(value)}
-            ariaLabel={t('crud.wslDistroLabel')}
-            options={[
-              { value: '', label: t('crud.wslDistroNone') },
-              ...wslDistros.map((distro) => ({ value: distro, label: distro })),
-            ]}
-          />
-        </div>
-      ) : null}
+      <WslEnvironmentField
+        value={wslDistro}
+        onChange={(distro) => {
+          submitRequestId.current += 1
+          setSubmitting(false)
+          setWslDistro(distro)
+          const currentDistro = wslDistroFromPath(defaultCwd)
+          if (currentDistro && currentDistro !== distro) setDefaultCwd('')
+          setFlashworkExists(false)
+          setOperationError('')
+        }}
+      />
 
       <div className={controls.field}>
         <label className={controls.label}>{t('crud.projectPathLabel')}</label>
@@ -292,7 +296,9 @@ export function NewProjectModal() {
                 setFlashworkExists(false)
                 setOperationError('')
               }}
-              placeholder={t('crud.projectPathPlaceholder')}
+              placeholder={
+                wslDistro ? t('wsl.folderPlaceholder') : t('crud.projectPathPlaceholder')
+              }
               title={defaultCwd}
             />
           </div>
@@ -301,7 +307,14 @@ export function NewProjectModal() {
           </button>
         </div>
         <span className={controls.hint}>
-          {wslDistro ? t('crud.wslDistroHint') : t('crud.projectPathHint')}
+          {wslDistro
+            ? defaultCwd.trim()
+              ? t('wsl.folderHint')
+              : t('wsl.folderEmptyHint', {
+                  path: folderForNewProject('', wslDistro, name),
+                  distro: wslDistro,
+                })
+            : t('crud.projectPathHint')}
         </span>
         {folderMissing ? (
           <span className={controls.fieldError}>{t('crud.folderRequired')}</span>

@@ -17,6 +17,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Windows/WSL execution preferences with distribution selection and live running status. New projects can browse WSL folders, expand `~/` paths, and create missing Linux project folders; Windows folders selected for WSL run through the selected distribution. New terminals offer an explicit environment choice.
+
 - **Run SPEC** is the single way to run work on a project: paste a prompt or attach a `.md`
   SPEC. A free **Gemini CLI** pre-pass splits it into tasks (one per independent area of the
   repo) and picks the best installed and configured CLI per task (Claude, Codex, OpenCode,
@@ -51,6 +53,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Settings → Terminal and agents has a PowerShell / WSL switch and reports whether WSL is active. With WSL on, a new project can be created inside the selected distribution by leaving the folder empty or typing a Linux path such as `~/project`.
 - Claude session discovery matches project folders whose path contains `.`, `_`, or other
   non-alphanumeric characters, and reads `HOME` before `USERPROFILE` on Linux/WSL.
 - Parallel Claude lanes in one run no longer resume the same Claude session.

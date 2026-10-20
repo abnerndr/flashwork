@@ -1,10 +1,21 @@
 import { CircleCheck, Folder, Info, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { wslPrepareFolder } from '../../lib/tauri'
+import { isWindows } from '../../lib/platform'
+import { wslDistroFromPath } from '../../lib/wsl'
+import { WslEnvironmentField } from './WslEnvironmentField'
+
 import { pickDirectory } from '../../lib/dialog'
 import { useT } from '../../lib/i18n'
 import { basename } from '../../lib/paths'
-import { AGENT_TYPE_LABELS, type AgentRuntimeProfile, type AgentType,ALL_AGENT_TYPES, UNRESTRICTED_FLAG } from '../../lib/types'
+import {
+  AGENT_TYPE_LABELS,
+  type AgentRuntimeProfile,
+  type AgentType,
+  ALL_AGENT_TYPES,
+  UNRESTRICTED_FLAG,
+} from '../../lib/types'
 import { getProjectDefaultCwd, useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import { AgentIcon } from '../icons/AgentIcons'
@@ -37,6 +48,9 @@ export function NewTerminalModal() {
   const [type, setType] = useState<AgentType>('claude')
   const [runtimeProfile, setRuntimeProfile] = useState<AgentRuntimeProfile>('lean')
   const [cwd, setCwd] = useState('')
+  const [wslDistro, setWslDistro] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [operationError, setOperationError] = useState('')
   const [unrestricted, setUnrestricted] = useState<Record<AgentType, boolean>>({
     shell: false,
     claude: false,
@@ -79,6 +93,12 @@ export function NewTerminalModal() {
   useEffect(() => {
     if (!open) return
     setCwd(inheritedCwd)
+    const prefs = useProjectsStore.getState().preferences
+    setWslDistro(
+      wslDistroFromPath(inheritedCwd) ??
+        (isWindows() && prefs.wslEnabled ? prefs.wslDefaultDistro : ''),
+    )
+    setOperationError('')
     setType(defaultType)
     setUnrestricted({
       shell: alwaysStartUnrestricted,
@@ -111,25 +131,44 @@ export function NewTerminalModal() {
   }
 
   const submit = async () => {
-    if (!context?.projectId) return
-    const finalName = selectedAgent.label
-    const finalCwd = cwd.trim() || inheritedCwd
-    const flag = UNRESTRICTED_FLAG[type]
-    const extraArgs = unrestricted[type] && flag ? [flag] : undefined
-    const creation = {
-      name: finalName,
-      cwd: finalCwd,
-      firstTab: { type, cwd: finalCwd, extraArgs, runtimeProfile },
+    if (!context?.projectId || submitting) return
+    setSubmitting(true)
+    setOperationError('')
+    try {
+      const finalName = selectedAgent.label
+      const folder = cwd.trim() || inheritedCwd
+      const distro = wslDistroFromPath(folder) ?? wslDistro
+      const finalCwd = distro ? await wslPrepareFolder(distro, folder || '~') : folder
+      const flag = UNRESTRICTED_FLAG[type]
+      const extraArgs = unrestricted[type] && flag ? [flag] : undefined
+      const creation = {
+        name: finalName,
+        cwd: finalCwd,
+        firstTab: { type, cwd: finalCwd, extraArgs, runtimeProfile },
+      }
+      if (isWindows())
+        setPreferences({ wslEnabled: Boolean(distro), wslDefaultDistro: distro || '' })
+      await createAgentTerminal(context.projectId, creation)
+      setPreferences({ lastTerminalCreation: creation })
+      reset()
+      closeModal()
+    } catch (error) {
+      setOperationError(String(error))
+    } finally {
+      setSubmitting(false)
     }
-    await createAgentTerminal(context.projectId, creation)
-    setPreferences({ lastTerminalCreation: creation })
-    reset()
-    closeModal()
   }
 
   const browse = async () => {
-    const dir = await pickDirectory({ defaultPath: cwd || inheritedCwd || undefined })
-    if (dir) setCwd(dir)
+    try {
+      const folder = cwd || inheritedCwd
+      const distro = wslDistroFromPath(folder) ?? wslDistro
+      const start = distro ? await wslPrepareFolder(distro, folder || '~') : folder || undefined
+      const dir = await pickDirectory({ defaultPath: start })
+      if (dir) setCwd(dir)
+    } catch (error) {
+      setOperationError(String(error))
+    }
   }
 
   return (
@@ -150,13 +189,20 @@ export function NewTerminalModal() {
             type="button"
             className={`${controls.btn} ${controls.btnPrimary}`}
             onClick={() => void submit()}
-            disabled={!context?.projectId}
+            disabled={!context?.projectId || submitting}
           >
             {t('term.openAgent', { agent: selectedAgent.label })}
           </button>
         </>
       }
     >
+      <WslEnvironmentField value={wslDistroFromPath(cwd) ?? wslDistro} onChange={setWslDistro} />
+      {isWindows() ? <p className={controls.hint}>{t('wsl.settingsHint')}</p> : null}
+      {operationError ? (
+        <p className={controls.fieldError}>
+          {t('common.errorPrefix', { message: operationError })}
+        </p>
+      ) : null}
       <p className={styles.description}>{t('term.newTerminalDescription')}</p>
 
       <section className={styles.section}>

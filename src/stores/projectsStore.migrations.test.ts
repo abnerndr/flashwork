@@ -4,6 +4,19 @@ import { DEFAULT_PREFERENCES, EMPTY_PROJECTS_FILE } from '../lib/types'
 import { migrate, normalizePreferences, REMOVED_PREFERENCE_KEYS } from './projectsStore.migrations'
 
 describe('preference normalization', () => {
+  it('defaults legacy profiles to Windows and preserves WSL selection', () => {
+    expect(normalizePreferences(undefined)).toMatchObject({
+      wslEnabled: false,
+      wslDefaultDistro: '',
+    })
+    expect(
+      normalizePreferences({
+        ...DEFAULT_PREFERENCES,
+        wslEnabled: true,
+        wslDefaultDistro: 'Ubuntu',
+      }),
+    ).toMatchObject({ wslEnabled: true, wslDefaultDistro: 'Ubuntu' })
+  })
   it('preserves persisted sidebar visibility and widths', () => {
     const preferences = normalizePreferences({
       ...DEFAULT_PREFERENCES,

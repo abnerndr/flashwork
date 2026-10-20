@@ -38,7 +38,7 @@ import { acquireSpawnSlot, releaseSpawnSlot } from '../../lib/spawnQueue'
 import {
   attachPty,
   clearPtyScrollback,
-  findCliLauncher,
+  detectAgentsForCwd,
   graphifyCodexConfigWrite,
   graphifyEnsureGraph,
   graphifyGeminiConfigWrite,
@@ -898,8 +898,9 @@ export function useXtermSession(params: {
             }
           }
           if (!launcherOverride) {
-            const auto = await findCliLauncher(agentCliCommand(command) ?? command)
-            console.info(`[pty-launch] ${command} findCliLauncher → ${auto ?? 'null (NOT FOUND)'}`)
+            const detection = await detectAgentsForCwd(cwd ?? undefined, [agentCliCommand(command) ?? command])
+            const auto = detection.find((entry) => entry.installed)?.path
+            console.info(`[pty-launch] ${command} environment launcher → ${auto ?? 'null (NOT FOUND)'}`)
             if (!auto) {
               console.warn(
                 `[pty-launch] ${command} unresolved — showing the not-found overlay and staying offline`,

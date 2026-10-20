@@ -1,6 +1,27 @@
 import type { MessageKey } from './en'
 
 export const ptBR: Record<MessageKey, string> = {
+  'wsl.environment': 'Ambiente de execução dos CLIs',
+  'wsl.powershell': 'PowerShell',
+  'wsl.useWsl': 'WSL',
+  'wsl.distroLabel': 'Distribuição WSL',
+  'wsl.distribution': 'WSL · {distro}',
+  'wsl.windows': 'Windows / PowerShell (WSL desativado)',
+  'wsl.settingsHint':
+    'Ative o WSL para rodar novos terminais, o Run SPEC e novos projetos dentro da distribuição escolhida. Desative para usar o PowerShell do Windows. Sessões abertas não mudam. Uma pasta Linux sempre usa a própria distribuição.',
+  'wsl.checking': 'Verificando se o WSL está ativo…',
+  'wsl.running': 'WSL está ativo: {distros}',
+  'wsl.stopped':
+    'WSL está instalado, mas não está ativo. Ele inicia ao abrir um projeto ou terminal WSL.',
+  'wsl.notInstalled': 'WSL não está ativo. Nenhuma distribuição instalada.',
+  'wsl.unavailable':
+    'Não foi possível verificar se o WSL está ativo. Confira se está instalado e tente novamente.',
+  'wsl.refresh': 'Atualizar estado do WSL',
+  'wsl.folderPlaceholder': '~/meu-projeto',
+  'wsl.folderHint':
+    'Informe /home/usuario/projeto, ~/projeto ou uma pasta do Windows. Uma pasta de projeto Linux inexistente será criada.',
+  'wsl.folderEmptyHint':
+    'Deixe a pasta vazia para criar {path} dentro de {distro}, ou informe um caminho Linux como ~/projeto.',
   /* ---- loading ---- */
   'loading.initializing': 'Inicializando workspace',
 

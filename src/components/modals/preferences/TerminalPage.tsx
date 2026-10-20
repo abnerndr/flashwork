@@ -11,6 +11,8 @@ import { useUiStore } from '../../../stores/uiStore'
 import { AgentIcon } from '../../icons/AgentIcons'
 import styles from '../PreferencesModal.module.css'
 import { SettingsSection } from './primitives'
+import { WslEnvironmentField } from '../WslEnvironmentField'
+import { isWindows } from '../../../lib/platform'
 
 const AGENTS: { id: AgentType; label: string }[] = [
   { id: 'shell', label: 'Shell' },
@@ -91,6 +93,21 @@ export function TerminalPage({ enabledCount }: { enabledCount: number }) {
 
   return (
     <>
+      {isWindows() ? (
+        <SettingsSection
+          id="wsl-environment"
+          title={t('wsl.environment')}
+          description={t('wsl.settingsHint')}
+        >
+          <WslEnvironmentField
+            hideLabel
+            value={preferences.wslEnabled ? preferences.wslDefaultDistro : ''}
+            onChange={(distro) =>
+              setPreferences({ wslEnabled: Boolean(distro), wslDefaultDistro: distro })
+            }
+          />
+        </SettingsSection>
+      ) : null}
       <SettingsSection
         id="resource-policy"
         title={t('prefs.resourcePolicy')}
@@ -265,7 +282,6 @@ export function TerminalPage({ enabledCount }: { enabledCount: number }) {
           </button>
         </div>
       </SettingsSection>
-
 
       <SettingsSection
         id="reset-session"

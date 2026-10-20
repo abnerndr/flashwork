@@ -1,4 +1,25 @@
 export const en = {
+  'wsl.environment': 'CLI execution environment',
+  'wsl.powershell': 'PowerShell',
+  'wsl.useWsl': 'WSL',
+  'wsl.distroLabel': 'WSL distribution',
+  'wsl.distribution': 'WSL · {distro}',
+  'wsl.windows': 'Windows / PowerShell (WSL off)',
+  'wsl.settingsHint':
+    'Turn WSL on to run new terminals, Run SPEC, and new projects inside the selected distribution. Turn it off to use Windows PowerShell. Open sessions stay as they are. A Linux folder always uses its own distribution.',
+  'wsl.checking': 'Checking whether WSL is active…',
+  'wsl.running': 'WSL is active: {distros}',
+  'wsl.stopped':
+    'WSL is installed, but not active. It starts when you open a WSL project or terminal.',
+  'wsl.notInstalled': 'WSL is not active. No distribution is installed.',
+  'wsl.unavailable':
+    'Could not check whether WSL is active. Verify that it is installed and try again.',
+  'wsl.refresh': 'Refresh WSL status',
+  'wsl.folderPlaceholder': '~/my-project',
+  'wsl.folderHint':
+    'Enter /home/user/project, ~/project, or a Windows folder. A missing Linux project folder will be created.',
+  'wsl.folderEmptyHint':
+    'Leave the folder empty to create {path} inside {distro}, or type a Linux path such as ~/project.',
   /* ---- loading ---- */
   'loading.initializing': 'Initializing workspace',
 

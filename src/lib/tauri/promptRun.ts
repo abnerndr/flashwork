@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { invokeWithWsl } from './invokeWithWsl'
 
 import type { PromptRun } from '../types'
 
@@ -62,5 +63,5 @@ export function runPlannerCli(
   timeoutMs: number,
   stdin?: string,
 ): Promise<string> {
-  return invoke('run_planner_cli', { bin, args, cwd, timeoutMs, stdin: stdin ?? null })
+  return invokeWithWsl('run_planner_cli', { bin, args, cwd, timeoutMs, stdin: stdin ?? null })
 }

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeWithWsl as invoke } from './invokeWithWsl'
 
 // --- RFC-004 — Graphify ---
 

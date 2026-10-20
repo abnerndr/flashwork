@@ -53,6 +53,8 @@ import { visibilityFromPanelResize, widthFromPanelResize } from './lib/sidebarPa
 import { setMaxConcurrentSpawns } from './lib/spawnQueue'
 import { setWindowOpacity } from './lib/tauri'
 import { getLastCrashReport } from './lib/tauri'
+import { syncWslPreferences } from './lib/tauri/invokeWithWsl'
+import { isWindows } from './lib/platform'
 import { loadThemeIconBytes } from './lib/themeIcons'
 import { checkForUpdate } from './lib/updater'
 import { useProjectsStore } from './stores/projectsStore'
@@ -149,6 +151,13 @@ function InAppNotifications() {
 }
 
 export default function App() {
+  const wslEnabled = useProjectsStore((s) => s.preferences.wslEnabled)
+  const wslDefaultDistro = useProjectsStore((s) => s.preferences.wslDefaultDistro)
+  useEffect(() => {
+    if (isWindows()) void syncWslPreferences().catch((error) => {
+      console.warn('Could not synchronize WSL execution preference', error)
+    })
+  }, [wslEnabled, wslDefaultDistro])
   const hydrate = useProjectsStore((s) => s.hydrate)
   const hydrated = useProjectsStore((s) => s.hydrated)
   const uiTheme = useProjectsStore((s) => s.preferences.uiTheme)

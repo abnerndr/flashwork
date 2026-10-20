@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { invokeWithWsl } from './invokeWithWsl'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 export type SpawnPtyArgs = {
@@ -19,7 +20,7 @@ export type SpawnPtyArgs = {
 }
 
 export async function spawnPty(args: SpawnPtyArgs): Promise<{ id: string }> {
-  return invoke<{ id: string }>('spawn_pty', {
+  return invokeWithWsl<{ id: string }>('spawn_pty', {
     cols: args.cols,
     rows: args.rows,
     id: args.id,
@@ -90,7 +91,7 @@ export async function killPtyTree(ptyId: string): Promise<number[]> {
 }
 
 export async function restartPty(args: SpawnPtyArgs & { id: string }): Promise<{ id: string }> {
-  return invoke<{ id: string }>('restart_pty', {
+  return invokeWithWsl<{ id: string }>('restart_pty', {
     id: args.id,
     command: args.command,
     cwd: args.cwd,

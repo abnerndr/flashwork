@@ -136,6 +136,13 @@ export function PreferencesModal() {
   const searchItems = useMemo<SearchItem[]>(
     () => [
       {
+        category: 'terminal',
+        target: 'wsl-environment',
+        label: t('wsl.environment'),
+        description: t('wsl.settingsHint'),
+        keywords: 'wsl linux windows powershell distro terminal',
+      },
+      {
         category: 'account',
         target: 'profile',
         label: t('prefs.profile'),

@@ -121,7 +121,28 @@ pub fn wsl_target_for_cwd(cwd: Option<&str>) -> Option<WslPath> {
     if !cfg!(windows) {
         return None;
     }
-    parse_wsl_unc(cwd?)
+    let cwd = cwd?;
+    if let Some(target) = parse_wsl_unc(cwd) {
+        return Some(target);
+    }
+    let distro = DEFAULT_DISTRO.lock().ok()?.clone();
+    target_for_windows_folder(cwd, distro.as_deref())
+}
+
+fn target_for_windows_folder(cwd: &str, distro: Option<&str>) -> Option<WslPath> {
+    Some(WslPath {
+        distro: distro?.to_string(),
+        linux_path: windows_to_wsl_path(cwd)?,
+    })
+}
+
+static DEFAULT_DISTRO: Mutex<Option<String>> = Mutex::new(None);
+
+/// Runtime preference synchronized before execution-related IPC calls.
+#[tauri::command]
+pub fn wsl_set_default_distro(distro: Option<String>) -> Result<(), String> {
+    *DEFAULT_DISTRO.lock().map_err(|e| e.to_string())? = distro.filter(|s| !s.trim().is_empty());
+    Ok(())
 }
 
 /// Decodes `wsl.exe -l -q` output. wsl.exe writes its own messages as UTF-16LE
@@ -348,6 +369,69 @@ pub async fn wsl_list_distros() -> Vec<String> {
 
 static HOME_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WslStatus {
+    distros: Vec<String>,
+    running: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn wsl_status() -> Result<WslStatus, String> {
+    tokio::task::spawn_blocking(|| {
+        let query = |args: &[&str]| -> Result<Vec<String>, String> {
+            let args = args.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            let output = wsl_command(&args).output().map_err(|e| e.to_string())?;
+            if !output.status.success() {
+                return Err(decode_wsl_output(&output.stderr));
+            }
+            Ok(parse_distro_list(&output.stdout))
+        };
+        Ok(WslStatus {
+            distros: query(&["--list", "--quiet"])?,
+            running: query(&["--list", "--running", "--quiet"])?,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Starts the selected distro and resolves an existing folder or creates the requested project folder.
+#[tauri::command]
+pub async fn wsl_prepare_folder(
+    distro: String,
+    folder: String,
+    create: bool,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let requested = distro.trim().to_string();
+        let distro = list_distros()
+            .into_iter()
+            .find(|name| name.eq_ignore_ascii_case(&requested))
+            .ok_or_else(|| "WSL distribution is not installed".to_string())?;
+        let folder = folder.trim();
+        let linux = if let Some(path) = parse_wsl_unc(folder) {
+            if path.distro != distro { return Err("WSL folder belongs to another distribution".into()); }
+            path.linux_path
+        } else {
+            windows_to_wsl_path(folder).unwrap_or_else(|| folder.to_string())
+        };
+        // User input is passed as argv, never interpolated into shell code.
+        let script = r#"p="$1"; case "$p" in '~') p="$HOME";; '~/'*) p="$HOME/${p#\~/}";; esac; case "$p" in /*) ;; *) echo 'Use an absolute Linux path or ~/folder' >&2; exit 1;; esac; if [ "$2" = true ]; then mkdir -p -- "$p" || exit; fi; cd -- "$p" && pwd -P"#;
+        let args = vec!["-d".into(), distro.clone(), "--exec".into(), "sh".into(), "-c".into(), script.into(), "flashwork".into(), linux, create.to_string()];
+        let output = wsl_command(&args).output().map_err(|e| e.to_string())?;
+        if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).trim().to_string()); }
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path.starts_with('/') { return Err("WSL did not return an absolute folder".into()); }
+        // Windows files must remain native host paths: UNC access back through
+        // WSL's /mnt drives can fail with access denied even when Linux can read them.
+        if windows_to_wsl_path(folder).is_some() && parse_wsl_unc(folder).is_none() {
+            return Ok(folder.to_string());
+        }
+        Ok(linux_to_wsl_unc(&distro, &path))
+    }).await.map_err(|e| e.to_string())?
+}
+
 /// `$HOME` of the default user of `distro` (cached for the process lifetime).
 pub fn distro_home(distro: &str) -> Option<String> {
     if !cfg!(windows) {
@@ -502,11 +586,72 @@ fn detect_agents_blocking(cwd: Option<&str>, commands: &[String]) -> Vec<AgentDe
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
+    #[tokio::test]
+    #[ignore = "requires FLASHWORK_TEST_WSL_DISTRO and a working WSL installation"]
+    async fn prepares_wsl_folder_and_bootstraps_project() {
+        let distro = std::env::var("FLASHWORK_TEST_WSL_DISTRO").expect("set the test distro");
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!("wsl-test space ' {}", nanoid::nanoid!()));
+        let unc = wsl_prepare_folder(distro.clone(), folder.to_string_lossy().into(), true)
+            .await
+            .expect("prepare Windows folder through WSL");
+        assert!(
+            std::path::Path::new(&unc).is_dir(),
+            "UNC folder {unc:?}: {:?}",
+            std::fs::metadata(&unc)
+        );
+        assert_eq!(std::path::Path::new(&unc), folder);
+        let id = nanoid::nanoid!();
+        crate::project_home::project_bootstrap(unc.clone(), id.clone())
+            .expect("bootstrap through UNC");
+        assert_eq!(crate::project_home::detect(&unc).unwrap().id, id);
+        let reopened = wsl_prepare_folder(distro.clone(), unc.clone(), false)
+            .await
+            .unwrap();
+        assert_eq!(reopened, unc);
+        let linux_folder = format!("/tmp/flashwork-test-{}", nanoid::nanoid!());
+        let linux_unc = wsl_prepare_folder(distro.clone(), linux_folder, true)
+            .await
+            .unwrap();
+        let linux_id = nanoid::nanoid!();
+        crate::project_home::project_bootstrap(linux_unc.clone(), linux_id.clone())
+            .expect("bootstrap native Linux folder");
+        assert_eq!(
+            crate::project_home::detect(&linux_unc).unwrap().id,
+            linux_id
+        );
+        assert!(wsl_status().await.unwrap().running.contains(&distro));
+        assert!(
+            wsl_prepare_folder(distro.clone(), "relative/path".into(), false)
+                .await
+                .is_err()
+        );
+        assert!(wsl_prepare_folder(distro, "~".into(), false)
+            .await
+            .unwrap()
+            .starts_with(r"\\wsl.localhost\"));
+    }
+
     fn wp(distro: &str, linux: &str) -> Option<WslPath> {
         Some(WslPath {
             distro: distro.into(),
             linux_path: linux.into(),
         })
+    }
+
+    #[test]
+    fn selected_runtime_does_not_require_changing_the_host_folder() {
+        assert_eq!(
+            target_for_windows_folder(r"E:\projects\app", Some("Ubuntu")),
+            wp("Ubuntu", "/mnt/e/projects/app")
+        );
+        assert_eq!(target_for_windows_folder(r"E:\projects\app", None), None);
+        assert_eq!(
+            target_for_windows_folder("relative/path", Some("Ubuntu")),
+            None
+        );
     }
 
     #[test]

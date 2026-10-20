@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/assets/flashwork-mark.svg" alt="Flashwork" width="96" height="96">
+  <img src="src/assets/brand/flashwork-icone.svg" alt="Flashwork" width="96" height="96">
 </p>
 
 <h1 align="center">Flashwork</h1>

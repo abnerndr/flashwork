@@ -4,7 +4,10 @@ This file documents the public app assets and the core design tokens used by the
 
 ## Logo and Icons
 
-- Main mark: [src/assets/flashwork-mark.svg](../src/assets/flashwork-mark.svg)
+- App mark: [src/assets/brand/flashwork-icone.svg](../src/assets/brand/flashwork-icone.svg)
+- Wordmark, light background: [src/assets/brand/flashwork-logo-escura.svg](../src/assets/brand/flashwork-logo-escura.svg)
+- Wordmark, dark background: [src/assets/brand/flashwork-logo-clara.svg](../src/assets/brand/flashwork-logo-clara.svg)
+- Previous mark, kept on disk: [src/assets/flashwork-mark.svg](../src/assets/flashwork-mark.svg)
 - Loading mark: [src/assets/flashwork-loading-mark.png](../src/assets/flashwork-loading-mark.png)
 - Default profile avatar: [src/assets/default-profile.svg](../src/assets/default-profile.svg)
 - App icons: [src-tauri/icons/](../src-tauri/icons/)
@@ -30,13 +33,13 @@ npx tauri icon ./logo.png
 
 | Token | Value |
 |---|---|
-| `--font-sans` | `"Segoe UI Variable", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif` |
+| `--font-sans` | `Manrope`, then `"Segoe UI Variable", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif` |
 | `--font-mono` | `"Cascadia Code", "Cascadia Mono", "Sarasa Mono", Consolas, ui-monospace, monospace` |
 | `--icon-stroke` | `1.75` |
 | `--workbench-tab-height` | `35px` |
 | `--workbench-icon` | `16px` |
 
-The sans stack follows the VS Code / Windows workbench face, with Inter as the already-bundled fallback. Fonts load from the OS only — no Google Fonts CDN. The mono stack is used for cwd labels, terminal-adjacent metadata, badges, and code-like values. Sidebar and toolbar icons default to `--workbench-icon` with `--icon-stroke`.
+Manrope is bundled under `src/assets/fonts/` (SIL Open Font License, see `OFL-Manrope.txt`). The rest of the sans stack is the OS fallback. The mono stack is used for cwd labels, terminal-adjacent metadata, badges, and code-like values. Sidebar and toolbar icons default to `--workbench-icon` with `--icon-stroke`.
 
 ## Global Surfaces
 

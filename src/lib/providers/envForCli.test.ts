@@ -79,6 +79,7 @@ describe('PROVIDER_CLI_ENV', () => {
       anthropic: ['ANTHROPIC_API_KEY'],
       openai: ['OPENAI_API_KEY'],
       google: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
+      deepseek: ['DEEPSEEK_API_KEY'],
     })
   })
 })

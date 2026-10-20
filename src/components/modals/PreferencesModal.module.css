@@ -1126,6 +1126,13 @@
   font-size: 11px;
 }
 
+.providerHint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .providerSuccess {
   margin: 0;
   color: var(--status-working);

@@ -11,7 +11,7 @@ import { cliPathMatchesAgent } from '../../lib/agentCliPath'
 import { AgentCompletionMonitor, isCompletionMonitoredAgent } from '../../lib/agentCompletionMonitor'
 import { preparePtyRuntimeLaunch } from '../../lib/agentRuntimeAdapter'
 import { getLocale, translate } from '../../lib/i18n'
-import { isWindows } from '../../lib/platform'
+import { isWindows, osFamily } from '../../lib/platform'
 import {
   findRunIdByCanonicalSession,
   releaseClaudeWriter,
@@ -274,6 +274,7 @@ export function useXtermSession(params: {
       scrollback: getTerminalScrollbackRows({
         agent: command != null && command !== 'shell',
         memoryBudgetMb: resourcePolicy.memoryBudgetMb,
+        constrainedMemory: osFamily() === 'linux',
       }),
 
       // xterm.js passa a assumir que o backend redesenha a tela sozinho
@@ -1056,10 +1057,12 @@ export function useXtermSession(params: {
           ? buildAgentLaunch(
               command,
               preparedRuntime.args,
-              command === 'gemini' ? undefined : resumeId,
+              resumeId,
               undefined,
               mcpConfigPaths,
-              command === 'claude' && Boolean(resumeId) && claudeCreateKnownId,
+              (command === 'claude' || command === 'gemini') &&
+                Boolean(resumeId) &&
+                claudeCreateKnownId,
             )
           : { args: preparedRuntime.args, sessionId: undefined, createdSession: false }
         const spawnArgs = launch.args.length > 0 ? launch.args : undefined
@@ -1081,8 +1084,10 @@ export function useXtermSession(params: {
         // Claude gets its id up front through --session-id, but /new and /resume
         // typed inside the CLI move it to another conversation. Baselining the
         // directory here lets the watcher below adopt whatever it moves to.
+        // Claude/Gemini mint an id up front; still baseline so /new or in-CLI
+        // resume can be adopted. Other agents need discovery when launch has no id.
         const discoveredSessionsBeforePromise =
-          cwd && (!launch.sessionId || command === 'claude')
+          cwd && (!launch.sessionId || command === 'claude' || command === 'gemini')
             ? command === 'codex'
               ? snapshotCodexSessions(cwd).catch(() => [])
               : command === 'antigravity'
@@ -1125,7 +1130,7 @@ export function useXtermSession(params: {
         }
         console.info(`[pty-launch] ${command ?? 'shell'} spawn OK id=${response.id}`)
         spawnedAtRef.current = Date.now()
-        usedResumeRef.current = command !== 'gemini' && Boolean(resumeId)
+        usedResumeRef.current = Boolean(resumeId)
         if (disposed) return
         setBootPhase('attaching')
         ptyIdRef.current = response.id
@@ -1206,13 +1211,20 @@ export function useXtermSession(params: {
                           ? await snapshotGeminiSessions(cwd).catch(() => [])
                           : await snapshotOpenCodeSessions(cwd).catch(() => [])
 
-                const newSession = claimDiscoveredSession(
-                  command,
-                  cwd,
-                  before,
-                  sessions,
-                  sessionPersistenceKey,
-                )
+                // Prefer a unique new id; after a few misses (0 or 2+ candidates),
+                // adopt the newest unclaimed session so Codex/OpenCode/Antigravity
+                // still get a resume id when the diff is ambiguous.
+                const newSession =
+                  claimDiscoveredSession(
+                    command,
+                    cwd,
+                    before,
+                    sessions,
+                    sessionPersistenceKey,
+                  ) ??
+                  (attempt >= 3 && !launch.sessionId
+                    ? claimMostRecentSession(command, cwd, sessions, sessionPersistenceKey)
+                    : undefined)
                 if (newSession) {
                   saveSession(sessionPersistenceKey, {
                     sessionId: response.id,
@@ -1226,8 +1238,8 @@ export function useXtermSession(params: {
                     timestamp: Date.now(),
                   })
                   onSessionIdRef.current?.(newSession.id)
-                  if (command !== 'claude') return
-                  // Claude can switch conversation again through /new or /resume,
+                  if (command !== 'claude' && command !== 'gemini') return
+                  // Claude/Gemini can switch conversation through /new or /resume,
                   // so the watcher stays alive for the life of the pane.
                   before.add(newSession.id)
                   attempt = 0

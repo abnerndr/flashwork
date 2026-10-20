@@ -169,14 +169,17 @@
   animation: loadingEnter 360ms ease-out both;
 }
 
+.loadingMark {
+  width: 42px;
+  height: 42px;
+}
+
 .loadingWordmark {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.52em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--fg);
-  padding-left: 0.52em;
 }
 
 .loadingConsole {

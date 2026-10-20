@@ -2,9 +2,11 @@ import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Bell, X } from 'lucide-react'
 import { type CSSProperties, lazy, Suspense, useEffect, useRef } from 'react'
-import { Group as PanelGroup, Panel, Separator, usePanelRef } from 'react-resizable-panels'
+import { Panel, Group as PanelGroup, Separator, usePanelRef } from 'react-resizable-panels'
 
 import styles from './App.module.css'
+import brandAppIcon from './assets/brand/app-icon.png'
+import brandIcon from './assets/brand/flashwork-icone.svg'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { FocusOverlay } from './components/FocusOverlay'
 import { AgentIcon } from './components/icons/AgentIcons'
@@ -15,9 +17,9 @@ import { AiUsageModal } from './components/modals/AiUsageModal'
 import { EditGroupModal } from './components/modals/EditGroupModal'
 import { EditProjectModal } from './components/modals/EditProjectModal'
 import { FindJumpModal } from './components/modals/FindJumpModal'
+import { GitHubLoginModal } from './components/modals/GitHubLoginModal'
 import { HandoffModal } from './components/modals/HandoffModal'
 import { InterruptedResumeModal } from './components/modals/InterruptedResumeModal'
-import { RunSpecModal } from './components/modals/RunSpecModal'
 import { McpIntroModal } from './components/modals/McpIntroModal'
 import { McpManagerModal } from './components/modals/McpManagerModal'
 import { NewGroupModal } from './components/modals/NewGroupModal'
@@ -28,8 +30,8 @@ import { OnboardingModal } from './components/modals/OnboardingModal'
 import { PreferencesModal } from './components/modals/PreferencesModal'
 import { ProfilesModal } from './components/modals/ProfilesModal'
 import { RecentChatsModal } from './components/modals/RecentChatsModal'
+import { RunSpecModal } from './components/modals/RunSpecModal'
 import { SuspendGroupModal } from './components/modals/SuspendGroupModal'
-import { GitHubLoginModal } from './components/modals/GitHubLoginModal'
 import { ThemePickerModal } from './components/modals/ThemePickerModal'
 import { TopbarSettingsModal } from './components/modals/TopbarSettingsModal'
 import { UpdateModal } from './components/modals/UpdateModal'
@@ -37,6 +39,7 @@ import { WelcomeModal } from './components/modals/WelcomeModal'
 import { WhatsNewModal } from './components/modals/WhatsNewModal'
 import { ProjectSidebar } from './components/ProjectSidebar'
 import { RightSidebar } from './components/RightSidebar'
+import { SpecRunProgress } from './components/SpecRunProgress'
 import { TitleBar } from './components/TitleBar'
 import { TokenHud } from './components/TokenHud'
 import { WorkspaceView } from './components/WorkspaceView'
@@ -46,16 +49,15 @@ import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
 import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
+import { useSpecContinue } from './hooks/useSpecContinue'
 import { startActivityTracker } from './lib/activityTracker'
 import { APP_SHELL_ID } from './lib/appShell'
 import { intlLocale, translate, useT } from './lib/i18n'
+import { isWindows } from './lib/platform'
 import { visibilityFromPanelResize, widthFromPanelResize } from './lib/sidebarPanelState'
 import { setMaxConcurrentSpawns } from './lib/spawnQueue'
-import { setWindowOpacity } from './lib/tauri'
-import { getLastCrashReport } from './lib/tauri'
+import { getLastCrashReport, setWindowOpacity } from './lib/tauri'
 import { syncWslPreferences } from './lib/tauri/invokeWithWsl'
-import { isWindows } from './lib/platform'
-import { loadThemeIconBytes } from './lib/themeIcons'
 import { checkForUpdate } from './lib/updater'
 import { useProjectsStore } from './stores/projectsStore'
 import { listOfferableInterruptedRuns, usePromptRunStore } from './stores/promptRunStore'
@@ -80,6 +82,7 @@ function LoadingScreen() {
   return (
     <div className={styles.loadingScreen} role="status" aria-label={t('loading.initializing')}>
       <div className={styles.loadingInner}>
+        <img src={brandIcon} alt="" className={styles.loadingMark} />
         <div className={styles.loadingWordmark}>Flashwork</div>
         <div className={styles.loadingConsole}>
           <span className={styles.loadingPrompt} aria-hidden="true">
@@ -162,7 +165,6 @@ export default function App() {
   const hydrated = useProjectsStore((s) => s.hydrated)
   const uiTheme = useProjectsStore((s) => s.preferences.uiTheme)
   const visualStyle = useProjectsStore((s) => s.preferences.visualStyle ?? 'normal')
-  const appIconTheme = useProjectsStore((s) => s.preferences.appIconTheme)
   const uiZoom = useProjectsStore((s) => s.preferences.uiZoom)
   const windowOpacity = useProjectsStore((s) => s.preferences.windowOpacity)
   const language = useProjectsStore((s) => s.preferences.language)
@@ -210,6 +212,7 @@ export default function App() {
   useResourceSupervisor(hydrated)
   useCliOpenRequests(hydrated)
   usePromptRunWatcher()
+  useSpecContinue()
 
   useEffect(() => {
     void hydrate()
@@ -229,12 +232,13 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    void loadThemeIconBytes(appIconTheme)
-      .then((bytes) => getCurrentWindow().setIcon(bytes))
+    void fetch(brandAppIcon)
+      .then((response) => response.arrayBuffer())
+      .then((buffer) => getCurrentWindow().setIcon(Array.from(new Uint8Array(buffer))))
       .catch((error) => {
         console.error('[app-icon] failed to apply window icon', error)
       })
-  }, [appIconTheme, hydrated])
+  }, [hydrated])
 
   useEffect(() => {
     document.documentElement.lang = language === 'pt-BR' ? 'pt-BR' : 'en'
@@ -400,6 +404,7 @@ export default function App() {
     <>
       <div className={styles.appShell} id={APP_SHELL_ID} tabIndex={-1}>
         <TitleBar />
+        <SpecRunProgress />
         <PanelGroup
           orientation="horizontal"
           className={styles.shellBody}

@@ -54,6 +54,9 @@ pub struct PromptRunRecord {
     /// SPEC task plan (opaque to the backend; validated by the frontend).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spec_tasks: Option<serde_json::Value>,
+    /// Worker CLIs the user allowed for this SPEC run. Handoff stays inside this set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_agents: Option<Vec<String>>,
 }
 
 fn validate_run_id(value: &str) -> Result<(), String> {

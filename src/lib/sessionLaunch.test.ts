@@ -74,14 +74,39 @@ describe('buildAgentLaunch', () => {
     ).toEqual(['--conversation', 'agy-pane', '--dangerously-skip-permissions'])
   })
 
-  it('Gemini does not inject a resume flag for a saved session UUID', () => {
+  it('Gemini resumes with --resume <uuid> and strips stale session flags', () => {
+    const launch = buildAgentLaunch(
+      'gemini',
+      ['--resume', 'stale', '--session-id', 'stale-too', '--yolo'],
+      'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    )
+    expect(launch.args).toEqual([
+      '--resume',
+      'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      '--yolo',
+    ])
+    expect(launch.sessionId).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    expect(launch.createdSession).toBe(false)
+  })
+
+  it('Gemini mints --session-id for new panes', () => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    const launch = buildAgentLaunch('gemini', ['--yolo'], undefined, () => id)
+    expect(launch.args).toEqual(['--session-id', id, '--yolo'])
+    expect(launch.sessionId).toBe(id)
+    expect(launch.createdSession).toBe(true)
+  })
+
+  it('Gemini createKnownId uses --session-id instead of --resume', () => {
     const launch = buildAgentLaunch(
       'gemini',
       ['--yolo'],
-      'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      'canonical-gemini',
+      undefined,
+      undefined,
+      true,
     )
-    expect(launch.args).toEqual(['--yolo'])
-    expect(launch.sessionId).toBeUndefined()
-    expect(launch.createdSession).toBe(false)
+    expect(launch.args).toEqual(['--session-id', 'canonical-gemini', '--yolo'])
+    expect(launch.createdSession).toBe(true)
   })
 })

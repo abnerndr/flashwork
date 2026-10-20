@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/assets/flashwork-mark.svg" alt="Flashwork" width="96" height="96">
+  <img src="src/assets/brand/flashwork-icone.svg" alt="Flashwork" width="96" height="96">
 </p>
 
 <h1 align="center">Flashwork</h1>
@@ -127,18 +127,30 @@ Detalhes: [`docs/OVERVIEW.md`](docs/OVERVIEW.md)
 | Requisito            | Notas                                |
 | -------------------- | ------------------------------------ |
 | **Node.js ≥ 22**     | Definido em `package.json` `engines` |
+| **pnpm**             | Instalado pelo setup (Corepack)      |
 | **Rust (stable)**    | Via [rustup](https://rustup.rs)      |
-| **Toolchain nativo** | Ver scripts de setup por SO          |
+| **Toolchain nativo** | Tauri deps (instaladas pelo setup)   |
 
-Primeira vez no host:
+### Setup (todos os SOs)
+
+Um comando na raiz — detecta o SO, instala pnpm, Rust, pacotes do Tauri e as deps do app:
 
 ```bash
-./scripts/setup-linux.sh      # Ubuntu/Debian e WSL
-./scripts/setup-macos.sh      # Xcode CLT
-.\scripts\setup-windows.ps1   # MSVC / Visual Studio Build Tools
+# Precisa de Node.js >= 22 já instalado.
+node scripts/setup.mjs
+# ou, se pnpm já existir:
+pnpm run setup
 ```
 
-Linux precisa das deps do Tauri (webkit, gtk, rsvg, patchelf). O script de setup instala isso via `apt`.
+Atalhos por SO (mesmo script por baixo):
+
+```bash
+./scripts/setup-linux.sh      # Ubuntu/Debian e WSL (apt + webkit/gtk)
+./scripts/setup-macos.sh      # Xcode CLT
+.\scripts\setup-windows.ps1   # checa MSVC / WebView2; rustup via winget se faltar
+```
+
+Só deps do repo (sem apt/Xcode): `pnpm run setup:deps`.
 
 ---
 
@@ -147,23 +159,23 @@ Linux precisa das deps do Tauri (webkit, gtk, rsvg, patchelf). O script de setup
 Na raiz do repositório:
 
 ```bash
-npm run setup          # instala deps do app
-npm run test:local     # lint + testes + build do frontend
-npm run app            # abre o app (Tauri) — teste local
-npm run dev:ui         # só o visual no browser (sem PTY)
+pnpm run setup         # bootstrap completo (primeira vez)
+pnpm run test:local    # lint + testes + build do frontend
+pnpm run app           # abre o app (Tauri) — teste local
+pnpm run dev:ui        # só o visual no browser (sem PTY)
 ```
 
-A primeira execução de `npm run app` compila o backend Rust do zero e leva alguns minutos. As seguintes são rápidas.
+A primeira execução de `pnpm run app` compila o backend Rust do zero e leva alguns minutos. As seguintes são rápidas.
 
 `dev:ui` sobe só o Vite — útil para UI, mas **não** spawna PTYs.
 
 ### Instalador (rode no SO correspondente)
 
 ```bash
-npm run installer:linux      # AppImage + .deb
-npm run installer:macos      # .dmg + .app
-npm run installer:windows    # NSIS + MSI
-npm run installer            # bundle do SO atual
+pnpm run installer:linux      # AppImage + .deb
+pnpm run installer:macos      # .dmg + .app
+pnpm run installer:windows    # NSIS + MSI
+pnpm run installer            # bundle do SO atual
 ```
 
 Artefatos: `src-tauri/target/release/bundle/`

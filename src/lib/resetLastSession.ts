@@ -1,19 +1,13 @@
-   
-                                                                        
-                                                                             
-                                                                           
-                                                                             
-                  
-  
-                                                                     
-                                                              
-   
+/**
+ * Preferences "resume last session": restart every live resumable agent pane
+ * against the newest conversation on disk for its cwd (excluding the current one).
+ */
 
 import { useProjectsStore } from '../stores/projectsStore'
 import { useTerminalsStore } from '../stores/terminalsStore'
 import { preparePtyRuntimeLaunch } from './agentRuntimeAdapter'
 import { providerSpawnFlags } from './providers/envForCli'
-import { getActiveSessions, saveSession } from './sessionResume'
+import { getActiveSessions, saveSession, type SavedSession } from './sessionResume'
 import { acquireSpawnSlot, releaseSpawnSlot } from './spawnQueue'
 import {
   getPtyCwd,
@@ -21,20 +15,20 @@ import {
   snapshotAntigravitySessions,
   snapshotClaudeSessions,
   snapshotCodexSessions,
+  snapshotGeminiSessions,
   snapshotOpenCodeSessions,
 } from './tauri'
-import type { AgentRuntimeProfile, AgentType } from './types'
+import { agentCliCommand, type AgentRuntimeProfile, type AgentType } from './types'
 
-const RESUMABLE: AgentType[] = ['claude', 'codex', 'opencode', 'antigravity']
+const RESUMABLE: AgentType[] = ['claude', 'codex', 'opencode', 'antigravity', 'gemini']
 
 export type ResetLastSessionResult = { resumed: number; total: number }
 
-                                                                              
 function stripFlagWithValue(args: string[], flag: string): string[] {
   const out: string[] = []
   for (let i = 0; i < args.length; i++) {
     if (args[i] === flag) {
-      i++ // pula o valor associado
+      i++ // skip associated value
       continue
     }
     out.push(args[i])
@@ -42,19 +36,11 @@ function stripFlagWithValue(args: string[], flag: string): string[] {
   return out
 }
 
-                                                                               
 type SessionExclude = {
-                                                                             
   id?: string
-                                                                       
   before?: number
 }
 
-   
-                                                                             
-                                                                              
-                                                                            
-   
 function pickSessionId(
   sessions: ReadonlyArray<{ id: string; modified_at_ms: number }>,
   exclude: SessionExclude,
@@ -66,7 +52,17 @@ function pickSessionId(
   return pool.reduce((a, b) => (b.modified_at_ms > a.modified_at_ms ? b : a)).id
 }
 
-/** Acha o ID da conversa a retomar no disco para o cwd, por agente. */
+function conversationIdFromSaved(agent: AgentType, active: SavedSession | undefined): string | undefined {
+  if (!active) return undefined
+  if (agent === 'codex') return active.codexSessionId
+  if (agent === 'opencode') return active.opencodeSessionId
+  if (agent === 'antigravity') return active.antigravitySessionId
+  if (agent === 'gemini') return active.geminiSessionId
+  if (agent === 'claude') return active.claudeSessionId
+  return undefined
+}
+
+/** Newest conversation id on disk for the cwd, per agent. */
 async function latestSessionId(
   agent: AgentType,
   cwd: string,
@@ -77,11 +73,9 @@ async function latestSessionId(
   try {
     if (agent === 'codex') return pickSessionId(await snapshotCodexSessions(cwd), exclude)
     if (agent === 'claude') return pickSessionId(await snapshotClaudeSessions(cwd), exclude)
+    if (agent === 'gemini') return pickSessionId(await snapshotGeminiSessions(cwd), exclude)
     if (agent === 'opencode') {
-                                                                          
-                                                         
-                                                                               
-                                                  
+      // OpenCode snapshots can lag; prefer the id we already persisted for this pane.
       if (savedOpenCodeId) return savedOpenCodeId
       const sessions = await snapshotOpenCodeSessions(cwd)
       if (sessions.length > 0) {
@@ -97,15 +91,12 @@ async function latestSessionId(
   return null
 }
 
-                                                                             
 function buildResumeArgs(agent: AgentType, baseArgs: string[], sessionId: string | null): string[] {
   if (agent === 'claude') {
-    // Tira qualquer --resume <id> / --continue antigos e reinjeta o novo.
     const clean = stripFlagWithValue(baseArgs, '--resume').filter((a) => a !== '--continue')
     return sessionId ? ['--resume', sessionId, ...clean] : ['--continue', ...clean]
   }
   if (agent === 'codex') {
-    // codex usa `resume <id>` / `resume --last` como subcomando (1º arg).
     let clean = baseArgs
     if (baseArgs[0] === 'resume') {
       const rest = baseArgs.slice(1)
@@ -120,10 +111,16 @@ function buildResumeArgs(agent: AgentType, baseArgs: string[], sessionId: string
     )
     return sessionId ? ['--conversation', sessionId, ...clean] : ['--continue', ...clean]
   }
-                                                                          
-                            
+  if (agent === 'gemini') {
+    let clean = stripFlagWithValue(baseArgs, '--resume')
+    clean = stripFlagWithValue(clean, '-r')
+    clean = stripFlagWithValue(clean, '--session-id')
+    clean = stripFlagWithValue(clean, '--session-file')
+    clean = clean.filter((a) => a !== '--list-sessions')
+    return sessionId ? ['--resume', sessionId, ...clean] : ['--resume', 'latest', ...clean]
+  }
   const clean = stripFlagWithValue(baseArgs, '--session').filter(
-    (a) => a !== '--resume' && a !== '--continue',
+    (a) => a !== '--resume' && a !== '--continue' && a !== '-c' && a !== '-s',
   )
   return sessionId ? ['--session', sessionId, ...clean] : ['--continue', ...clean]
 }
@@ -139,7 +136,6 @@ type ResumeTarget = {
   runtimeProfile?: AgentRuntimeProfile
 }
 
-                                                                       
 function collectLivePanes(): ResumeTarget[] {
   const { projects } = useProjectsStore.getState()
   const { byPtyId } = useTerminalsStore.getState()
@@ -166,24 +162,14 @@ function collectLivePanes(): ResumeTarget[] {
   return targets
 }
 
-   
-                                                                          
-                                                                           
-                                                            
-   
 export function countLiveResumablePanes(): number {
   return collectLivePanes().length
 }
 
-   
-                                                                   
-                                                                  
-  
-                                                                             
-                                                                            
-                                                                          
-                                                                    
-   
+/**
+ * Restart each live resumable pane with CLI resume args for the prior conversation.
+ * Persistence keys match useXtermSession (`sessionKey` = tab id).
+ */
 export async function resetLastSession(): Promise<ResetLastSessionResult> {
   const targets = collectLivePanes()
   let resumed = 0
@@ -198,18 +184,15 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
         cwd = (live ?? '').trim()
       }
 
-                                                                         
-      const active = getActiveSessions()[target.ptyId]
+      // XTerm persists under the tab id; older builds used the PTY id.
+      const activeSessions = getActiveSessions()
+      const active = activeSessions[target.tabId] ?? activeSessions[target.ptyId]
       const exclude: SessionExclude = {
-        id:
-          target.agent === 'codex'
-            ? active?.codexSessionId
-            : target.agent === 'opencode'
-              ? active?.opencodeSessionId
-              : active?.claudeSessionId,
+        id: conversationIdFromSaved(target.agent, active),
         before: active?.timestamp,
       }
-      const savedOpenCodeId = target.agent === 'opencode' ? active?.opencodeSessionId : undefined
+      const savedOpenCodeId =
+        target.agent === 'opencode' ? conversationIdFromSaved('opencode', active) : undefined
       const sessionId = await latestSessionId(target.agent, cwd, exclude, savedOpenCodeId)
       const extraArgs = buildResumeArgs(target.agent, target.extraArgs, sessionId)
       const preparedRuntime = preparePtyRuntimeLaunch(
@@ -218,13 +201,12 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
         extraArgs,
       )
 
-                                                                        
       useTerminalsStore.getState().beginRestart(target.ptyId)
       await restartPty({
         id: target.ptyId,
         cols: 80,
         rows: 24,
-        command: target.agent,
+        command: agentCliCommand(target.agent),
         cwd: cwd || undefined,
         extraArgs: preparedRuntime.args,
         env: preparedRuntime.env,
@@ -234,12 +216,13 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
         new CustomEvent('flashwork:terminal-resize-request', { detail: { ptyId: target.ptyId } }),
       )
 
-                                                                          
-      saveSession(target.ptyId, {
+      saveSession(target.tabId, {
         sessionId: target.ptyId,
         claudeSessionId: target.agent === 'claude' ? (sessionId ?? undefined) : undefined,
         codexSessionId: target.agent === 'codex' ? (sessionId ?? undefined) : undefined,
         opencodeSessionId: target.agent === 'opencode' ? (sessionId ?? undefined) : undefined,
+        antigravitySessionId: target.agent === 'antigravity' ? (sessionId ?? undefined) : undefined,
+        geminiSessionId: target.agent === 'gemini' ? (sessionId ?? undefined) : undefined,
         cwd,
         agent: target.agent,
         timestamp: Date.now(),
@@ -252,7 +235,7 @@ export async function resetLastSession(): Promise<ResetLastSessionResult> {
 
       resumed++
     } catch {
-                                                 
+      // Keep going through the remaining panes.
     } finally {
       releaseSpawnSlot()
     }

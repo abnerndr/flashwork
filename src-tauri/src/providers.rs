@@ -15,7 +15,7 @@ use std::time::Duration;
 
 /// v1 provider ids. Keep in sync with `ProviderId` in
 /// `src/lib/providers/modelCatalog.ts`.
-const PROVIDER_IDS: [&str; 3] = ["anthropic", "openai", "google"];
+const PROVIDER_IDS: [&str; 4] = ["anthropic", "openai", "google", "deepseek"];
 
 const KEYRING_USERNAME: &str = "api-key";
 
@@ -27,6 +27,8 @@ fn cli_env_names(id: &str) -> &'static [&'static str] {
         "anthropic" => &["ANTHROPIC_API_KEY"],
         "openai" => &["OPENAI_API_KEY"],
         "google" => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+        // ADR 014. No CLI reads this yet; the key is for the Run SPEC planner.
+        "deepseek" => &["DEEPSEEK_API_KEY"],
         _ => &[],
     }
 }
@@ -76,14 +78,88 @@ pub fn provider_key_set(id: String, key: String) -> Result<(), String> {
         .map_err(|error| format!("provider_key_set:{error}"))
 }
 
-/// Reports whether a non-empty secret is stored for `id`. Never returns the
-/// secret itself to the caller (the WebView).
+/// `.env` files to load at startup. `tauri dev` runs the binary with cwd `src-tauri`,
+/// while the repo `.env` (including `DEEPSEEK_API_KEY`) lives one directory up.
+pub(crate) fn app_dotenv_paths(cwd: &std::path::Path, manifest_dir: Option<&std::path::Path>) -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    let mut push = |path: std::path::PathBuf| {
+        if !paths.iter().any(|existing| existing == &path) {
+            paths.push(path);
+        }
+    };
+    push(cwd.join(".env"));
+    if cwd.file_name().and_then(|name| name.to_str()) == Some("src-tauri") {
+        push(cwd.join("..").join(".env"));
+    }
+    if let Some(dir) = manifest_dir {
+        push(dir.join(".env"));
+        push(dir.join("..").join(".env"));
+    }
+    paths
+}
+
+/// Loads each existing candidate. Does not override variables already set in the process.
+pub(crate) fn load_app_dotenv() {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let manifest = std::env::var_os("CARGO_MANIFEST_DIR").map(std::path::PathBuf::from);
+    for path in app_dotenv_paths(&cwd, manifest.as_deref()) {
+        if path.is_file() {
+            let _ = dotenvy::from_path(&path);
+        }
+    }
+}
+
+/// Process env that fills in when the keyring entry is empty. Only DeepSeek:
+/// `dotenvy` loads `.env` at startup, so `DEEPSEEK_API_KEY` there counts as a
+/// planner key. The keyring still wins when both are set.
+fn provider_env_var(id: &str) -> Option<&'static str> {
+    match id {
+        "deepseek" => Some("DEEPSEEK_API_KEY"),
+        _ => None,
+    }
+}
+
+fn nonempty_secret(value: Option<&str>) -> Option<String> {
+    let trimmed = value?.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+/// Keyring first, then the provider env var. Pure so tests never touch the OS keyring.
+fn resolve_provider_secret(keyring_secret: Option<&str>, env_secret: Option<&str>) -> Option<String> {
+    nonempty_secret(keyring_secret).or_else(|| nonempty_secret(env_secret))
+}
+
+fn read_keyring_secret(id: &str) -> Option<String> {
+    let entry = open_entry(id).ok()?;
+    let secret = entry.get_password().ok()?;
+    nonempty_secret(Some(&secret))
+}
+
+fn read_env_secret(id: &str) -> Option<String> {
+    let name = provider_env_var(id)?;
+    let value = std::env::var(name).ok()?;
+    nonempty_secret(Some(&value))
+}
+
+fn read_provider_secret(id: &str) -> Option<String> {
+    let keyring = read_keyring_secret(id);
+    let env = read_env_secret(id);
+    resolve_provider_secret(keyring.as_deref(), env.as_deref())
+}
+
+/// Reports whether a non-empty secret is available for `id`. Never returns the
+/// secret itself to the caller (the WebView). DeepSeek also counts
+/// `DEEPSEEK_API_KEY` from the process environment.
 #[tauri::command]
 pub fn provider_key_status(id: String) -> Result<ProviderKeyStatus, String> {
     validate_provider_id(&id)?;
-    let entry = open_entry(&id)?;
-    let saved = matches!(entry.get_password(), Ok(secret) if !secret.trim().is_empty());
-    Ok(ProviderKeyStatus { saved })
+    Ok(ProviderKeyStatus {
+        saved: read_provider_secret(&id).is_some(),
+    })
 }
 
 /// Deletes the stored key for `id`. Treated as a no-op success if nothing was
@@ -127,10 +203,7 @@ pub(crate) fn provider_cli_env(id: &str) -> HashMap<String, String> {
     if cli_env_names(id).is_empty() {
         return HashMap::new();
     }
-    let Ok(entry) = open_entry(id) else {
-        return HashMap::new();
-    };
-    let Ok(secret) = entry.get_password() else {
+    let Some(secret) = read_provider_secret(id) else {
         return HashMap::new();
     };
     build_cli_env(id, &secret)
@@ -207,6 +280,8 @@ fn chat_url(provider: &str, model: &str) -> Result<String, String> {
         "google" => Ok(format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         )),
+        // Official OpenAI-compatible endpoint. No third-party proxy (ADR 009 / 014).
+        "deepseek" => Ok("https://api.deepseek.com/chat/completions".to_string()),
         _ => Err(format!("Unknown provider id: {provider}")),
     }
 }
@@ -216,6 +291,7 @@ fn models_list_url(provider: &str) -> Result<String, String> {
         "anthropic" => Ok("https://api.anthropic.com/v1/models".to_string()),
         "openai" => Ok("https://api.openai.com/v1/models".to_string()),
         "google" => Ok("https://generativelanguage.googleapis.com/v1beta/models".to_string()),
+        "deepseek" => Ok("https://api.deepseek.com/models".to_string()),
         _ => Err(format!("Unknown provider id: {provider}")),
     }
 }
@@ -244,6 +320,17 @@ fn build_anthropic_body(model: &str, messages: &[ChatMessage]) -> serde_json::Va
     if !system_parts.is_empty() {
         body["system"] = serde_json::Value::String(system_parts.join("\n\n"));
     }
+    body
+}
+
+/// Same shape as OpenAI, plus DeepSeek's thinking toggle. Thinking is on by
+/// default and spends the reply on chain-of-thought; the planner needs JSON
+/// in `content`.
+fn build_deepseek_body(model: &str, messages: &[ChatMessage]) -> serde_json::Value {
+    let mut body = build_openai_body(model, messages);
+    body["thinking"] = serde_json::json!({ "type": "disabled" });
+    body["response_format"] = serde_json::json!({ "type": "json_object" });
+    body["max_tokens"] = serde_json::json!(8192);
     body
 }
 
@@ -333,7 +420,7 @@ fn extract_google_text(body: &serde_json::Value) -> String {
 fn extract_chat_text(provider: &str, body: &serde_json::Value) -> String {
     match provider {
         "anthropic" => extract_anthropic_text(body),
-        "openai" => extract_openai_text(body),
+        "openai" | "deepseek" => extract_openai_text(body),
         "google" => extract_google_text(body),
         _ => String::new(),
     }
@@ -342,13 +429,9 @@ fn extract_chat_text(provider: &str, body: &serde_json::Value) -> String {
 /// Reads the keyring for `id` and returns a trimmed, non-empty secret, or a
 /// human-readable (non-401) error if nothing usable is stored.
 fn read_key_for_chat(id: &str) -> Result<String, String> {
-    let entry = open_entry(id)?;
-    match entry.get_password() {
-        Ok(secret) if !secret.trim().is_empty() => Ok(secret.trim().to_string()),
-        _ => Err(format!(
-            "No API key saved for provider '{id}'. Add one in Preferences \u{2192} Providers."
-        )),
-    }
+    read_provider_secret(id).ok_or_else(|| {
+        format!("No API key saved for provider '{id}'. Add one in Preferences \u{2192} Providers.")
+    })
 }
 
 /// Calls the vendor's official chat-completions endpoint directly and
@@ -378,6 +461,10 @@ pub async fn provider_chat(
             .post(&url)
             .header("Authorization", format!("Bearer {key}"))
             .json(&build_openai_body(&model, &messages)),
+        "deepseek" => client
+            .post(&url)
+            .header("Authorization", format!("Bearer {key}"))
+            .json(&build_deepseek_body(&model, &messages)),
         "google" => client
             .post(&url)
             .query(&[("key", key.as_str())])
@@ -424,7 +511,7 @@ pub struct CatalogModel {
 /// caller keeps that provider's existing (Task 1) snapshot.
 fn parse_models_list(provider: &str, body: &serde_json::Value) -> Option<Vec<CatalogModel>> {
     let models: Vec<CatalogModel> = match provider {
-        "anthropic" | "openai" => body
+        "anthropic" | "openai" | "deepseek" => body
             .get("data")?
             .as_array()?
             .iter()
@@ -467,12 +554,7 @@ fn parse_models_list(provider: &str, body: &serde_json::Value) -> Option<Vec<Cat
 /// shape) so the caller can keep that provider's Task 1 snapshot instead of
 /// failing the whole refresh.
 async fn fetch_provider_models(provider: &str) -> Option<Vec<CatalogModel>> {
-    let entry = open_entry(provider).ok()?;
-    let key = entry.get_password().ok()?;
-    let key = key.trim();
-    if key.is_empty() {
-        return None;
-    }
+    let key = read_provider_secret(provider)?;
     let url = models_list_url(provider).ok()?;
     let client = http_client();
     let request = match provider {
@@ -480,7 +562,7 @@ async fn fetch_provider_models(provider: &str) -> Option<Vec<CatalogModel>> {
             .get(&url)
             .header("x-api-key", key)
             .header("anthropic-version", "2023-06-01"),
-        "openai" => client.get(&url).header("Authorization", format!("Bearer {key}")),
+        "openai" | "deepseek" => client.get(&url).header("Authorization", format!("Bearer {key}")),
         "google" => client.get(&url).query(&[("key", key)]),
         _ => return None,
     };
@@ -552,6 +634,7 @@ mod tests {
         assert_eq!(keyring_service("anthropic"), "flashwork.provider.anthropic");
         assert_eq!(keyring_service("openai"), "flashwork.provider.openai");
         assert_eq!(keyring_service("google"), "flashwork.provider.google");
+        assert_eq!(keyring_service("deepseek"), "flashwork.provider.deepseek");
     }
 
     #[test]
@@ -559,6 +642,46 @@ mod tests {
         assert_eq!(cli_env_names("anthropic"), &["ANTHROPIC_API_KEY"]);
         assert_eq!(cli_env_names("openai"), &["OPENAI_API_KEY"]);
         assert_eq!(cli_env_names("google"), &["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
+        assert_eq!(cli_env_names("deepseek"), &["DEEPSEEK_API_KEY"]);
+    }
+
+    #[test]
+    fn deepseek_env_fills_in_when_the_keyring_secret_is_missing() {
+        assert_eq!(
+            resolve_provider_secret(None, Some("sk-from-env")).as_deref(),
+            Some("sk-from-env")
+        );
+    }
+
+    #[test]
+    fn keyring_secret_wins_over_the_env_fallback() {
+        assert_eq!(
+            resolve_provider_secret(Some("  sk-keyring  "), Some("sk-env")).as_deref(),
+            Some("sk-keyring")
+        );
+    }
+
+    #[test]
+    fn blank_keyring_and_env_secrets_resolve_to_nothing() {
+        assert!(resolve_provider_secret(Some("  "), Some(" \n")).is_none());
+        assert!(resolve_provider_secret(None, Some("")).is_none());
+    }
+
+    #[test]
+    fn dotenv_paths_include_the_repo_root_when_cargo_runs_inside_src_tauri() {
+        let cwd = std::path::Path::new("/repo/src-tauri");
+        let manifest = std::path::Path::new("/repo/src-tauri");
+        let paths = app_dotenv_paths(cwd, Some(manifest));
+        assert!(paths.iter().any(|path| path.ends_with("src-tauri/.env") || path.ends_with("src-tauri\\.env")));
+        assert!(paths.iter().any(|path| path.ends_with("../.env") || path.ends_with("..\\.env")));
+    }
+
+    #[test]
+    fn only_deepseek_has_an_env_fallback() {
+        assert_eq!(provider_env_var("deepseek"), Some("DEEPSEEK_API_KEY"));
+        assert!(provider_env_var("anthropic").is_none());
+        assert!(provider_env_var("openai").is_none());
+        assert!(provider_env_var("google").is_none());
     }
 
     #[test]
@@ -659,6 +782,10 @@ mod tests {
             chat_url("google", "gemini-2.5-flash").unwrap(),
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
         );
+        assert_eq!(
+            chat_url("deepseek", "deepseek-flash").unwrap(),
+            "https://api.deepseek.com/chat/completions"
+        );
     }
 
     #[test]
@@ -671,6 +798,10 @@ mod tests {
         assert_eq!(
             models_list_url("google").unwrap(),
             "https://generativelanguage.googleapis.com/v1beta/models"
+        );
+        assert_eq!(
+            models_list_url("deepseek").unwrap(),
+            "https://api.deepseek.com/models"
         );
     }
 
@@ -696,6 +827,17 @@ mod tests {
         let messages = vec![msg("user", "Hi")];
         let body = build_anthropic_body("claude-x", &messages);
         assert!(body.get("system").is_none());
+    }
+
+    #[test]
+    fn deepseek_body_disables_thinking_and_asks_for_json() {
+        let messages = vec![msg("user", "Plan this")];
+        let body = build_deepseek_body("deepseek-flash", &messages);
+        assert_eq!(body["model"], "deepseek-flash");
+        assert_eq!(body["thinking"]["type"], "disabled");
+        assert_eq!(body["response_format"]["type"], "json_object");
+        assert_eq!(body["max_tokens"], 8192);
+        assert_eq!(body["messages"][0]["content"], "Plan this");
     }
 
     #[test]
@@ -748,6 +890,10 @@ mod tests {
     fn extract_chat_text_dispatches_by_provider_and_is_empty_for_unknown() {
         let anthropic_body = serde_json::json!({"content": [{"text": "hi"}]});
         assert_eq!(extract_chat_text("anthropic", &anthropic_body), "hi");
+        let deepseek_body = serde_json::json!({
+            "choices": [{"message": {"content": "plan"}}]
+        });
+        assert_eq!(extract_chat_text("deepseek", &deepseek_body), "plan");
         assert_eq!(extract_chat_text("mistral", &anthropic_body), "");
     }
 

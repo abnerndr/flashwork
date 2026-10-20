@@ -1,3 +1,27 @@
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/manrope-latin-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/manrope-latin-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/manrope-latin-700.woff2') format('woff2');
+}
+
 /* FLASHWORK_IDENTITY — calm professional dark (original tokens on Flashwork-derived CSS) */
 :root, [data-theme='dark'] {
   --fw-accent: #3d9cf0;
@@ -128,7 +152,7 @@
   --radius-lg: 14px;
 
   --font-sans:
-    'Segoe UI Variable', 'Segoe UI', Inter, ui-sans-serif, system-ui, sans-serif;
+    'Manrope', 'Segoe UI Variable', 'Segoe UI', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Cascadia Code', 'Cascadia Mono', 'Sarasa Mono', Consolas, ui-monospace, monospace;
   --icon-stroke: 1.75;
   --workbench-tab-height: 35px;

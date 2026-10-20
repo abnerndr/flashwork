@@ -21,12 +21,32 @@ const WRITER_KINDS: ReadonlySet<SpecTaskKind> = new Set<SpecTaskKind>(['implemen
 export const AGENT_STRENGTHS: Partial<Record<AgentType, string>> = {
   claude: 'strongest at multi-file implementation, refactors and careful reasoning',
   codex: 'fast at focused implementation, tests and mechanical edits',
-  gemini: 'large context; good at exploration, docs and broad reads',
   opencode: 'general coding agent; good for mechanical and scripted work',
   copilot: 'quick edits and small features',
   antigravity: 'UI and visual/front-end work',
   mimo: 'lightweight general tasks',
   freebuff: 'lightweight general tasks',
+}
+
+/** Planner-only names. They must never own a Run SPEC task pane. */
+const PLANNER_ONLY_AGENTS = new Set(['gemini', 'deepseek'])
+
+/**
+ * Gemini CLI and the DeepSeek API only plan Run SPEC.
+ * Implementation panes use other coding CLIs.
+ */
+export function isSpecWorkerAgent(agent: AgentType): boolean {
+  return agent !== 'shell' && agent !== 'gemini'
+}
+
+/** CLIs a handoff may open during a SPEC run. Gemini stays out unless this is not a SPEC run. */
+export function specHandoffAgents(run: {
+  specTasks?: readonly { agent: AgentType }[]
+  allowedAgents?: readonly AgentType[]
+}): AgentType[] | null {
+  if (!run.specTasks) return null
+  const pool = run.allowedAgents ?? run.specTasks.map((task) => task.agent)
+  return [...new Set(pool)].filter((agent) => isSpecWorkerAgent(agent))
 }
 
 export function extractJsonObject(text: string): unknown | null {
@@ -57,22 +77,24 @@ export function filesOverlap(left: readonly string[], right: readonly string[]):
 }
 
 export function buildSpecPlannerPrompt(input: { spec: string; agents: readonly AgentType[] }): string {
-  const roster = input.agents
-    .filter((agent) => agent !== 'shell')
+  const workers = input.agents.filter(isSpecWorkerAgent)
+  const roster = workers
     .map((agent) => `- ${agent} (${AGENT_TYPE_LABELS[agent]}): ${AGENT_STRENGTHS[agent] ?? 'general coding'}`)
     .join('\n')
   return [
     'You are the planner for Flashwork, which runs several coding CLIs in parallel on the repository in the current directory.',
+    'You only plan. Other CLIs implement. Never assign gemini or deepseek as a task agent.',
     'Read the SPEC below, look at the repository (read-only) as needed, and split the work into tasks.',
     'Rules:',
     '- One task per independent area of the repository (for example, changes in 3 areas -> 3 tasks).',
     '- No two tasks may own the same file. "files" lists the repo-relative files or folders the task owns.',
     '- Use "dependsOn" only when a task needs another task\'s output (for example a review after an implementation).',
     '- "agent" must be one of the available CLIs below; match each task to the CLI strengths.',
+    '- Never set "agent" to gemini or deepseek. Those only plan this SPEC; workers are the CLIs listed below.',
     '- "kind" is one of implement, review, mechanical, explore, ui, shell.',
     '- Use kind "shell" with "shell": true and a "command" only for a plain terminal command (dev server, watcher), never for coding work.',
     `- At most ${MAX_SPEC_TASKS} tasks. Each "prompt" must be self-contained and actionable.`,
-    'Available CLIs:',
+    'Available CLIs (workers only):',
     roster || '- (none)',
     'Return ONLY a JSON object, no markdown fences, no commentary:',
     '{"tasks":[{"id":"t1","title":"short title","prompt":"what to do","files":["src/area/"],"kind":"implement","agent":"claude","dependsOn":[],"shell":false,"command":""}]}',
@@ -104,7 +126,7 @@ function asKind(row: Record<string, unknown>): SpecTaskKind | null {
 }
 
 function codingAgents(ctx: SpecPlanContext): AgentType[] {
-  return ctx.installedAgents.filter((agent) => agent !== 'shell')
+  return ctx.installedAgents.filter(isSpecWorkerAgent)
 }
 
 /** Picks the CLI for a task: the planner's choice when installed, else the local router. */
@@ -116,8 +138,13 @@ export function resolveSpecAgent(
 ): AgentType | null {
   if (kind === 'shell') return 'shell'
   const installed = codingAgents(ctx)
-  const direct = installed.find((agent) => agent === wanted)
+  // Gemini and DeepSeek may appear in the planner JSON by mistake — never keep them as workers.
+  const wantedWorker =
+    typeof wanted === 'string' && !PLANNER_ONLY_AGENTS.has(wanted) ? (wanted as AgentType) : null
+  const direct = wantedWorker ? installed.find((agent) => agent === wantedWorker) : undefined
   if (direct) return direct
+  const lastUsed =
+    ctx.lastUsedAgent && isSpecWorkerAgent(ctx.lastUsedAgent) ? ctx.lastUsedAgent : undefined
   const choice = selectAgent({
     prompt,
     enabledAgents: installed,
@@ -126,10 +153,12 @@ export function resolveSpecAgent(
     codexRateLimited: ctx.codexRateLimited,
     reviewAgentProvider: ctx.reviewAgentProvider,
     conflictAgentProvider: ctx.conflictAgentProvider,
-    lastUsedAgent: ctx.lastUsedAgent,
+    lastUsedAgent: lastUsed,
     forcedKind: kind,
   })
-  return choice?.agent ?? installed[0] ?? null
+  const picked = choice?.agent
+  if (picked && isSpecWorkerAgent(picked)) return picked
+  return installed[0] ?? null
 }
 
 function uniqueId(raw: unknown, index: number, used: Set<string>): string {
@@ -266,12 +295,18 @@ function dependsOnTransitively(tasks: readonly SpecTask[], target: string, from:
 
 /** Offline fallback when the Gemini pre-pass is missing or fails. */
 export function heuristicSpecTasks(ctx: SpecPlanContext): SpecTask[] {
-  const lanes = planAutoLanes({ ...ctx, prompt: ctx.spec, includeOrchestrator: false }).filter(
-    (lane) => lane.role === 'worker',
-  )
+  const workers = codingAgents(ctx)
+  if (workers.length === 0) return []
+  const lanes = planAutoLanes({
+    ...ctx,
+    enabledAgents: workers,
+    installedAgents: workers,
+    prompt: ctx.spec,
+    includeOrchestrator: false,
+  }).filter((lane) => lane.role === 'worker')
   const tasks: SpecTask[] = []
   for (const [index, lane] of lanes.entries()) {
-    if (lane.agent.startsWith('api:')) continue
+    if (lane.agent.startsWith('api:') || !isSpecWorkerAgent(lane.agent as AgentType)) continue
     const kind: SpecTaskKind = lane.taskKind === 'unknown' ? 'implement' : lane.taskKind
     tasks.push({
       id: `t${index + 1}`,

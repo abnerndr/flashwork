@@ -64,13 +64,18 @@ Custom grids support `colSpan`, `rowSpan`, drag-and-drop swapping, and resizable
 
 ## Providers
 
-- **Preferences → Providers** stores Anthropic, OpenAI, and Google Gemini API keys in the OS keyring
-  (`Keychain`, Windows Credential Manager, or Linux Secret Service) — never in `projects.json` or git.
+- **Preferences → Providers** stores Anthropic, OpenAI, Google Gemini, and DeepSeek API keys in the
+  OS keyring (`Keychain`, Windows Credential Manager, or Linux Secret Service) — never in
+  `projects.json` or git.
 - Optional **use with CLI** toggles inject the matching env var when spawning Claude Code, Codex, or
   Gemini CLI; the key is resolved in Rust at spawn time and never crosses the frontend IPC boundary.
+  DeepSeek has no CLI toggle: the key is only for the Run SPEC planner. If Preferences has no
+  DeepSeek key, `DEEPSEEK_API_KEY` from the environment (`.env` in development) is used instead.
 - **Refresh model list** updates a dated model catalog from each vendor's official HTTPS API; on
   failure the previous snapshot is kept.
-- Direct HTTP to Anthropic, OpenAI, and Gemini only — no OpenRouter.com or other LLM gateway.
+- Direct HTTP to Anthropic, OpenAI, Gemini, and DeepSeek only — no OpenRouter.com or other LLM gateway.
+  DeepSeek uses `https://api.deepseek.com` (`deepseek-flash` by default, `deepseek-v4-pro` when the
+  SPEC is implementation-heavy). A failed plan falls through to Gemini CLI, then the local heuristic.
 
 ## Local Accounts
 

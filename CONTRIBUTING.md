@@ -64,62 +64,61 @@ back in the pool.
 
 | Requirement | Notes |
 |---|---|
-| **Node.js 18+** | 20 LTS or newer recommended. CI runs `lts/*`. |
-| **Rust (stable)** | Install via [rustup](https://rustup.rs). |
-| **Platform toolchain** | See per-OS notes below. |
+| **Node.js ≥ 22** | Required by `package.json` `engines`. |
+| **pnpm** | Installed by `pnpm run setup` (Corepack). |
+| **Rust (stable)** | Install via [rustup](https://rustup.rs) (setup can do this). |
+| **Platform toolchain** | Tauri OS packages — installed by setup. |
 
-**Windows** — install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
-with the *Desktop development with C++* workload (this gives you MSVC, which Rust links against).
-
-**Linux** — install the Tauri system dependencies:
-
-```sh
-sudo apt update
-sudo apt install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-```
-
-**macOS** — install Xcode Command Line Tools: `xcode-select --install`.
-
-### Clone and run
+**One-shot bootstrap** (Linux/WSL, macOS, Windows):
 
 ```sh
 git clone https://github.com/abnerndr/flashwork-agents.git
 cd flashwork-agents
-npm install
-npm run app
+node scripts/setup.mjs   # or: pnpm run setup
+pnpm run app
 ```
 
-`npm run app` runs the full desktop app (Tauri + Vite) with hot reload. **This is the command you
+What setup does: ensure Node ≥ 22, install pnpm, install Rust if missing, install OS packages
+for Tauri (apt on Linux, Xcode CLT on macOS, MSVC/WebView2 notes on Windows), then `pnpm install`.
+
+**Windows** still needs [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
+with the *Desktop development with C++* workload for release installers.
+
+**Linux** Tauri libs (webkit, gtk, rsvg, patchelf, …) are installed via `apt` by the setup script.
+
+**macOS** — Xcode Command Line Tools: prompted by setup if missing (`xcode-select --install`).
+
+`pnpm run app` runs the full desktop app (Tauri + Vite) with hot reload. **This is the command you
 want** for almost all work.
 
-The first `npm run app` compiles the Rust backend from scratch and takes several minutes. That is
+The first `pnpm run app` compiles the Rust backend from scratch and takes several minutes. That is
 normal and it is not stuck. Subsequent runs are fast.
 
 ### Working on the UI only
 
 ```sh
-npm run dev   # frontend only, at http://localhost:1422
+pnpm run dev:ui   # frontend only, at http://localhost:1422
 ```
 
 Useful for pure styling work, but anything that calls the backend (terminals, projects, sessions
 — i.e. most of the app) will fail here, because there's no Tauri IPC in a plain browser. When in
-doubt, use `npm run app`.
+doubt, use `pnpm run app`.
 
 ## Verifying your setup
 
 Run these before you start, so you know a later failure is *your* change and not your environment:
 
 ```sh
-npm test           # unit tests (vitest)
-npm run build      # tsc typecheck + vite build
-npm run lint       # eslint
-npm run format     # prettier, writes in place
+pnpm test           # unit tests (vitest)
+pnpm run build      # tsc typecheck + vite build
+pnpm run lint       # eslint
+pnpm run format     # prettier, writes in place
 ```
 
 Rust side:
 
 ```sh
-npm run test:rust  # cargo test --lib
+pnpm run test:rust  # cargo test --lib
 ```
 
 CI runs the frontend tests, the typecheck/build, and `cargo check` + `cargo test` on Windows,

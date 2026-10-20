@@ -11,7 +11,9 @@ Users will keep using CLIs. They also want to call **current** vendor APIs (Anth
 ## Decision
 
 1. **v1 providers (locked):** Anthropic, OpenAI, Google Gemini. Keys live in the OS keyring (`flashwork.provider.<id>`), never in `projects.json` or git.
-2. **v1.1 (not this slice):** xAI, DeepSeek, Mistral, Amazon Bedrock — same keyring shape, add later.
+2. **v1.1 (not this slice):** xAI, Mistral, Amazon Bedrock — same keyring shape, add later.
+   DeepSeek for the **Run SPEC planner** is decided in [ADR 014](014-deepseek-spec-planner.md)
+   (`accepted`: `deepseek-flash` / `deepseek-v4-pro`); other DeepSeek product uses stay out of scope there.
 3. Two uses of a key:
    - **CLI spawn:** inject the matching env (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` / `GOOGLE_API_KEY`) when the user enabled “use my API key with this CLI”.
    - **Direct API:** Flashwork HTTP client for Auto router, Task Board planner, Flows `agent` nodes, and a simple chat pane when no CLI is installed.

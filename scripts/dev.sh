@@ -13,4 +13,4 @@ flashwork_npm_install "$ORCH"
 
 echo "==> Flashwork desktop (dev)"
 cd "$ROOT"
-npm run app
+pnpm run app

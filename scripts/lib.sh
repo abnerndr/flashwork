@@ -36,10 +36,28 @@ flashwork_require_rust() {
   fi
 }
 
+flashwork_ensure_pnpm() {
+  if command -v pnpm >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v corepack >/dev/null 2>&1; then
+    corepack enable >/dev/null 2>&1 || true
+    corepack prepare pnpm@10.12.1 --activate
+  fi
+  if ! command -v pnpm >/dev/null 2>&1; then
+    npm install -g pnpm@10.12.1
+  fi
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "pnpm is required. Install: https://pnpm.io/installation" >&2
+    exit 1
+  fi
+}
+
 flashwork_npm_install() {
   local orch="$1"
+  flashwork_ensure_pnpm
   if [ ! -d "$orch/node_modules" ]; then
-    echo "Installing npm dependencies in .…"
-    npm --prefix "$orch" install
+    echo "Installing pnpm dependencies in .…"
+    (cd "$orch" && pnpm install)
   fi
 }

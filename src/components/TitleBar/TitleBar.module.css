@@ -19,6 +19,27 @@
   padding: 0;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: 4px;
+  padding-right: 8px;
+}
+
+.brandIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.brandName {
+  color: var(--fg);
+  font: 700 13px/1 var(--font-sans);
+  letter-spacing: -0.03em;
+}
+
 .barStart {
   display: inline-flex;
   align-items: center;

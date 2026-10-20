@@ -13,8 +13,11 @@ with agents sharing context so they do not duplicate work.
 ## Decision
 
 - A project is a folder with `.flashwork/` and a Graphify graph; Graphify MCP is always wired.
-- Run SPEC replaces Task Board and the Auto bar as the single entry point. The free Gemini CLI plans
-  lanes and picks a CLI per lane among installed ones; heuristic fallback offline.
+- Run SPEC replaces Task Board and the Auto bar as the single entry point. A planner pre-pass splits
+  lanes and picks a CLI per lane among installed ones; heuristic fallback offline. When no DeepSeek
+  key is saved, the planner is the free Gemini CLI. [ADR 014](014-deepseek-spec-planner.md) puts the
+  DeepSeek API (`deepseek-flash`, or `deepseek-v4-pro` for implementation-heavy specs) ahead of Gemini
+  when a key is present.
 - The shared board lives in the project (`.flashwork/runs/<runId>/board.md`) so every CLI, including
   ones running inside WSL, can read it.
 - Windows spawns WSL projects through `wsl.exe -d <distro> --cd <path>`.

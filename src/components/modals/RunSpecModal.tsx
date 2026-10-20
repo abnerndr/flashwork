@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { pickFile } from '../../lib/dialog'
 import { useT, type MessageKey } from '../../lib/i18n'
-import { launchSpecRun, planSpec, type SpecPlanNotice } from '../../lib/promptRun/runSpec'
+import { launchSpecRun, planSpec, usableSpecAgents, type SpecPlanNotice } from '../../lib/promptRun/runSpec'
 import { removeSpecTask } from '../../lib/promptRun/specPlan'
 import { readSpecMarkdown } from '../../lib/tauri'
 import { AGENT_TYPE_LABELS, type AgentType, type SpecTask, type SpecTaskKind } from '../../lib/types'
@@ -30,9 +30,15 @@ const NOTICE_KEYS: Record<SpecPlanNotice, MessageKey> = {
 type Plan = {
   tasks: SpecTask[]
   agents: AgentType[]
-  source: 'gemini' | 'heuristic'
+  source: 'deepseek' | 'gemini' | 'heuristic'
   notice?: SpecPlanNotice
   spec: string
+}
+
+const SOURCE_KEYS: Record<Plan['source'], MessageKey> = {
+  deepseek: 'runSpec.planSourceDeepseek',
+  gemini: 'runSpec.planSourceGemini',
+  heuristic: 'runSpec.planSourceHeuristic',
 }
 
 type Attachment = { name: string; content: string }
@@ -53,6 +59,8 @@ export function RunSpecModal() {
   const [text, setText] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [plan, setPlan] = useState<Plan | null>(null)
+  const [workers, setWorkers] = useState<AgentType[] | null>(null)
+  const [selectedWorkers, setSelectedWorkers] = useState<AgentType[]>([])
   const [busy, setBusy] = useState<'planning' | 'launching' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +76,23 @@ export function RunSpecModal() {
 
   const project = projects.find((item) => item.id === projectId) ?? null
   const cwd = project ? getProjectDefaultCwd(project, projects) : ''
+
+  useEffect(() => {
+    if (!open || !cwd) {
+      setWorkers(null)
+      return
+    }
+    let cancel = false
+    setWorkers(null)
+    void usableSpecAgents(cwd).then((found) => {
+      if (cancel) return
+      setWorkers(found)
+      setSelectedWorkers(found)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [open, cwd])
   const spec = useMemo(() => {
     const parts = [attachment?.content.trim() ?? '', text.trim()].filter(Boolean)
     return parts.join('\n\n')
@@ -100,7 +125,7 @@ export function RunSpecModal() {
     setBusy('planning')
     setError(null)
     try {
-      const result = await planSpec({ project, cwd, spec })
+      const result = await planSpec({ project, cwd, spec, allowedAgents: selectedWorkers })
       if (!result.ok) {
         setError(
           result.code === 'no-cwd' ? t('promptRun.noCwdBody') : t('promptRun.needsInstallBody'),
@@ -132,7 +157,13 @@ export function RunSpecModal() {
     setBusy('launching')
     setError(null)
     try {
-      const result = await launchSpecRun({ project, cwd, spec: plan.spec, tasks: plan.tasks })
+      const result = await launchSpecRun({
+        project,
+        cwd,
+        spec: plan.spec,
+        tasks: plan.tasks,
+        allowedAgents: selectedWorkers,
+      })
       if (!result.ok) {
         setError(
           result.code === 'run-active'
@@ -200,7 +231,7 @@ export function RunSpecModal() {
           type="button"
           className={controls.btnPrimary}
           onClick={() => void runPlanner()}
-          disabled={busy !== null || !spec || !project}
+          disabled={busy !== null || !spec || !project || selectedWorkers.length === 0}
         >
           {busy === 'planning' ? t('runSpec.planning') : t('runSpec.plan')}
         </button>
@@ -233,6 +264,37 @@ export function RunSpecModal() {
           </select>
         </label>
       )}
+      <div className={controls.field}>
+        <span className={controls.label}>{t('runSpec.workersLabel')}</span>
+        <p className={styles.workerHint}>{t('runSpec.workersHint')}</p>
+        {workers === null ? (
+          <p className={styles.workerHint}>{t('runSpec.workersLoading')}</p>
+        ) : workers.length === 0 ? (
+          <p className={styles.workerHint}>{t('runSpec.workersNone')}</p>
+        ) : (
+          <div className={styles.workerList}>
+            {workers.map((agent) => (
+              <label key={agent} className={controls.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={selectedWorkers.includes(agent)}
+                  disabled={busy !== null}
+                  onChange={() => {
+                    setSelectedWorkers((current) =>
+                      current.includes(agent) ? current.filter((item) => item !== agent) : [...current, agent],
+                    )
+                    setPlan(null)
+                  }}
+                />
+                <span className={controls.checkboxLabel}>{AGENT_TYPE_LABELS[agent]}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {workers && workers.length > 0 && selectedWorkers.length === 0 ? (
+          <p className={styles.workerHint}>{t('runSpec.workersEmpty')}</p>
+        ) : null}
+      </div>
       <div className={controls.field}>
         <span className={controls.label}>{t('runSpec.specLabel')}</span>
         <textarea
@@ -285,7 +347,7 @@ export function RunSpecModal() {
           <header className={styles.previewHeader}>
             <strong>{t('runSpec.tasksHeading', { count: launchable })}</strong>
             <span className={styles.source}>
-              {plan.source === 'gemini' ? t('runSpec.planSourceGemini') : t('runSpec.planSourceHeuristic')}
+              {t(SOURCE_KEYS[plan.source])}
             </span>
           </header>
           {plan.notice ? <p className={styles.notice}>{t(NOTICE_KEYS[plan.notice])}</p> : null}

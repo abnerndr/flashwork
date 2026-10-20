@@ -204,6 +204,8 @@ export type PromptRun = {
   boardPath?: string
   /** Task plan of a Run SPEC run; dependent tasks launch as their deps complete. */
   specTasks?: SpecTask[]
+  /** Worker CLIs the user allowed for this SPEC run. Handoff stays inside this set. */
+  allowedAgents?: AgentType[]
 }
 
 export type AgentRuntimeProfile = 'full' | 'lean' | 'diagnostic'

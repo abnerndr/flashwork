@@ -17,6 +17,8 @@ export const PROVIDER_CLI_ENV: Record<ProviderId, string[]> = {
   anthropic: ['ANTHROPIC_API_KEY'],
   openai: ['OPENAI_API_KEY'],
   google: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
+  // No coding CLI reads this yet (ADR 014: planner-only). Kept so a future CLI spawn can inject it.
+  deepseek: ['DEEPSEEK_API_KEY'],
 }
 
 /** Which coding-agent CLI receives which provider's key. Agents with no entry
@@ -30,7 +32,7 @@ export const CLI_PROVIDER: Partial<Record<AgentType, ProviderId>> = {
 
 type CliKeyToggleKey = 'useAnthropicKeyOnCli' | 'useOpenaiKeyOnCli' | 'useGoogleKeyOnCli'
 
-const TOGGLE_KEY_FOR_PROVIDER: Record<ProviderId, CliKeyToggleKey> = {
+const TOGGLE_KEY_FOR_PROVIDER: Partial<Record<ProviderId, CliKeyToggleKey>> = {
   anthropic: 'useAnthropicKeyOnCli',
   openai: 'useOpenaiKeyOnCli',
   google: 'useGoogleKeyOnCli',
@@ -43,7 +45,9 @@ export type CliProviderPrefs = Partial<Pick<Preferences, CliKeyToggleKey>>
 function providerForAgent(agent: AgentType, prefs: CliProviderPrefs): ProviderId | undefined {
   const provider = CLI_PROVIDER[agent]
   if (!provider) return undefined
-  return prefs[TOGGLE_KEY_FOR_PROVIDER[provider]] ? provider : undefined
+  const toggle = TOGGLE_KEY_FOR_PROVIDER[provider]
+  if (!toggle || !prefs[toggle]) return undefined
+  return provider
 }
 
 /**

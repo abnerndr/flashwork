@@ -429,6 +429,11 @@ export type Preferences = {
   /** Default environment for newly opened terminals and projects on Windows. */
   wslEnabled: boolean
   wslDefaultDistro: string
+  /**
+   * True after the user picks PowerShell or a distribution. While false, Windows
+   * startup selects an installed WSL distribution when one exists.
+   */
+  wslEnvironmentPinned: boolean
   /** Idioma da UI. Default 'en'. */
   language: Locale
   uiTheme: Theme
@@ -564,6 +569,7 @@ export type ProjectsFile = {
 export const DEFAULT_PREFERENCES: Preferences = {
   wslEnabled: false,
   wslDefaultDistro: '',
+  wslEnvironmentPinned: false,
   language: 'en',
   uiTheme: 'dark',
   appliedVsxTheme: null,

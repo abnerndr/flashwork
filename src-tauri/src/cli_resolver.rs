@@ -187,7 +187,12 @@ pub async fn find_cli_launcher(agent: String) -> Option<String> {
 pub async fn refresh_cli_path(command: String) -> Option<String> {
     tokio::task::spawn_blocking(move || {
         invalidate_launcher_cache(&command);
-        let resolved = resolve_cli_launcher_refreshed(&command)?;
+        crate::wsl::invalidate_command_probe();
+        let resolved = if crate::wsl::current_default_distro().is_some() {
+            launcher_in_default_distro(&command)
+        } else {
+            resolve_cli_launcher_refreshed(&command)
+        }?;
         cache_launcher(&command, resolved.clone());
         Some(resolved.to_string_lossy().to_string())
     })
@@ -211,6 +216,19 @@ fn invalidate_launcher_cache(command: &str) {
     if let Ok(mut map) = launcher_cache().lock() {
         map.remove(command);
     }
+}
+
+pub(crate) fn invalidate_all_launchers() {
+    if let Ok(mut map) = launcher_cache().lock() {
+        map.clear();
+    }
+}
+
+/// Launcher inside the selected WSL distribution, as a UNC path Windows can stat.
+fn launcher_in_default_distro(command: &str) -> Option<PathBuf> {
+    let distro = crate::wsl::current_default_distro()?;
+    let aliases = cli_name_aliases(command);
+    crate::wsl::command_unc_in_distro(&distro, &aliases)
 }
 
 #[cfg(test)]
@@ -448,6 +466,26 @@ fn read_npm_prefix_output(
 /// soon as its file is gone — so installing an agent is picked up at once and uninstalling it is
 /// noticed on the next lookup, without the cache ever answering for something that is not there.
 pub fn find_windows_cli_launcher(command: &str) -> Option<PathBuf> {
+    if crate::wsl::current_default_distro().is_some() {
+        let cached = launcher_cache()
+            .lock()
+            .ok()
+            .and_then(|map| map.get(command).cloned());
+        if let Some(path) = cached {
+            let text = path.to_string_lossy();
+            if crate::wsl::parse_wsl_unc(&text).is_some() && path.is_file() {
+                return Some(path);
+            }
+        }
+        let resolved = launcher_in_default_distro(command);
+        if let Some(path) = &resolved {
+            cache_launcher(command, path.clone());
+        } else {
+            invalidate_launcher_cache(command);
+        }
+        return resolved;
+    }
+
     let cache = launcher_cache();
 
     if let Ok(map) = cache.lock() {
@@ -464,6 +502,9 @@ pub fn find_windows_cli_launcher(command: &str) -> Option<PathBuf> {
 }
 
 fn resolve_cli_launcher(command: &str) -> Option<PathBuf> {
+    if crate::wsl::current_default_distro().is_some() {
+        return launcher_in_default_distro(command);
+    }
     let aliases = cli_name_aliases(command);
 
     #[cfg(not(windows))]
@@ -681,10 +722,60 @@ fn parse_version(raw: &str) -> Option<String> {
 /// asks rather than assumes. Output is read from stdout and stderr because some print to stderr.
 const VERSION_FLAGS: [&str; 3] = ["--version", "-v", "version"];
 
+fn version_in_distro(distro: &str, agent: &str) -> Option<String> {
+    let aliases = cli_name_aliases(agent);
+    let hits = crate::wsl::probe_commands_in_distro(distro, &aliases);
+    let linux = aliases.iter().find_map(|name| hits.get(*name))?;
+    for flag in VERSION_FLAGS {
+        let script = format!(
+            "{}{} {} 2>&1",
+            crate::wsl::PATH_PRELUDE,
+            crate::wsl::posix_quote(linux),
+            crate::wsl::posix_quote(flag),
+        );
+        let Some(output) = crate::wsl::output_in_distro(distro, &script) else {
+            continue;
+        };
+        if let Some(version) = parse_version(&output) {
+            return Some(version);
+        }
+    }
+    None
+}
+
+fn probe_toolchain_in_distro(distro: &str) -> InstallToolchain {
+    let names = ["node", "npm", "bun", "pnpm", "brew"];
+    let hits = crate::wsl::probe_commands_in_distro(distro, &names);
+    let node = if hits.contains_key("node") {
+        crate::wsl::output_in_distro(
+            distro,
+            &format!("{}node --version 2>/dev/null", crate::wsl::PATH_PRELUDE),
+        )
+        .map(|text| text.lines().next().unwrap_or("").trim().to_string())
+        .filter(|text| !text.is_empty())
+    } else {
+        None
+    };
+    InstallToolchain {
+        node,
+        npm: hits.contains_key("npm"),
+        winget: false,
+        scoop: false,
+        choco: false,
+        bun: hits.contains_key("bun"),
+        pnpm: hits.contains_key("pnpm"),
+        brew: hits.contains_key("brew"),
+        os: "linux".to_string(),
+    }
+}
+
 /// Version the agent's CLI reports, or `None` when it is missing or answers nothing usable.
 #[tauri::command]
 pub async fn agent_cli_version(agent: String) -> Option<String> {
     tokio::task::spawn_blocking(move || {
+        if let Some(distro) = crate::wsl::current_default_distro() {
+            return version_in_distro(&distro, &agent);
+        }
         let bin = find_windows_cli_launcher(&agent)?;
         for flag in VERSION_FLAGS {
             let mut command = std::process::Command::new(&bin);
@@ -718,6 +809,9 @@ pub async fn agent_cli_version(agent: String) -> Option<String> {
 #[tauri::command]
 pub async fn probe_install_toolchain() -> InstallToolchain {
     tokio::task::spawn_blocking(|| {
+        if let Some(distro) = crate::wsl::current_default_distro() {
+            return probe_toolchain_in_distro(&distro);
+        }
         let has = |name: &str| find_windows_cli_launcher(name).is_some();
         InstallToolchain {
             node: node_version(),

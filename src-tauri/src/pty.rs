@@ -320,9 +320,21 @@ pub async fn spawn_pty(
                 &extras,
             ),
         };
+        let no_profile = env
+            .as_ref()
+            .and_then(|values| values.get("FLASHWORK_PTY_NO_PROFILE"))
+            .is_some_and(|value| value == "1");
+        // Installer PTYs opt into a clean PowerShell so a profile cannot eat the
+        // typed command. Ctrl+U is not used here: PowerShell inserts it as text.
+        if no_profile && wsl_target.is_none() {
+            command.arg("-NoProfile");
+        }
         let mut injected_env_keys: Vec<String> = Vec::new();
         if let Some(extra_env) = env.as_ref() {
             for (key, value) in extra_env {
+                if key == "FLASHWORK_PTY_NO_PROFILE" {
+                    continue;
+                }
                 command.env(key, value);
                 injected_env_keys.push(key.clone());
             }

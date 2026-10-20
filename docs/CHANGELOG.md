@@ -53,6 +53,7 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- On Windows, an installed WSL distribution is selected automatically for new terminals, projects, and CLI installs. PowerShell stays available in Settings → Terminal and agents.
 - **Resume last session** works for Gemini, Codex, OpenCode, and Antigravity (not only Claude):
   Gemini now uses `--session-id` / `--resume <uuid>`; preferences resume persists under the tab id,
   launches Antigravity as `agy`, and discovers session ids more reliably when the first snapshot is ambiguous.
@@ -67,6 +68,8 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Installing a CLI on Windows no longer types Ctrl+U in front of the PowerShell command. That character was accepted as part of the line, so the installer was rejected before it could run. Official install scripts also run on Windows PowerShell 5.1, which has no `OSArchitecture` property.
+- With WSL selected, CLI install and detection use that distribution, so the installed command is the one agents launch.
 - Settings → Terminal and agents has a PowerShell / WSL switch and reports whether WSL is active. With WSL on, a new project can be created inside the selected distribution by leaving the folder empty or typing a Linux path such as `~/project`.
 - Adding a folder again after deleting its project no longer stops with “this folder already belongs to a Flashwork project.” The `.flashwork` home left on disk is registered back into the list.
 - The title bar, loading screen, default account avatar, window/taskbar icon, and installer icons use the Flashwork bolt mark. The interface uses Manrope.

@@ -14,7 +14,12 @@ import {
   wslPrepareFolder,
 } from '../../lib/tauri'
 import { GROUP_COLORS, type Project } from '../../lib/types'
-import { folderForNewProject, resolveProjectFolder, wslDistroFromPath } from '../../lib/wsl'
+import {
+  explicitWslPreference,
+  folderForNewProject,
+  resolveProjectFolder,
+  wslDistroFromPath,
+} from '../../lib/wsl'
 import { useGraphifySetupStore } from '../../stores/graphifySetupStore'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -161,7 +166,7 @@ export function NewProjectModal() {
       if (isWindows())
         useProjectsStore
           .getState()
-          .setPreferences({ wslEnabled: Boolean(wslDistro), wslDefaultDistro: wslDistro })
+          .setPreferences(explicitWslPreference(wslDistro))
       const result = await createProjectInFolder(details, {
         generateId: nanoid,
         projectBootstrap,

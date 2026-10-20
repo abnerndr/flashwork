@@ -8,7 +8,7 @@ export const ptBR: Record<MessageKey, string> = {
   'wsl.distribution': 'WSL · {distro}',
   'wsl.windows': 'Windows / PowerShell (WSL desativado)',
   'wsl.settingsHint':
-    'Ative o WSL para rodar novos terminais, o Run SPEC e novos projetos dentro da distribuição escolhida. Desative para usar o PowerShell do Windows. Sessões abertas não mudam. Uma pasta Linux sempre usa a própria distribuição.',
+    'Quando há uma distribuição WSL instalada, o Flashwork a seleciona para novos terminais, o Run SPEC, novos projetos e a instalação dos CLIs. Escolha PowerShell para ficar no Windows. Sessões abertas não mudam. Uma pasta Linux sempre usa a própria distribuição.',
   'wsl.checking': 'Verificando se o WSL está ativo…',
   'wsl.running': 'WSL está ativo: {distros}',
   'wsl.stopped':

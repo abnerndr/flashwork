@@ -141,6 +141,7 @@ export function normalizePreferences(raw: LegacyPreferences | undefined): Prefer
     ...preferences,
     wslEnabled: raw?.wslEnabled === true,
     wslDefaultDistro: typeof raw?.wslDefaultDistro === 'string' ? raw.wslDefaultDistro : '',
+    wslEnvironmentPinned: raw?.wslEnvironmentPinned === true,
     windowOpacity: Number.isFinite(rawWindowOpacity)
       ? Math.min(1, Math.max(0.6, rawWindowOpacity))
       : 1,

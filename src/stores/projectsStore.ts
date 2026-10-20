@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid'
 import { create } from 'zustand'
 
+import { isWindows } from '../lib/platform'
 import { setStorageNamespace } from '../lib/storageNamespace'
 import {
   listProfiles,
@@ -10,7 +11,9 @@ import {
   recordAppEvent,
   recordFrontendError,
   saveProjectsFile,
+  wslStatus,
 } from '../lib/tauri'
+import { wslPreferenceFromDetection } from '../lib/wsl'
 import { getProjectDefaultCwd, getProjectRepoRoot } from '../lib/terminalFactory'
 import {
   type AgentHandoffBootstrap,
@@ -349,6 +352,36 @@ function projectsPayload(state: ProjectsState): ProjectsFile {
   }
 }
 
+async function preferencesWithDetectedWsl(preferences: Preferences): Promise<Preferences> {
+  if (!isWindows()) return preferences
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const status = await Promise.race([
+      wslStatus(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('WSL detection timed out')), 4_000)
+      }),
+    ])
+    const next = wslPreferenceFromDetection(
+      preferences.wslEnvironmentPinned,
+      preferences.wslEnabled,
+      preferences.wslDefaultDistro,
+      status.distros,
+      status.running,
+    )
+    return next ? { ...preferences, ...next } : preferences
+  } catch (error) {
+    console.warn('Could not detect a default WSL distribution', error)
+    return preferences
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+function wslSelectionChanged(before: Preferences, after: Preferences): boolean {
+  return before.wslEnabled !== after.wslEnabled || before.wslDefaultDistro !== after.wslDefaultDistro
+}
+
 function scheduleSave(getState: () => ProjectsState) {
   if (!getState().hydrated) return
   pendingSave = true
@@ -681,22 +714,30 @@ export const useProjectsStore = create<ProjectsState>((set, get) => {
       try {
         const raw = await loadProjectsFile()
         if (!raw) {
+          const preferences = await preferencesWithDetectedWsl(get().preferences)
+          const changed = wslSelectionChanged(get().preferences, preferences)
           set({
             hydrated: true,
+            preferences,
             activeProfileId: profileState.active_profile_id,
             profiles: profileState.profiles,
           })
+          if (changed) scheduleSave(get)
           void recordAppEvent('projects.hydrate', 'source=empty')
           return
         }
         const parsed = JSON.parse(raw)
         const migrated = migrate(parsed)
+        const preferences = await preferencesWithDetectedWsl(migrated.preferences)
+        const changed = wslSelectionChanged(migrated.preferences, preferences)
         set({
           ...migrated,
+          preferences,
           hydrated: true,
           activeProfileId: profileState.active_profile_id,
           profiles: profileState.profiles,
         })
+        if (changed) scheduleSave(get)
         void recordAppEvent(
           'projects.hydrate',
           `source=disk projects=${migrated.projects.length} groups=${migrated.groups.length} tabs=${migrated.workspace.tabs.length} active_tab=${Boolean(migrated.workspace.activeTabId)} left_sidebar=${migrated.preferences.leftSidebarVisible} right_sidebar=${migrated.preferences.rightSidebarVisible}`,
@@ -704,11 +745,15 @@ export const useProjectsStore = create<ProjectsState>((set, get) => {
       } catch (err) {
         console.error('Falha ao carregar projects.json — usando estado vazio', err)
         void recordFrontendError(String(err), null, 'projects.load')
+        const preferences = await preferencesWithDetectedWsl(get().preferences)
+        const changed = wslSelectionChanged(get().preferences, preferences)
         set({
           hydrated: true,
+          preferences,
           activeProfileId: profileState.active_profile_id,
           profiles: profileState.profiles,
         })
+        if (changed) scheduleSave(get)
       }
     },
 

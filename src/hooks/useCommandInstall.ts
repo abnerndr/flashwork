@@ -6,7 +6,9 @@ import {
   installOutputIsFatal,
   installShellLine,
 } from '../lib/agentInstall'
-import { osFamily } from '../lib/platform'
+import { isWindows, osFamily } from '../lib/platform'
+import { installTargetOs } from '../lib/wsl'
+import { useProjectsStore } from '../stores/projectsStore'
 import {
   agentCliVersion,
   findCliLauncher,
@@ -15,6 +17,7 @@ import {
   listenPtyExit,
   refreshCliPath,
   spawnPty,
+  wslPrepareFolder,
   writePty,
 } from '../lib/tauri'
 
@@ -29,7 +32,23 @@ export type AgentInstallStatus = 'idle' | 'running' | 'success' | 'failed'
 export type AgentInstallShadowConflict = { path: string }
 
 const MAX_LOG_CHARS = 12_000
-const PROMPT_SETTLE_MS = 900
+const PROMPT_SETTLE_MS = 2_000
+const WSL_PROMPT_SETTLE_MS = 8_000
+
+function shellLooksReady(log: string): boolean {
+  const plain = log.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/\r/g, '')
+  return /(?:\$|#|%|>)\s*$/.test(plain)
+}
+
+async function waitForInstallerPrompt(readLog: () => string, timeoutMs: number): Promise<void> {
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    if (Date.now() - started >= 400 && shellLooksReady(readLog())) return
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+// Ctrl+U kills the line in bash/readline. PowerShell inserts it as `^U` and
+// glues it to the first token, so an assignment is parsed as a command name.
 const CLEAR_LINE = '\x15'
 
 /**
@@ -39,11 +58,23 @@ const CLEAR_LINE = '\x15'
  * pipeline is written into that shell, not passed as spawnPty.command. If pwsh/bash is
  * missing, fall back to the app default shell (powershell.exe / $SHELL).
  */
-async function spawnInstallerPty(ptyId: string): Promise<{ id: string }> {
+async function spawnInstallerPty(
+  ptyId: string,
+  os: ReturnType<typeof osFamily>,
+  cwd?: string,
+): Promise<{ id: string }> {
+  const env = os === 'windows' ? { FLASHWORK_PTY_NO_PROFILE: '1' } : undefined
   try {
-    return await spawnPty({ cols: 100, rows: 24, id: ptyId, command: installerPtyCommand() })
+    return await spawnPty({
+      cols: 100,
+      rows: 24,
+      id: ptyId,
+      command: installerPtyCommand(os),
+      cwd,
+      env,
+    })
   } catch {
-    return spawnPty({ cols: 100, rows: 24, id: ptyId })
+    return spawnPty({ cols: 100, rows: 24, id: ptyId, cwd, env })
   }
 }
 
@@ -124,8 +155,14 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
       const beforeVersion = command && !method.verifyAbsent ? await agentCliVersion(command) : null
 
       const ptyId = `agent-install:${lockKey}:${Date.now()}`
+      const preferences = useProjectsStore.getState().preferences
+      const os = installTargetOs(osFamily(), preferences)
       try {
-        const spawned = await spawnInstallerPty(ptyId)
+        const installerCwd =
+          os === 'linux' && isWindows()
+            ? await wslPrepareFolder(preferences.wslDefaultDistro, '~')
+            : undefined
+        const spawned = await spawnInstallerPty(ptyId, os, installerCwd)
         if (disposedRef.current) {
           void killPty(spawned.id).catch(() => undefined)
           return
@@ -196,9 +233,13 @@ export function useCommandInstall(lockKey: string, defaultVerifyCommand: string)
           }),
         )
 
-        await new Promise((resolve) => setTimeout(resolve, PROMPT_SETTLE_MS))
+        await waitForInstallerPrompt(
+          () => logRef.current,
+          os === 'windows' ? PROMPT_SETTLE_MS : WSL_PROMPT_SETTLE_MS,
+        )
         if (disposedRef.current || settledRef.current) return
-        await writePty(spawned.id, `${CLEAR_LINE}${installShellLine(method.command, osFamily())}`)
+        const lead = os === 'windows' ? '' : CLEAR_LINE
+        await writePty(spawned.id, `${lead}${installShellLine(method.command, os)}`)
       } catch (error) {
         setLog((current) => trimLog(`${current}\n${String(error)}`))
         setStatus('failed')

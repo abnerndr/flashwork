@@ -14,6 +14,8 @@ import {
 } from '../../lib/agentInstall'
 import { type MessageKey, useT } from '../../lib/i18n'
 import { osFamily } from '../../lib/platform'
+import { installTargetOs } from '../../lib/wsl'
+import { useProjectsStore } from '../../stores/projectsStore'
 import { openInBrowser, openInFileExplorer, probeInstallToolchain } from '../../lib/tauri'
 import type { AgentType } from '../../lib/types'
 import { Modal } from '../modals/Modal'
@@ -42,8 +44,8 @@ const METHOD_LABEL_KEY = {
   choco: 'agentInstall.method.choco',
 } as const satisfies Record<InstallMethod['id'], MessageKey>
 
-function methodLabelKey(id: InstallMethod['id']): MessageKey {
-  if (id === 'native' && osFamily() !== 'windows') return 'agentInstall.method.unixNative'
+function methodLabelKey(id: InstallMethod['id'], os: ReturnType<typeof osFamily>): MessageKey {
+  if (id === 'native' && os !== 'windows') return 'agentInstall.method.unixNative'
   return METHOD_LABEL_KEY[id]
 }
 
@@ -87,14 +89,18 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeInstall.status])
 
-  const methods = installMethodsFor(agent, toolchain)
+  const wslEnabled = useProjectsStore((state) => state.preferences.wslEnabled)
+  const wslDefaultDistro = useProjectsStore((state) => state.preferences.wslDefaultDistro)
+  const targetOs = installTargetOs(osFamily(), { wslEnabled, wslDefaultDistro })
+  const methods = installMethodsFor(agent, toolchain, targetOs)
   const chosen = methods.find((method) => method.id === chosenId) ?? methods[0]
   const docsUrl = installDocsUrl(agent)
   const running = status === 'running'
   const nodeRunning = nodeInstall.status === 'running'
   const blockedByOther = (key: string) => busyAgent !== null && busyAgent !== key
   const blocked = blockedByOther(agent)
-  const missingNode = !probing && methods.length === 0 && needsNodeToolchain(agent, toolchain)
+  const missingNode =
+    !probing && methods.length === 0 && needsNodeToolchain(agent, toolchain, targetOs)
   const nodeMethod = missingNode ? nodeInstallMethods(toolchain)[0] : undefined
   const cleanLog = log.replace(ANSI_PATTERN, '')
   const nodeLog = nodeInstall.log.replace(ANSI_PATTERN, '')
@@ -150,7 +156,7 @@ export function AgentInstallModal({ agent, label, open, onClose, onInstalled, ne
                   onChange={() => setChosenId(method.id)}
                 />
                 <span className={styles.methodBody}>
-                  <b>{t(methodLabelKey(method.id))}</b>
+                  <b>{t(methodLabelKey(method.id, targetOs))}</b>
                   <code>{method.command}</code>
                 </span>
               </label>

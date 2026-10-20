@@ -30,6 +30,52 @@ function usableDistros(names: string[]): string[] {
   return usable.length > 0 ? usable : names
 }
 
+/**
+ * Distro to turn on at startup. A pinned choice, or a distribution already
+ * selected, is left alone. Utility distros such as docker-desktop are ignored.
+ */
+export function wslPreferenceFromDetection(
+  pinned: boolean,
+  enabled: boolean,
+  currentDistro: string,
+  distros: string[],
+  running: string[] = [],
+): { wslEnabled: true; wslDefaultDistro: string } | null {
+  if (pinned) return null
+  if (enabled && currentDistro.trim()) return null
+  const candidates = distros.filter((name) => !UTILITY_DISTROS.has(name.toLowerCase()))
+  const distro = preferredWslDistro(candidates, running)
+  if (!distro) return null
+  return { wslEnabled: true, wslDefaultDistro: distro }
+}
+
+/** Records an explicit PowerShell / WSL choice so startup detection does not override it. */
+export function explicitWslPreference(distro: string): {
+  wslEnabled: boolean
+  wslDefaultDistro: string
+  wslEnvironmentPinned: boolean
+} {
+  return {
+    wslEnabled: Boolean(distro),
+    wslDefaultDistro: distro,
+    wslEnvironmentPinned: true,
+  }
+}
+
+/**
+ * OS family whose installers and shells should run. On Windows, a selected WSL
+ * distribution is the runtime, so CLIs are installed inside it.
+ */
+export function installTargetOs(
+  host: 'windows' | 'macos' | 'linux',
+  preferences: { wslEnabled: boolean; wslDefaultDistro: string },
+): 'windows' | 'macos' | 'linux' {
+  if (host === 'windows' && preferences.wslEnabled && preferences.wslDefaultDistro.trim()) {
+    return 'linux'
+  }
+  return host
+}
+
 /** Prefer the current choice, then a running user distro, then any user distro. */
 export function preferredWslDistro(
   distros: string[],

@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useAgentInstall, useAgentOperationBusy } from '../../hooks/useAgentInstall'
 import { type InstallToolchain, parentPath, updateMethodsFor } from '../../lib/agentInstall'
 import { useT } from '../../lib/i18n'
+import { osFamily } from '../../lib/platform'
 import { openInFileExplorer, probeInstallToolchain } from '../../lib/tauri'
 import type { AgentType } from '../../lib/types'
+import { installTargetOs } from '../../lib/wsl'
+import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
 import styles from './agentActions.module.css'
 
@@ -57,7 +60,13 @@ export function AgentUpdateButton({ agent, label, onUpdated }: Props) {
     }
   }, [status, shadowConflict, onUpdated, pushToast, t, label, agent])
 
-  const method = updateMethodsFor(agent, toolchain)[0]
+  const wslEnabled = useProjectsStore((state) => state.preferences.wslEnabled)
+  const wslDefaultDistro = useProjectsStore((state) => state.preferences.wslDefaultDistro)
+  const method = updateMethodsFor(
+    agent,
+    toolchain,
+    installTargetOs(osFamily(), { wslEnabled, wslDefaultDistro }),
+  )[0]
   if (!method) return null
 
   const running = status === 'running'

@@ -13,6 +13,7 @@ import styles from '../PreferencesModal.module.css'
 import { SettingsSection } from './primitives'
 import { WslEnvironmentField } from '../WslEnvironmentField'
 import { isWindows } from '../../../lib/platform'
+import { explicitWslPreference } from '../../../lib/wsl'
 
 const AGENTS: { id: AgentType; label: string }[] = [
   { id: 'shell', label: 'Shell' },
@@ -102,9 +103,7 @@ export function TerminalPage({ enabledCount }: { enabledCount: number }) {
           <WslEnvironmentField
             hideLabel
             value={preferences.wslEnabled ? preferences.wslDefaultDistro : ''}
-            onChange={(distro) =>
-              setPreferences({ wslEnabled: Boolean(distro), wslDefaultDistro: distro })
-            }
+            onChange={(distro) => setPreferences(explicitWslPreference(distro))}
           />
         </SettingsSection>
       ) : null}

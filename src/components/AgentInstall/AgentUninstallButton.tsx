@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useAgentInstall, useAgentOperationBusy } from '../../hooks/useAgentInstall'
 import { type InstallToolchain, uninstallMethodsFor } from '../../lib/agentInstall'
 import { useT } from '../../lib/i18n'
+import { osFamily } from '../../lib/platform'
 import { probeInstallToolchain } from '../../lib/tauri'
 import type { AgentType } from '../../lib/types'
+import { installTargetOs } from '../../lib/wsl'
+import { useProjectsStore } from '../../stores/projectsStore'
 import { Modal } from '../modals/Modal'
 import controls from '../modals/controls.module.css'
 import styles from './agentActions.module.css'
@@ -48,7 +51,13 @@ export function AgentUninstallButton({ agent, label, onUninstalled, nested }: Pr
     onUninstalled?.()
   }, [status, onUninstalled])
 
-  const method = uninstallMethodsFor(agent, toolchain)[0]
+  const wslEnabled = useProjectsStore((state) => state.preferences.wslEnabled)
+  const wslDefaultDistro = useProjectsStore((state) => state.preferences.wslDefaultDistro)
+  const method = uninstallMethodsFor(
+    agent,
+    toolchain,
+    installTargetOs(osFamily(), { wslEnabled, wslDefaultDistro }),
+  )[0]
   if (!method) return null
 
   const running = status === 'running'

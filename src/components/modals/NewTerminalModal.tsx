@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { wslPrepareFolder } from '../../lib/tauri'
 import { isWindows } from '../../lib/platform'
-import { wslDistroFromPath } from '../../lib/wsl'
+import { explicitWslPreference, wslDistroFromPath } from '../../lib/wsl'
 import { WslEnvironmentField } from './WslEnvironmentField'
 
 import { pickDirectory } from '../../lib/dialog'
@@ -147,7 +147,7 @@ export function NewTerminalModal() {
         firstTab: { type, cwd: finalCwd, extraArgs, runtimeProfile },
       }
       if (isWindows())
-        setPreferences({ wslEnabled: Boolean(distro), wslDefaultDistro: distro || '' })
+        setPreferences(explicitWslPreference(distro || ''))
       await createAgentTerminal(context.projectId, creation)
       setPreferences({ lastTerminalCreation: creation })
       reset()

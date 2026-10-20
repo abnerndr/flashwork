@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  explicitWslPreference,
   folderForNewProject,
+  installTargetOs,
   linuxHomeProjectFolder,
   linuxPathToWslUnc,
   parseWslPath,
   preferredWslDistro,
   resolveProjectFolder,
   wslDistroFromPath,
+  wslPreferenceFromDetection,
 } from './wsl'
 
 describe('wsl paths', () => {
@@ -64,6 +67,27 @@ describe('wsl paths', () => {
       'Ubuntu-24.04',
     )
     expect(preferredWslDistro(['Ubuntu-24.04', 'Debian'], [], 'Debian')).toBe('Debian')
+  })
+
+  it('selects a user distribution on Windows until the choice is pinned', () => {
+    expect(
+      wslPreferenceFromDetection(false, false, '', ['docker-desktop', 'Ubuntu-24.04'], [
+        'Ubuntu-24.04',
+      ]),
+    ).toEqual({ wslEnabled: true, wslDefaultDistro: 'Ubuntu-24.04' })
+    expect(wslPreferenceFromDetection(true, false, '', ['Ubuntu-24.04'], [])).toBeNull()
+    expect(wslPreferenceFromDetection(false, true, 'Debian', ['Ubuntu-24.04'], [])).toBeNull()
+    expect(wslPreferenceFromDetection(false, false, '', ['docker-desktop'], [])).toBeNull()
+    expect(explicitWslPreference('')).toEqual({
+      wslEnabled: false,
+      wslDefaultDistro: '',
+      wslEnvironmentPinned: true,
+    })
+    expect(installTargetOs('windows', { wslEnabled: true, wslDefaultDistro: 'Ubuntu' })).toBe(
+      'linux',
+    )
+    expect(installTargetOs('windows', { wslEnabled: false, wslDefaultDistro: '' })).toBe('windows')
+    expect(installTargetOs('linux', { wslEnabled: false, wslDefaultDistro: '' })).toBe('linux')
   })
 
   it('creates a Linux home folder when a WSL project has no path', () => {

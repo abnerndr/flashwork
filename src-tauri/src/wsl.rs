@@ -142,7 +142,17 @@ static DEFAULT_DISTRO: Mutex<Option<String>> = Mutex::new(None);
 #[tauri::command]
 pub fn wsl_set_default_distro(distro: Option<String>) -> Result<(), String> {
     *DEFAULT_DISTRO.lock().map_err(|e| e.to_string())? = distro.filter(|s| !s.trim().is_empty());
+    invalidate_command_probe();
+    crate::cli_resolver::invalidate_all_launchers();
     Ok(())
+}
+
+/// Distro selected in preferences, on the Windows build only.
+pub fn current_default_distro() -> Option<String> {
+    if !cfg!(windows) {
+        return None;
+    }
+    DEFAULT_DISTRO.lock().ok().and_then(|guard| guard.clone())
 }
 
 /// Decodes `wsl.exe -l -q` output. wsl.exe writes its own messages as UTF-16LE
@@ -473,6 +483,41 @@ const PROBE_TTL: Duration = Duration::from_secs(30);
 
 type ProbeEntry = (Instant, HashMap<String, String>);
 static PROBE_CACHE: OnceLock<Mutex<HashMap<String, ProbeEntry>>> = OnceLock::new();
+
+/// Drops in-distro `command -v` results so a just-finished install is visible.
+pub fn invalidate_command_probe() {
+    let Some(cache) = PROBE_CACHE.get() else {
+        return;
+    };
+    if let Ok(mut map) = cache.lock() {
+        map.clear();
+    }
+}
+
+/// UNC path of the first `names` entry found in `distro`.
+pub fn command_unc_in_distro(distro: &str, names: &[&str]) -> Option<std::path::PathBuf> {
+    let hits = probe_commands_in_distro(distro, names);
+    let linux = names.iter().find_map(|name| hits.get(*name))?;
+    Some(std::path::PathBuf::from(linux_to_wsl_unc(distro, linux)))
+}
+
+/// Stdout of `bash -lc script` inside `distro`. Empty output is `None`.
+pub fn output_in_distro(distro: &str, script: &str) -> Option<String> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let args = vec![
+        "-d".to_string(),
+        distro.to_string(),
+        "--exec".to_string(),
+        "bash".to_string(),
+        "-lc".to_string(),
+        script.to_string(),
+    ];
+    let output = wsl_command(&args).output().ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!text.is_empty()).then_some(text)
+}
 
 /// `command -v` for every name inside `distro`, one wsl.exe call, short TTL cache.
 pub fn probe_commands_in_distro(distro: &str, names: &[&str]) -> HashMap<String, String> {

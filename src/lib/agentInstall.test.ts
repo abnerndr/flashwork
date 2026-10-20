@@ -35,6 +35,11 @@ describe('installMethodsFor', () => {
     expect(methods.map((method) => method.id)).toEqual(['native'])
   })
 
+  it('installs Codex on Linux with the official shell script', () => {
+    const methods = installMethodsFor('codex', BARE, 'linux')
+    expect(methods[0].command).toBe('curl -fsSL https://chatgpt.com/codex/install.sh | bash')
+  })
+
   it('surfaces winget for Claude only when winget exists', () => {
     expect(installMethodsFor('claude', BARE, 'windows').map((m) => m.id)).toEqual(['native'])
     expect(
@@ -173,9 +178,12 @@ describe('installShellLine', () => {
   })
 
   it('propagates npm exit code on Windows PowerShell', () => {
-    expect(installShellLine('npm install -g @google/gemini-cli', 'windows')).toBe(
-      '$env:npm_config_prefix=$null; $env:npm_config_global_prefix=$null; cmd /c "npm install -g @google/gemini-cli"; exit $LASTEXITCODE\r',
-    )
+    const line = installShellLine('npm install -g @google/gemini-cli', 'windows')
+    expect(line.startsWith('$ProgressPreference=')).toBe(true)
+    expect(line).toContain('cmd /c "npm install -g @google/gemini-cli"')
+    expect(line).toContain('exit $LASTEXITCODE')
+    expect(line.endsWith('\r')).toBe(true)
+    expect(line.includes('\x15')).toBe(false)
   })
 
   it('never wraps npm in cmd /c on unix', () => {
@@ -185,8 +193,10 @@ describe('installShellLine', () => {
 
   it('does not wrap native PowerShell pipelines in cmd /c', () => {
     const line = installShellLine('irm https://claude.ai/install.ps1 | iex', 'windows')
-    expect(line).toContain('irm https://claude.ai/install.ps1 | iex')
+    expect(line).toContain('https://claude.ai/install.ps1')
+    expect(line).toContain('OSArchitecture')
     expect(line).not.toContain('cmd /c')
+    expect(line).not.toContain('irm https://claude.ai/install.ps1 | iex')
   })
 })
 

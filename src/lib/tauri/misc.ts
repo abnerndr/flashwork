@@ -36,7 +36,7 @@ export async function recordAppEvent(kind: string, message: string): Promise<voi
 }
 
 export async function findCliLauncher(agent: string): Promise<string | null> {
-  return invoke<string | null>('find_cli_launcher', { agent })
+  return invokeWithWsl<string | null>('find_cli_launcher', { agent })
 }
 
 /** WSL distros installed on this machine (Windows build only; empty elsewhere). */
@@ -75,15 +75,15 @@ export async function detectAgentsForCwd(
 
 /** Drop the launcher cache and resolve again, including the user's login PATH. Post-install only. */
 export async function refreshCliPath(command: string): Promise<string | null> {
-  return invoke<string | null>('refresh_cli_path', { command })
+  return invokeWithWsl<string | null>('refresh_cli_path', { command })
 }
 
 export async function probeInstallToolchain(): Promise<InstallToolchain> {
-  return invoke<InstallToolchain>('probe_install_toolchain')
+  return invokeWithWsl<InstallToolchain>('probe_install_toolchain')
 }
 
 export async function agentCliVersion(agent: string): Promise<string | null> {
-  return invoke<string | null>('agent_cli_version', { agent })
+  return invokeWithWsl<string | null>('agent_cli_version', { agent })
 }
 
 // --- RFC-001 — Event Bus & Observabilidade ---

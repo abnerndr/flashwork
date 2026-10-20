@@ -102,6 +102,11 @@ export const AGENT_INSTALL_CATALOG: Partial<Record<AgentType, AgentInstallCatalo
     docsUrl: 'https://github.com/openai/codex',
     methods: [
       { id: 'native', command: 'irm https://chatgpt.com/codex/install.ps1 | iex', os: 'windows' },
+      {
+        id: 'native',
+        command: 'curl -fsSL https://chatgpt.com/codex/install.sh | bash',
+        os: ['linux', 'macos'],
+      },
       { id: 'npm', command: 'npm install -g @openai/codex', requires: 'npm' },
     ],
   },
@@ -298,12 +303,51 @@ export function installerPtyCommand(os: OSFamily = osFamily()): 'pwsh' | 'bash' 
   return os === 'windows' ? 'pwsh' : 'bash'
 }
 
+const WINDOWS_NATIVE_INSTALL = /^irm\s+(https:\/\/\S+)\s+\|\s+iex$/i
+
+/**
+ * Official `irm | iex` installers read `RuntimeInformation.OSArchitecture`.
+ * Windows PowerShell 5.1 does not expose that property, and StrictMode turns
+ * the lookup into a terminating error. Download the script and substitute the
+ * architecture before invoking it when the property is missing.
+ */
+function windowsInstallBody(command: string): string {
+  const trimmed = command.trim()
+  const native = WINDOWS_NATIVE_INSTALL.exec(trimmed)
+  if (native) {
+    const url = native[1].replace(/'/g, "''")
+    return (
+      "$__fwBody = (Invoke-WebRequest -UseBasicParsing -Uri '" +
+      url +
+      "').Content; " +
+      'if ($__fwBody -is [byte[]]) { $__fwBody = [Text.Encoding]::UTF8.GetString($__fwBody) }; ' +
+      '$__fwArch = $null; ' +
+      "try { $__fwArch = [System.Runtime.InteropServices.RuntimeInformation].GetProperty('OSArchitecture') } catch { $__fwArch = $null }; " +
+      'if ($null -eq $__fwArch) { ' +
+      "$__fwName = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'Arm64' } elseif ([Environment]::Is64BitOperatingSystem) { 'X64' } else { 'X86' }; " +
+      "$__fwBody = $__fwBody.Replace('[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture', (\"'\" + $__fwName + \"'\")) " +
+      '}; ' +
+      'Invoke-Expression $__fwBody'
+    )
+  }
+  if (/^(npm|npx|pnpm|yarn|winget|scoop|choco)\b/i.test(trimmed)) {
+    return `cmd /c "${trimmed.replace(/"/g, '\\"')}"`
+  }
+  return trimmed
+}
+
 /** Line handed to the shell PTY: run the installer, then close the shell. */
 export function installShellLine(command: string, os: OSFamily = osFamily()): string {
   if (os === 'windows') {
-    const usesCmd = /^(npm|npx|pnpm|yarn|winget|scoop|choco)\b/i.test(command.trim())
-    const body = usesCmd ? `cmd /c "${command.replace(/"/g, '\\"')}"` : command
-    return `$env:npm_config_prefix=$null; $env:npm_config_global_prefix=$null; ${body}; exit $LASTEXITCODE\r`
+    const body = windowsInstallBody(command)
+    return (
+      "$ProgressPreference='SilentlyContinue'; " +
+      '$env:npm_config_prefix=$null; $env:npm_config_global_prefix=$null; ' +
+      'try { ' +
+      body +
+      '; if ($null -eq $LASTEXITCODE) { exit 0 } else { exit $LASTEXITCODE } } ' +
+      'catch { Write-Host $_; exit 1 }\r'
+    )
   }
   return `unset npm_config_prefix npm_config_global_prefix; ${command} && exit 0 || exit 1\r`
 }

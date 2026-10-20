@@ -6,7 +6,7 @@ export const en = {
   'wsl.distribution': 'WSL · {distro}',
   'wsl.windows': 'Windows / PowerShell (WSL off)',
   'wsl.settingsHint':
-    'Turn WSL on to run new terminals, Run SPEC, and new projects inside the selected distribution. Turn it off to use Windows PowerShell. Open sessions stay as they are. A Linux folder always uses its own distribution.',
+    'When a WSL distribution is installed, Flashwork selects it for new terminals, Run SPEC, new projects, and CLI installs. Choose PowerShell to stay on Windows. Open sessions stay as they are. A Linux folder always uses its own distribution.',
   'wsl.checking': 'Checking whether WSL is active…',
   'wsl.running': 'WSL is active: {distros}',
   'wsl.stopped':

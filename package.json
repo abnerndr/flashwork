@@ -2,7 +2,7 @@
 
 {
   "name": "flashwork-orchestrator",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Flashwork AI orchestrator. Scripts: `app` launches Tauri (dev overlay).",
   "license": "SEE LICENSE IN LICENSE",
   "private": true,

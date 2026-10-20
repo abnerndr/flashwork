@@ -43,6 +43,13 @@ function stripAntigravitySessionArgs(args: string[]): string[] {
   )
 }
 
+function stripGeminiSessionArgs(args: string[]): string[] {
+  return stripFlagWithValue(
+    args,
+    new Set(['--resume', '-r', '--session-id', '--session-file']),
+  ).filter((arg) => arg !== '--list-sessions')
+}
+
    
                                                                             
                                                                              
@@ -123,10 +130,29 @@ export function buildAgentLaunch(
     }
   }
 
-  // Gemini `--resume` takes "latest" or a list index, not a session UUID.
-  // Keep the UUID on SavedSession for cost/HUD; do not invent CLI flags.
+  // Gemini accepts `--resume <uuid|latest|index>` and `--session-id <uuid>` for new chats.
   if (agent === 'gemini') {
-    return { args: [...baseArgs], sessionId: undefined, createdSession: false }
+    const clean = stripGeminiSessionArgs([...baseArgs])
+    if (sessionId && claudeCreateKnownId) {
+      return {
+        args: ['--session-id', sessionId, ...clean],
+        sessionId,
+        createdSession: true,
+      }
+    }
+    if (sessionId) {
+      return {
+        args: ['--resume', sessionId, ...clean],
+        sessionId,
+        createdSession: false,
+      }
+    }
+    const createdId = createUuid()
+    return {
+      args: ['--session-id', createdId, ...clean],
+      sessionId: createdId,
+      createdSession: true,
+    }
   }
 
   return { args: [...baseArgs], sessionId: undefined, createdSession: false }

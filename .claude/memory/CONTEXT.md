@@ -118,6 +118,9 @@ P06 Monaco + Open VSX is removed. Files in the explorer preview or open in VS Co
 ## P15 — SPEC orchestrator (2026-10-17, working tree)
 
 Supersedes the Task Board, Auto bar, Flows, canvas, and peripheral sections above. Core: project
-folder + Graphify (always on, MCP into Claude/Codex/OpenCode/Gemini) + **Run SPEC** (Gemini CLI
-planner → one CLI pane per task, shared `.flashwork/runs/<runId>/board.md`). WSL projects run via
-`wsl.exe` (`src-tauri/src/wsl.rs`). Kept: MCP + Skills, Git, Token HUD/usage. See ADR 013 / P15.
+folder + Graphify (always on, MCP into Claude/Codex/OpenCode/Gemini) + **Run SPEC** (planner → one
+CLI pane per task, shared `.flashwork/runs/<runId>/board.md`). Planner order (ADR 014, accepted):
+DeepSeek API (`deepseek-flash`, or `deepseek-v4-pro` when the SPEC is implementation-heavy) when a
+key is saved, then Gemini CLI, then the local heuristic. DeepSeek is planner-only.
+WSL projects run via `wsl.exe` (`src-tauri/src/wsl.rs`). Kept: MCP + Skills, Git, Token HUD/usage.
+See ADR 013 / P15.

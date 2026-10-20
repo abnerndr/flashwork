@@ -3,14 +3,19 @@ import { nanoid } from 'nanoid'
 import { getCachedClaudeUsage } from '../claudeUsageCache'
 import { getCachedCodexUsage } from '../codexUsageCache'
 import { getLocale, translate } from '../i18n'
+import { getModelCatalog } from '../providers/catalogOverlay'
+import type { ProviderId } from '../providers/modelCatalog'
 import { notifyAgentDone } from '../notifications'
 import {
   appendProjectRunBoard,
   appendPromptRunJournal,
   detectAgentsForCwd,
   ensurePromptRunContext,
+  providerChat,
+  providerKeyStatus,
   runPlannerCli,
   writeProjectRunBoard,
+  type ChatMessage,
 } from '../tauri'
 import {
   ALL_AGENT_TYPES,
@@ -23,6 +28,11 @@ import { useProjectsStore } from '../../stores/projectsStore'
 import { usePromptRunStore } from '../../stores/promptRunStore'
 import type { TaskKind } from './classifyTask'
 import { isAgentAuthError } from './detectHandoffTrigger'
+import {
+  isDeepseekPlannerUnavailable,
+  markDeepseekPlannerUnavailable,
+  pickDeepseekPlannerModel,
+} from './deepseekPlanner'
 import { excludeFailedAgents, markAgentAuthFailed } from './failedAgents'
 import { buildSpecTaskBootstrap } from './bootstrapPrompt'
 import { isPromptRunBlocking } from './isPromptRunBlocking'
@@ -58,7 +68,7 @@ export type SpecPlanResult =
   | {
       ok: true
       tasks: SpecTask[]
-      source: 'gemini' | 'heuristic'
+      source: 'deepseek' | 'gemini' | 'heuristic'
       notice?: SpecPlanNotice
       /** Installed and configured coding CLIs the user may reassign tasks to. */
       agents: AgentType[]
@@ -72,10 +82,12 @@ type SpecProject = {
   terminals: Array<{ id: string; tabs: Array<{ type: AgentType }> }>
 }
 
-/** Installed and configured coding CLIs for a project folder (WSL-aware through the probe). */
+/** Installed coding CLIs that may own Run SPEC tasks (Gemini is planner-only, never a worker). */
 export async function usableSpecAgents(cwd: string): Promise<AgentType[]> {
   const enabled = useProjectsStore.getState().preferences.enabledAgents
-  const candidates = ALL_AGENT_TYPES.filter((agent) => agent !== 'shell' && enabled[agent])
+  const candidates = ALL_AGENT_TYPES.filter(
+    (agent) => agent !== 'shell' && agent !== 'gemini' && enabled[agent],
+  )
   return excludeFailedAgents(await probeInstalledAgents(candidates, cwd))
 }
 
@@ -132,18 +144,84 @@ async function runGeminiPlanner(
   }
 }
 
-/** Splits a SPEC into tasks: Gemini pre-pass first, local heuristic as the fallback. */
-export async function planSpec(args: {
-  project: SpecProject
-  cwd: string
-  spec: string
-}): Promise<SpecPlanResult> {
+export type PlanSpecDeps = {
+  usableAgents?: (cwd: string) => Promise<AgentType[]>
+  keyStatus?: (id: ProviderId) => Promise<{ saved: boolean }>
+  chat?: (
+    provider: ProviderId,
+    model: string,
+    messages: ChatMessage[],
+    timeoutMs?: number,
+  ) => Promise<{ text: string }>
+  gemini?: (cwd: string, prompt: string) => Promise<{ text: string } | { notice: SpecPlanNotice }>
+}
+
+/**
+ * DeepSeek direct API when a key is saved and the call returns a usable plan.
+ * A failed call is skipped for the rest of this process. Otherwise Gemini CLI,
+ * then the local heuristic.
+ */
+async function runDeepseekPlanner(
+  spec: string,
+  prompt: string,
+  deps: PlanSpecDeps,
+): Promise<{ text: string } | { skipped: true }> {
+  if (isDeepseekPlannerUnavailable()) return { skipped: true }
+  const keyStatus = deps.keyStatus ?? providerKeyStatus
+  let saved = false
+  try {
+    saved = (await keyStatus('deepseek')).saved
+  } catch (cause) {
+    console.warn('[run-spec] deepseek key status failed:', cause)
+    return { skipped: true }
+  }
+  if (!saved) return { skipped: true }
+  const chat = deps.chat ?? providerChat
+  const model = pickDeepseekPlannerModel(spec, getModelCatalog('deepseek'))
+  try {
+    const result = await chat(
+      'deepseek',
+      model,
+      [{ role: 'user', content: prompt }],
+      SPEC_PLANNER_TIMEOUT_MS,
+    )
+    return { text: result.text ?? '' }
+  } catch (cause) {
+    console.warn('[run-spec] deepseek planner failed:', cause)
+    markDeepseekPlannerUnavailable()
+    return { skipped: true }
+  }
+}
+
+/** Splits a SPEC into tasks: DeepSeek, then Gemini, then the local heuristic. */
+export async function planSpec(
+  args: {
+    project: SpecProject
+    cwd: string
+    spec: string
+    /** Installed worker CLIs the user turned on for this run. Gemini is never included. */
+    allowedAgents?: readonly AgentType[]
+  },
+  deps: PlanSpecDeps = {},
+): Promise<SpecPlanResult> {
   const cwd = args.cwd.trim()
   if (!cwd) return { ok: false, code: 'no-cwd' }
-  const agents = await usableSpecAgents(cwd)
+  let agents = await (deps.usableAgents ?? usableSpecAgents)(cwd)
+  if (args.allowedAgents) {
+    const allow = new Set(args.allowedAgents)
+    agents = agents.filter((agent) => allow.has(agent))
+  }
   if (agents.length === 0) return { ok: false, code: 'needs-install' }
   const ctx = await specContext(args.project, args.spec, agents)
-  const planner = await runGeminiPlanner(cwd, buildSpecPlannerPrompt({ spec: args.spec, agents }))
+  const prompt = buildSpecPlannerPrompt({ spec: args.spec, agents })
+  const deepseek = await runDeepseekPlanner(args.spec, prompt, deps)
+  if ('text' in deepseek) {
+    const tasks = parseSpecPlan(deepseek.text, ctx)
+    if (tasks.length > 0) return { ok: true, tasks, source: 'deepseek', agents }
+    markDeepseekPlannerUnavailable()
+  }
+  const gemini = deps.gemini ?? runGeminiPlanner
+  const planner = await gemini(cwd, prompt)
   let notice: SpecPlanNotice | undefined
   if ('text' in planner) {
     const tasks = parseSpecPlan(planner.text, ctx)
@@ -176,6 +254,12 @@ function taskLane(runId: string, task: SpecTask, tasks: readonly SpecTask[], boa
  * Opens one pane per ready task. Shell tasks get a plain terminal (typing their command) and
  * count as done once opened, so tasks that depend on them are not held back.
  */
+function specWorkerAllowed(agent: AgentType, allowed?: readonly AgentType[]): boolean {
+  if (agent === 'shell') return true
+  if (agent === 'gemini') return false
+  return !allowed || allowed.includes(agent)
+}
+
 async function launchReadyTasks(run: {
   id: string
   projectId: string
@@ -183,12 +267,16 @@ async function launchReadyTasks(run: {
   boardPath?: string
   contextDir?: string
   tasks: SpecTask[]
+  allowedAgents?: readonly AgentType[]
 }): Promise<{ tasks: SpecTask[]; steps: PromptRun['steps'] }> {
   const ready = readySpecTasks(run.tasks)
   if (ready.length === 0) return { tasks: run.tasks, steps: [] }
+  const blocked = new Set(
+    ready.filter((task) => !specWorkerAllowed(task.agent, run.allowedAgents)).map((task) => task.id),
+  )
   const createAgentTerminal = useProjectsStore.getState().createAgentTerminal
-  const cliTasks = ready.filter((task) => task.agent !== 'shell')
-  const shellTasks = ready.filter((task) => task.agent === 'shell')
+  const cliTasks = ready.filter((task) => task.agent !== 'shell' && !blocked.has(task.id))
+  const shellTasks = ready.filter((task) => task.agent === 'shell' && !blocked.has(task.id))
   const steps = await launchPromptRunLanes({
     projectId: run.projectId,
     cwd: run.cwd,
@@ -210,6 +298,7 @@ async function launchReadyTasks(run: {
     terminalByTask.set(task.id, terminal.id)
   }
   const tasks = run.tasks.map((task) => {
+    if (blocked.has(task.id)) return { ...task, status: 'failed' as const }
     if (!terminalByTask.has(task.id)) return task
     return {
       ...task,
@@ -225,6 +314,8 @@ export type LaunchSpecRunInput = {
   cwd: string
   spec: string
   tasks: SpecTask[]
+  /** Worker CLIs that may open a pane, including handoff targets. */
+  allowedAgents?: AgentType[]
 }
 
 export async function launchSpecRun(input: LaunchSpecRunInput): Promise<StartPromptRunResult> {
@@ -267,6 +358,7 @@ export async function launchSpecRun(input: LaunchSpecRunInput): Promise<StartPro
     boardPath,
     contextDir,
     tasks: pending,
+    allowedAgents: input.allowedAgents,
   })
   const first = launched.steps[0]
   const firstTask = launched.tasks.find((task) => task.terminalId)
@@ -284,6 +376,7 @@ export async function launchSpecRun(input: LaunchSpecRunInput): Promise<StartPro
     contextDir,
     boardPath,
     specTasks: launched.tasks,
+    allowedAgents: input.allowedAgents,
     createdAt: Date.now(),
   }
   usePromptRunStore.getState().setRun(run)
@@ -312,6 +405,7 @@ export async function continueSpecRun(projectId: string): Promise<void> {
       boardPath: run.boardPath,
       contextDir: run.contextDir,
       tasks: run.specTasks,
+      allowedAgents: run.allowedAgents,
     })
     const latest = usePromptRunStore.getState().byProjectId[projectId]
     if (!latest || latest.id !== run.id) return

@@ -170,7 +170,16 @@ export function NewProjectModal() {
       })
       if (!shouldApplyResult() || result.kind === 'stale') return
       if (result.kind === 'flashworkExists') {
-        setFlashworkExists(true)
+        // Deleting a project only drops it from the list. `.flashwork` stays on disk,
+        // so the same folder is registered again instead of blocking on that marker.
+        const project = await openExistingProject(registration(), {
+          projectDetect,
+          findProject: (id) => useProjectsStore.getState().projects.find((item) => item.id === id),
+          createProject,
+          shouldApplyResult,
+        })
+        if (!shouldApplyResult() || !project) return
+        finish(project)
         return
       }
       finish(result.project)
@@ -238,7 +247,7 @@ export function NewProjectModal() {
             setSubmitting(false)
             setName(e.target.value)
           }}
-          onKeyDown={(e) => e.key === 'Enter' && void submit()}
+          onKeyDown={(e) => e.key === 'Enter' && void (flashworkExists ? openExisting() : submit())}
           placeholder={t('crud.projectNamePlaceholder')}
         />
       </div>

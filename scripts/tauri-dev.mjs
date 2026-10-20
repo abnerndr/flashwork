@@ -17,16 +17,19 @@ if (cargo.error || cargo.status !== 0) {
   process.exit(1);
 }
 
-// Keep WSLg on its default display backend unless explicitly overridden.
+// X11 on this WSLg host has no DRI3, so the window stays in copy mode.
+// Wayland plus the D3D12 GL driver is what actually shows on a monitor.
 if (
   process.platform === 'linux' &&
   existsSync('/proc/version') &&
-  /microsoft/i.test(readFileSync('/proc/version', 'utf8')) &&
-  env.FLASHWORK_FORCE_X11 === '1'
+  /microsoft/i.test(readFileSync('/proc/version', 'utf8'))
 ) {
-  env.GDK_BACKEND = 'x11';
-  env.WEBKIT_DISABLE_COMPOSITING_MODE ??= '1';
-  console.log('[flashwork] WSL: FLASHWORK_FORCE_X11=1 -> GDK_BACKEND=x11');
+  if (env.GDK_BACKEND === 'x11') delete env.GDK_BACKEND;
+  delete env.WEBKIT_DISABLE_COMPOSITING_MODE;
+  delete env.WEBKIT_DISABLE_DMABUF_RENDERER;
+  delete env.LIBGL_ALWAYS_SOFTWARE;
+  env.GALLIUM_DRIVER ??= 'd3d12';
+  console.log('[flashwork] WSL: Wayland + GALLIUM_DRIVER=d3d12');
 }
 
 const require = createRequire(import.meta.url);

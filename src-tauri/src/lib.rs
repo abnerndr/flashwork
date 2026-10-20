@@ -100,20 +100,35 @@ pub fn run() {
 
     #[cfg(target_os = "linux")]
     {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         if wsl::is_wsl() {
-            // Without a Vulkan device under WSL, Mesa falls back to Zink and spams
-            // "ZINK: failed to choose pdev" / dri2. llvmpipe avoids that.
+            // XWayland on this host has no DRI3, so an X11 window stays in WSLg
+            // copy mode: a taskbar button whose pixels never reach a monitor.
+            // Wayland plus the D3D12 GL driver is the surface WSLg can show.
+            // An explicit GDK_BACKEND or GALLIUM_DRIVER in the environment wins,
+            // except GDK_BACKEND=x11, which this host cannot present.
+            if std::env::var("GDK_BACKEND").ok().as_deref() == Some("x11") {
+                std::env::remove_var("GDK_BACKEND");
+            }
+            std::env::remove_var("WEBKIT_DISABLE_DMABUF_RENDERER");
+            std::env::remove_var("WEBKIT_DISABLE_COMPOSITING_MODE");
+            std::env::remove_var("LIBGL_ALWAYS_SOFTWARE");
             if std::env::var_os("GALLIUM_DRIVER").is_none() {
-                std::env::set_var("GALLIUM_DRIVER", "llvmpipe");
+                std::env::set_var("GALLIUM_DRIVER", "d3d12");
             }
-            if std::env::var_os("LIBGL_ALWAYS_SOFTWARE").is_none() {
-                std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-            }
+        } else {
+            // Blank WebKit windows on native Linux (Tauri linux-graphics notes).
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
 
-    let _ = dotenvy::dotenv();
+    // Repo-root `.env` as well as cwd. Cargo starts this binary in `src-tauri`.
+    providers::load_app_dotenv();
+    if std::env::var("DEEPSEEK_API_KEY")
+        .ok()
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        eprintln!("[planner] DeepSeek key loaded; Run SPEC plans with the API before Gemini");
+    }
     // `npm run app` (dev) injeta EDITOR=vi e GIT_EDITOR=true no ambiente do
 
     // o vi-mode (Ctrl+R vira "redisplay", Ctrl+A/E viram self-insert — bug real

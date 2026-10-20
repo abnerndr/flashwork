@@ -30,6 +30,7 @@ import type {
   Terminal,
   WorkspaceContainer,
 } from '../../lib/types'
+import { osFamily } from '../../lib/platform'
 import { MAX_WORKSPACE_TABS } from '../../lib/workspaceNavigation'
 import { selectActiveProject, useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -58,8 +59,10 @@ function resolveGroup(project: Project, groupsById: Map<string, Group>): Group |
  * their PTYs. Beyond them, hidden panes stop streaming and resync when they come back — a redraw,
  * not a restart. This bounds the IPC traffic of a large workspace.
  */
-const MAX_LIVE_WORKSPACE_TABS = MAX_WORKSPACE_TABS
-const MAX_STREAMING_BACKGROUND_TABS = 2
+// Linux/WSL: keep fewer mounted/streaming hidden tabs — each xterm + PTY stream is costly.
+const MAX_LIVE_WORKSPACE_TABS =
+  osFamily() === 'linux' ? Math.min(6, MAX_WORKSPACE_TABS) : MAX_WORKSPACE_TABS
+const MAX_STREAMING_BACKGROUND_TABS = osFamily() === 'linux' ? 1 : 2
 
 type WorkspaceSurface = {
   key: string

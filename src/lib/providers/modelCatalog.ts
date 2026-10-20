@@ -1,4 +1,4 @@
-export type ProviderId = 'anthropic' | 'openai' | 'google'
+export type ProviderId = 'anthropic' | 'openai' | 'google' | 'deepseek'
 
 export type ModelEntry = {
   id: string
@@ -20,6 +20,12 @@ export const MODEL_CATALOG: Record<ProviderId, ModelEntry[]> = {
   google: [
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', role: 'router' },
     { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', role: 'coding' },
+  ],
+  // ADR 014. `deepseek-chat` / `deepseek-coder` were retired (2026-07-24).
+  // Flash is the cheap JSON planner; V4 Pro is the coder-class model.
+  deepseek: [
+    { id: 'deepseek-flash', label: 'DeepSeek Flash', role: 'router' },
+    { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', role: 'coding' },
   ],
 }
 

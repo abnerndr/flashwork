@@ -8,7 +8,7 @@ import {
   pickRouterModelFrom,
 } from './modelCatalog'
 
-const PROVIDER_IDS: ProviderId[] = ['anthropic', 'openai', 'google']
+const PROVIDER_IDS: ProviderId[] = ['anthropic', 'openai', 'google', 'deepseek']
 
 describe('MODEL_CATALOG', () => {
   it('lists every supported provider', () => {

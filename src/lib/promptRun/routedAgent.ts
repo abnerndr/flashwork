@@ -11,6 +11,8 @@ const API_LABELS: Record<ProviderId, string> = {
   google: 'Gemini API',
   openai: 'OpenAI API',
   anthropic: 'Anthropic API',
+  // Planner-only (ADR 014). Not in `PROVIDER_IDS` / `ROUTER_PROVIDER_ORDER`, so Auto never spawns `api:deepseek`.
+  deepseek: 'DeepSeek API',
 }
 
 export function isApiAgentId(value: string): value is ApiAgentId {

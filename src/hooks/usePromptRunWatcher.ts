@@ -13,6 +13,7 @@ import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../lib/promptRu
 import { appendPromptRunJournal, ingestRunContext, listenPtyData } from '../lib/tauri'
 import { shouldIngestContext } from '../lib/promptRun/ingestContext'
 import { AGENT_TYPE_LABELS, ALL_AGENT_TYPES, UNRESTRICTED_FLAG, type AgentType, type PromptRun, type PromptRunStepReason, type RoutedAgent } from '../lib/types'
+import { specHandoffAgents } from '../lib/promptRun/specPlan'
 import { failSpecLane, retargetSpecRun, specLaneContext } from '../lib/promptRun/runSpec'
 import { useProjectsStore } from '../stores/projectsStore'
 import { usePromptRunStore } from '../stores/promptRunStore'
@@ -118,9 +119,12 @@ export function usePromptRunWatcher() {
     const abortIfStopped = () =>
       isHandoffAborted(usePromptRunStore.getState().byProjectId[run.projectId], run.id)
     try {
+      const specAgents = specHandoffAgents(run)
       const enabled = useProjectsStore.getState().preferences.enabledAgents
       const candidates = ALL_AGENT_TYPES.filter((agent) => agent !== 'shell' && enabled[agent])
-      const installed = excludeFailedAgents(await probeInstalledAgents(candidates, run.cwd))
+      const installed = excludeFailedAgents(
+        specAgents ?? (await probeInstalledAgents(candidates, run.cwd)),
+      )
       const occupied = run.steps
         .map((step) => step.agent)
         .filter((agent): agent is AgentType => agent !== sourceAgent && !isApiAgentId(agent))

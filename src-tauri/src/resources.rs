@@ -14,6 +14,8 @@ const META_STALE_MS: u64 = 30_000;
 const RESOURCE_LOG_INTERVAL_MS: u64 = 60_000;
 /// Skip tiny panes when forcing a critical suspend — freeing them will not save the host.
 const EMERGENCY_MIN_MEMORY_MB: f64 = 128.0;
+/// On Linux/WSL, start parking idle runtimes once PTY trees alone hold this much RSS.
+const LINUX_SOFT_PARK_PTYS_MB: f64 = 2_048.0;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -431,13 +433,15 @@ fn eligible_candidates(
     candidates.into_iter().map(|entry| entry.0).collect()
 }
 
-/// Last-resort targets when system memory is critical and no idle-hidden candidate exists.
-/// Visible / focused / working panes are allowed — otherwise Flashwork can sit at
+/// Last-resort targets when system memory is tight and no idle-hidden candidate exists.
+/// Visible / working panes are allowed — otherwise Flashwork can sit at
 /// `level=critical action=none` while a single agent tree holds several GB (WSL freezes).
+/// At warning, keep the focused pane; at critical, even the focused pane may be parked.
 fn emergency_candidates(
     snapshot: &RuntimeSnapshot,
     metas: &HashMap<String, PtyRuntimeMeta>,
     now: u64,
+    allow_focused: bool,
 ) -> Vec<String> {
     let mut ranked = Vec::new();
 
@@ -452,6 +456,9 @@ fn emergency_candidates(
             }
         }
         let focused = meta.map(|m| m.focused).unwrap_or(false);
+        if focused && !allow_focused {
+            continue;
+        }
         let last_used = meta.map(|m| m.last_used_at_ms).unwrap_or(0);
         ranked.push((
             pty.id.clone(),
@@ -469,11 +476,20 @@ fn emergency_candidates(
     ranked.into_iter().map(|entry| entry.0).collect()
 }
 
+/// Linux/WSL VMs are often capped (e.g. 12 GB). Act earlier than on a full Windows host
+/// so we park agents before the distro thrashing freezes the desktop.
+fn pressure_thresholds(total_mb: f64) -> (f64, f64) {
+    let total = total_mb.max(1.0);
+    if cfg!(target_os = "linux") {
+        ((total * 0.10).max(768.0), (total * 0.18).max(1_536.0))
+    } else {
+        ((total * 0.05).max(512.0), (total * 0.10).max(1_024.0))
+    }
+}
+
 fn pressure_level(memory: &MemoryStats, previous: &'static str) -> &'static str {
-    let total = memory.system_total_mb.max(1.0);
     let available = memory.system_available_mb;
-    let critical_at = (total * 0.05).max(512.0);
-    let warning_at = (total * 0.10).max(1024.0);
+    let (critical_at, warning_at) = pressure_thresholds(memory.system_total_mb);
 
     if available <= critical_at || (previous == "critical" && available <= critical_at * 1.25) {
         "critical"
@@ -482,6 +498,28 @@ fn pressure_level(memory: &MemoryStats, previous: &'static str) -> &'static str 
     } else {
         "normal"
     }
+}
+
+/// Park idle runtimes on Linux before the host hits warning — agent trees grow fast under WSL.
+fn soft_park_needed(snapshot: &RuntimeSnapshot, policy: &ResourcePolicy) -> bool {
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
+    snapshot.memory.ptys_mb >= LINUX_SOFT_PARK_PTYS_MB
+        || snapshot.effective_total_mb >= policy.memory_budget_mb * 1.5
+}
+
+fn try_suspend_one(
+    app: &AppHandle,
+    sessions: &PtySessions,
+    ids: impl IntoIterator<Item = String>,
+) -> Option<String> {
+    ids.into_iter().find_map(|id| {
+        match pty::suspend_session_with_reason(app, sessions, &id, "memory-pressure") {
+            Ok(true) => Some(id),
+            _ => None,
+        }
+    })
 }
 
 fn run_cycle(app: &AppHandle, sessions: &PtySessions, supervisor: &ResourceSupervisor) {
@@ -498,34 +536,49 @@ fn run_cycle(app: &AppHandle, sessions: &PtySessions, supervisor: &ResourceSuper
     };
     let candidates = eligible_candidates(&snapshot, &metas, &policy, now);
     let level = pressure_level(&snapshot.memory, previous_level);
-    // Manual mode remains non-destructive during ordinary pressure. At critical
-    // system memory pressure (Windows host or WSL cgroup view), keeping the
-    // machine responsive beats preserving a fat visible agent. Prefer idle-hidden
-    // LRU targets; if none qualify (or suspend fails), force-suspend the heaviest
-    // live PTY (≥128 MB). One suspend per cycle preserves scrollback + resume id.
-    let mut force_emergency = false;
-    let suspended_id = if level == "critical" {
-        let mut suspended = candidates.first().and_then(|id| {
-            match pty::suspend_session_with_reason(app, sessions, id, "memory-pressure") {
-                Ok(true) => Some(id.clone()),
-                _ => None,
+    // Prefer idle-hidden LRU. On warning/critical (and Linux soft pressure), park one
+    // runtime per cycle so WSL does not sit at action=none with multi-GB agent trees.
+    let mut action = "none";
+    let suspended_id = match level {
+        "critical" => {
+            if let Some(id) = try_suspend_one(app, sessions, candidates.iter().cloned()) {
+                action = "emergency-suspend";
+                Some(id)
+            } else if let Some(id) = try_suspend_one(
+                app,
+                sessions,
+                emergency_candidates(&snapshot, &metas, now, true),
+            ) {
+                action = "emergency-force-suspend";
+                Some(id)
+            } else {
+                None
             }
-        });
-        if suspended.is_none() {
-            force_emergency = true;
-            suspended = emergency_candidates(&snapshot, &metas, now)
-                .into_iter()
-                .find_map(|id| {
-                    match pty::suspend_session_with_reason(app, sessions, &id, "memory-pressure")
-                    {
-                        Ok(true) => Some(id),
-                        _ => None,
-                    }
-                });
         }
-        suspended
-    } else {
-        None
+        "warning" => {
+            if let Some(id) = try_suspend_one(app, sessions, candidates.iter().cloned()) {
+                action = "warning-suspend";
+                Some(id)
+            } else if let Some(id) = try_suspend_one(
+                app,
+                sessions,
+                emergency_candidates(&snapshot, &metas, now, false),
+            ) {
+                action = "warning-force-suspend";
+                Some(id)
+            } else {
+                None
+            }
+        }
+        _ if soft_park_needed(&snapshot, &policy) => {
+            if let Some(id) = try_suspend_one(app, sessions, candidates.iter().cloned()) {
+                action = "soft-suspend";
+                Some(id)
+            } else {
+                None
+            }
+        }
+        _ => None,
     };
     snapshot.pressure = PressureState {
         level,
@@ -551,15 +604,6 @@ fn run_cycle(app: &AppHandle, sessions: &PtySessions, supervisor: &ResourceSuper
     }
 
     if should_log {
-        let action = if suspended_id.is_some() {
-            if force_emergency {
-                "emergency-force-suspend"
-            } else {
-                "emergency-suspend"
-            }
-        } else {
-            "none"
-        };
         crate::logging::record_resource_snapshot(
             app,
             level,
@@ -763,12 +807,47 @@ mod tests {
     }
 
     #[test]
-    fn pressure_warns_only_when_windows_memory_is_low() {
+    fn pressure_warns_only_when_system_memory_is_low() {
         let mut sample = snapshot("a");
-        sample.memory.system_available_mb = 1200.0;
-        assert_eq!(pressure_level(&sample.memory, "normal"), "warning");
-        sample.memory.system_available_mb = 600.0;
-        assert_eq!(pressure_level(&sample.memory, "normal"), "critical");
+        // system_total_mb in fixture is 16384.
+        if cfg!(target_os = "linux") {
+            sample.memory.system_available_mb = 2_500.0;
+            assert_eq!(pressure_level(&sample.memory, "normal"), "warning");
+            sample.memory.system_available_mb = 1_000.0;
+            assert_eq!(pressure_level(&sample.memory, "normal"), "critical");
+        } else {
+            sample.memory.system_available_mb = 1_200.0;
+            assert_eq!(pressure_level(&sample.memory, "normal"), "warning");
+            sample.memory.system_available_mb = 600.0;
+            assert_eq!(pressure_level(&sample.memory, "normal"), "critical");
+        }
+    }
+
+    #[test]
+    fn pressure_thresholds_match_host_profile() {
+        let (critical, warning) = pressure_thresholds(12_000.0);
+        if cfg!(target_os = "linux") {
+            // 10% / 18% floors for capped WSL VMs (~12 GB).
+            assert!((critical - 1_200.0).abs() < 0.1);
+            assert!((warning - 2_160.0).abs() < 0.1);
+        } else {
+            // 5% / 10% floors for full desktop hosts.
+            assert!((critical - 600.0).abs() < 0.1);
+            assert!((warning - 1_200.0).abs() < 0.1);
+        }
+    }
+
+    #[test]
+    fn soft_park_triggers_on_large_linux_pty_footprint() {
+        let policy = ResourcePolicy::default();
+        let mut sample = snapshot("a");
+        sample.memory.ptys_mb = 2_500.0;
+        sample.effective_total_mb = 2_800.0;
+        if cfg!(target_os = "linux") {
+            assert!(soft_park_needed(&sample, &policy));
+        } else {
+            assert!(!soft_park_needed(&sample, &policy));
+        }
     }
 
     #[test]
@@ -799,8 +878,12 @@ mod tests {
 
         assert!(eligible_candidates(&sample, &metas, &ResourcePolicy::default(), 1_000_000).is_empty());
         assert_eq!(
-            emergency_candidates(&sample, &metas, 1_000_000),
+            emergency_candidates(&sample, &metas, 1_000_000, true),
             vec!["heavy".to_string(), "light".to_string()]
+        );
+        assert_eq!(
+            emergency_candidates(&sample, &metas, 1_000_000, false),
+            vec!["heavy".to_string()]
         );
     }
 
@@ -809,7 +892,7 @@ mod tests {
         let mut sample = snapshot("tiny");
         sample.ptys[0].effective_memory_mb = 40.0;
         let metas = HashMap::from([("tiny".to_string(), meta("tiny"))]);
-        assert!(emergency_candidates(&sample, &metas, 1_000_000).is_empty());
+        assert!(emergency_candidates(&sample, &metas, 1_000_000, true).is_empty());
     }
 
     #[test]
@@ -833,7 +916,9 @@ mod tests {
             ("background".to_string(), background),
         ]);
         assert_eq!(
-            emergency_candidates(&sample, &metas, 1_000_000).first().map(String::as_str),
+            emergency_candidates(&sample, &metas, 1_000_000, true)
+                .first()
+                .map(String::as_str),
             Some("background")
         );
     }

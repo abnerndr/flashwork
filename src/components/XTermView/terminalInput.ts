@@ -9,12 +9,17 @@ const PAGE_SCROLL_LINES = 10
 export function getTerminalScrollbackRows(options?: {
   agent?: boolean
   memoryBudgetMb?: number
+  /** Linux/WSL: cut host scrollback roughly in half to keep xterm buffers smaller. */
+  constrainedMemory?: boolean
 }): number {
   if (!options) return 10_000
   const budget = options.memoryBudgetMb ?? 1536
-  if (budget <= 1536) return options.agent ? 6_000 : 3_000
-  if (budget <= 3072) return options.agent ? 8_000 : 5_000
-  return options.agent ? 10_000 : 6_000
+  let rows: number
+  if (budget <= 1536) rows = options.agent ? 6_000 : 3_000
+  else if (budget <= 3072) rows = options.agent ? 8_000 : 5_000
+  else rows = options.agent ? 10_000 : 6_000
+  if (options.constrainedMemory) rows = Math.max(1_500, Math.floor(rows / 2))
+  return rows
 }
 
    

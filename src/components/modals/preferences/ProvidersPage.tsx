@@ -24,18 +24,21 @@ type CliToggleKey = 'useAnthropicKeyOnCli' | 'useOpenaiKeyOnCli' | 'useGoogleKey
 type ProviderRowConfig = {
   id: ProviderId
   titleKey: MessageKey
-  cliToggleKey: CliToggleKey
+  cliToggleKey?: CliToggleKey
+  hintKey?: MessageKey
 }
 
 const PROVIDER_ROWS: ProviderRowConfig[] = [
   { id: 'anthropic', titleKey: 'providers.anthropicTitle', cliToggleKey: 'useAnthropicKeyOnCli' },
   { id: 'openai', titleKey: 'providers.openaiTitle', cliToggleKey: 'useOpenaiKeyOnCli' },
   { id: 'google', titleKey: 'providers.googleTitle', cliToggleKey: 'useGoogleKeyOnCli' },
+  { id: 'deepseek', titleKey: 'providers.deepseekTitle', hintKey: 'providers.deepseekHint' },
 ]
 
 function ProviderRow({ config }: { config: ProviderRowConfig }) {
   const t = useT()
-  const useKeyOnCli = useProjectsStore((state) => state.preferences[config.cliToggleKey])
+  const toggleKey = config.cliToggleKey
+  const useKeyOnCli = useProjectsStore((state) => (toggleKey ? state.preferences[toggleKey] : false))
   const setPreferences = useProjectsStore((state) => state.setPreferences)
   const [key, setKey] = useState('')
   const [saved, setSaved] = useState(false)
@@ -119,18 +122,21 @@ function ProviderRow({ config }: { config: ProviderRowConfig }) {
         </button>
       </div>
 
-      <label className={controls.checkboxRow}>
-        <input
-          type="checkbox"
-          checked={useKeyOnCli}
-          onChange={(event) =>
-            setPreferences({
-              [config.cliToggleKey]: event.target.checked,
-            } as Partial<Preferences>)
-          }
-        />
-        <span className={controls.checkboxLabel}>{t('providers.useOnCli')}</span>
-      </label>
+      {toggleKey ? (
+        <label className={controls.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={useKeyOnCli}
+            onChange={(event) =>
+              setPreferences({
+                [toggleKey]: event.target.checked,
+              } as Partial<Preferences>)
+            }
+          />
+          <span className={controls.checkboxLabel}>{t('providers.useOnCli')}</span>
+        </label>
+      ) : null}
+      {config.hintKey ? <p className={styles.providerHint}>{t(config.hintKey)}</p> : null}
 
       {error ? <p className={styles.providerError}>{error}</p> : null}
     </div>

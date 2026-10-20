@@ -5,6 +5,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -23,9 +24,10 @@
     "test": "vitest run",
     "release": "node scripts/release.mjs",
     "release:publish": "node scripts/release-publish.mjs",
-    "setup": "pnpm install",
+    "setup": "node scripts/setup.mjs",
+    "setup:deps": "node scripts/setup.mjs --deps-only",
     "dev:ui": "vite",
-    "test:local": "pnpm run setup && pnpm run lint && pnpm test && pnpm run build",
+    "test:local": "pnpm run setup:deps && pnpm run lint && pnpm test && pnpm run build",
     "bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {

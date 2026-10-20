@@ -37,6 +37,15 @@ describe('getTerminalScrollbackRows', () => {
     expect(getTerminalScrollbackRows({ agent: false, memoryBudgetMb: 1536 })).toBe(3_000)
     expect(getTerminalScrollbackRows({ agent: true, memoryBudgetMb: 4096 })).toBe(10_000)
   })
+
+  it('halves scrollback when memory is constrained (Linux/WSL)', () => {
+    expect(
+      getTerminalScrollbackRows({ agent: true, memoryBudgetMb: 1536, constrainedMemory: true }),
+    ).toBe(3_000)
+    expect(
+      getTerminalScrollbackRows({ agent: false, memoryBudgetMb: 1536, constrainedMemory: true }),
+    ).toBe(1_500)
+  })
 })
 
 describe('shouldScrollHostScrollback', () => {

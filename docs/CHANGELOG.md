@@ -12,16 +12,26 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Repository
 
+- Cross-platform `pnpm run setup` (`scripts/setup.mjs`): installs pnpm (Corepack), Rust when
+  missing, Tauri OS packages (apt / Xcode CLT / Windows MSVC notes), then `pnpm install`. Works on
+  Linux/WSL, macOS, and Windows; `setup:deps` skips system packages. Per-OS scripts delegate to it.
 - Launch development through Node on the native platform, discover Rustup's Cargo directory, and report missing Rust before starting Tauri.
 - Move the desktop app to the repository root, with unified dependencies, scripts, and documentation.
 
 ### Added
 
+- Run SPEC shows a progress bar under the title bar: percent done, the task in progress, how many
+  tasks remain, and a time estimate from the pace of finished tasks.
+- When every running SPEC terminal is idle and the SPEC is not finished, DeepSeek writes a short
+  continuation into those CLIs so they keep going.
 - **Run SPEC** is the single way to run work on a project: paste a prompt or attach a `.md`
-  SPEC. A free **Gemini CLI** pre-pass splits it into tasks (one per independent area of the
-  repo) and picks the best installed and configured CLI per task (Claude, Codex, OpenCode,
-  Gemini, …). Review the plan, change a task's CLI or drop tasks, then launch one CLI pane per
-  task (shell tasks open a terminal). Falls back to a local heuristic when Gemini is missing.
+  SPEC. Planning tries the **DeepSeek API** first when a key is saved in Preferences →
+  Providers (`deepseek-flash`, or `deepseek-v4-pro` for an implementation-heavy SPEC), then a
+  free **Gemini CLI** pre-pass, then a local heuristic. Task panes use other installed coding
+  CLIs (Claude, Codex, OpenCode, …) — DeepSeek and Gemini are never assigned as workers.
+  Review the plan, change a task's CLI or drop tasks, then launch one CLI pane per task
+  (shell tasks open a terminal). A failed DeepSeek call is skipped for the rest of the session.
+  With no key saved in Preferences, `DEEPSEEK_API_KEY` from the environment (including `.env`) is used.
 - The shared board that keeps agents from redoing each other's work now lives in the project at
   `.flashwork/runs/<runId>/board.md` (gitignored), so every CLI, including ones in WSL, reads it.
 - **Graphify** in every project: Flashwork installs `graphifyy[mcp]` (uv → pipx → pip), builds
@@ -40,6 +50,9 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Changed
 
+- **Resume last session** works for Gemini, Codex, OpenCode, and Antigravity (not only Claude):
+  Gemini now uses `--session-id` / `--resume <uuid>`; preferences resume persists under the tab id,
+  launches Antigravity as `agy`, and discovers session ids more reliably when the first snapshot is ambiguous.
 - Project versioning starts at **1.0.0**. Every push to `master` auto-bumps the patch
   (`1.0.1`, `1.0.2`, …) via `.github/workflows/bump-version.yml`.
 - **Auto** (Home, Prompt Run bar, Task Board, Flows, resume) always launches CLIs with
@@ -51,6 +64,12 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Adding a folder again after deleting its project no longer stops with “this folder already belongs to a Flashwork project.” The `.flashwork` home left on disk is registered back into the list.
+- The title bar and loading screen use the Flashwork bolt mark, and the interface uses Manrope.
+- Run SPEC never assigns Gemini as a task worker (planner-only). Suggested `agent: gemini` in
+  the plan is remapped to another installed coding CLI; the task CLI picker omits Gemini.
+  Before planning, the run lists the installed CLIs so only the checked ones open panes.
+  A handoff during that run stays inside the same set and no longer opens Gemini on its own.
 - Claude session discovery matches project folders whose path contains `.`, `_`, or other
   non-alphanumeric characters, and reads `HOME` before `USERPROFILE` on Linux/WSL.
 - Parallel Claude lanes in one run no longer resume the same Claude session.
@@ -58,14 +77,19 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 - Critical memory pressure now force-suspends the heaviest live PTY (≥128 MB) when no
   idle-hidden candidate exists, so Flashwork no longer stays at `action=none` while agent
   trees hold multiple GB and freeze WSL/Windows. Idle LRU targets are still preferred first.
+- Linux/WSL memory control is tighter: warning/critical fire earlier on capped VMs, warning
+  parks the heaviest unfocused PTY (not only idle-hidden), soft-park starts above ~2 GB of
+  PTY RSS, xterm scrollback is halved, and fewer hidden workspace tabs stay mounted/streaming.
 - WSL: paste from Windows (browser, Notepad, …) into terminals and Auto/Home/Task Board
   composers reads the Windows clipboard via `powershell.exe` when the Linux clipboard is
   empty. Copy from Flashwork also mirrors text to Windows.
 - Typing Portuguese accents and AltGr characters in chat composers no longer triggers
   global Ctrl shortcuts (AltGr was seen as Ctrl+Alt on Linux/WSL).
-- WSL + Windows: stop forcing `GDK_BACKEND=x11` by default (it broke maximize). Maximize on
-  Linux/WSL uses fullscreen, then a sane monitor fill. Startup only moves the window when it
-  opens off-screen. If the window never appears: `FLASHWORK_FORCE_X11=1 pnpm run dev`.
+- WSL + Windows: the window is shown through Wayland and the D3D12 GL driver. X11 on this
+  host has no DRI3 and stayed in WSLg copy mode, so Windows kept a taskbar button whose
+  pixels never appeared on any monitor. Maximize on Linux/WSL still uses fullscreen, then a
+  sane monitor fill. Startup only moves the window when it opens off-screen, onto the monitor
+  at the center of the desktop.
 - Focus mode no longer uses `backdrop-filter` blur (froze WebKit under WSLg). Esc / backdrop /
   minimize exit focus again.
 - App boot no longer dies on a missing `useTaskBoardScheduler` import, which left a blank gray

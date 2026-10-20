@@ -8,6 +8,7 @@ import {
   heuristicSpecTasks,
   normalizeSpecTasks,
   parseSpecPlan,
+  specHandoffAgents,
   projectBoardRelativePath,
   readySpecTasks,
   removeSpecTask,
@@ -57,6 +58,20 @@ describe('parseSpecPlan', () => {
       ctx(['codex']),
     )
     expect(tasks[0].agent).toBe('codex')
+  })
+
+  it('never keeps gemini as a task worker even when the planner suggests it', () => {
+    const tasks = parseSpecPlan(
+      JSON.stringify({
+        tasks: [
+          { id: 'a', title: 'x', prompt: 'implement x', agent: 'gemini', kind: 'implement', files: ['src/'] },
+        ],
+      }),
+      ctx(['gemini', 'claude', 'codex']),
+    )
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].agent).not.toBe('gemini')
+    expect(['claude', 'codex']).toContain(tasks[0].agent)
   })
 
   it('turns shell tasks into plain terminals with their command', () => {
@@ -168,10 +183,16 @@ describe('scheduling', () => {
 
 describe('planner prompt and board', () => {
   it('lists only installed coding CLIs and asks for strict JSON', () => {
-    const prompt = buildSpecPlannerPrompt({ spec: '# Login', agents: ['claude', 'codex', 'shell'] })
+    const prompt = buildSpecPlannerPrompt({
+      spec: '# Login',
+      agents: ['claude', 'codex', 'gemini', 'shell'],
+    })
     expect(prompt).toContain('- claude (Claude Code)')
     expect(prompt).toContain('- codex (Codex)')
     expect(prompt).not.toContain('- shell')
+    expect(prompt).not.toContain('- gemini')
+    expect(prompt).toContain('Never set "agent" to gemini')
+    expect(prompt).toContain('deepseek')
     expect(prompt).toContain('"tasks"')
     expect(prompt).toContain('No two tasks may own the same file')
     expect(prompt).toContain('# Login')
@@ -199,5 +220,38 @@ describe('heuristicSpecTasks', () => {
 
   it('returns nothing when no coding CLI is installed', () => {
     expect(heuristicSpecTasks(ctx([]))).toEqual([])
+  })
+
+  it('does not invent gemini worker tasks when gemini is the only installed CLI', () => {
+    expect(heuristicSpecTasks(ctx(['gemini']))).toEqual([])
+  })
+})
+
+describe('specHandoffAgents', () => {
+  it('keeps a SPEC handoff inside the CLIs the user turned on', () => {
+    expect(
+      specHandoffAgents({
+        specTasks: [task({ id: 'a', agent: 'claude' })],
+        allowedAgents: ['claude', 'codex'],
+      }),
+    ).toEqual(['claude', 'codex'])
+  })
+
+  it('drops gemini even when it is listed as allowed or assigned', () => {
+    expect(
+      specHandoffAgents({
+        specTasks: [task({ id: 'a', agent: 'claude' })],
+        allowedAgents: ['claude', 'gemini'],
+      }),
+    ).toEqual(['claude'])
+    expect(
+      specHandoffAgents({
+        specTasks: [task({ id: 'a', agent: 'gemini' }), task({ id: 'b', agent: 'codex' })],
+      }),
+    ).toEqual(['codex'])
+  })
+
+  it('is unused for runs that are not a SPEC', () => {
+    expect(specHandoffAgents({})).toBeNull()
   })
 })

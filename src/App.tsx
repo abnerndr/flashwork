@@ -4,6 +4,7 @@ import { Bell, X } from 'lucide-react'
 import { type CSSProperties, lazy, Suspense, useEffect, useRef } from 'react'
 import { Group as PanelGroup, Panel, Separator, usePanelRef } from 'react-resizable-panels'
 
+import brandIcon from './assets/brand/flashwork-icone.svg'
 import styles from './App.module.css'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { FocusOverlay } from './components/FocusOverlay'
@@ -37,6 +38,7 @@ import { WelcomeModal } from './components/modals/WelcomeModal'
 import { WhatsNewModal } from './components/modals/WhatsNewModal'
 import { ProjectSidebar } from './components/ProjectSidebar'
 import { RightSidebar } from './components/RightSidebar'
+import { SpecRunProgress } from './components/SpecRunProgress'
 import { TitleBar } from './components/TitleBar'
 import { TokenHud } from './components/TokenHud'
 import { WorkspaceView } from './components/WorkspaceView'
@@ -45,6 +47,7 @@ import { useCloseConfirmation } from './hooks/useCloseConfirmation'
 import { useKeybindings } from './hooks/useKeybindings'
 import { useMcpIntroPrompt } from './hooks/useMcpIntroPrompt'
 import { usePromptRunWatcher } from './hooks/usePromptRunWatcher'
+import { useSpecContinue } from './hooks/useSpecContinue'
 import { useResourceSupervisor } from './hooks/useResourceSupervisor'
 import { startActivityTracker } from './lib/activityTracker'
 import { APP_SHELL_ID } from './lib/appShell'
@@ -78,6 +81,7 @@ function LoadingScreen() {
   return (
     <div className={styles.loadingScreen} role="status" aria-label={t('loading.initializing')}>
       <div className={styles.loadingInner}>
+        <img src={brandIcon} alt="" className={styles.loadingMark} />
         <div className={styles.loadingWordmark}>Flashwork</div>
         <div className={styles.loadingConsole}>
           <span className={styles.loadingPrompt} aria-hidden="true">
@@ -201,6 +205,7 @@ export default function App() {
   useResourceSupervisor(hydrated)
   useCliOpenRequests(hydrated)
   usePromptRunWatcher()
+  useSpecContinue()
 
   useEffect(() => {
     void hydrate()
@@ -391,6 +396,7 @@ export default function App() {
     <>
       <div className={styles.appShell} id={APP_SHELL_ID} tabIndex={-1}>
         <TitleBar />
+        <SpecRunProgress />
         <PanelGroup
           orientation="horizontal"
           className={styles.shellBody}

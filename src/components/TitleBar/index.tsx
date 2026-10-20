@@ -34,6 +34,7 @@ import { formatShortcut } from '../../lib/platform'
 import { toggleFlashworkMaximize } from '../../lib/windowMaximize'
 import { useProjectsStore } from '../../stores/projectsStore'
 import { useUiStore } from '../../stores/uiStore'
+import brandIcon from '../../assets/brand/flashwork-icone.svg'
 import styles from './TitleBar.module.css'
 
 const CLAUDE_POLL_INTERVAL_MS = 5 * 60_000
@@ -291,6 +292,10 @@ export function TitleBar() {
             <PanelLeftOpen size={16} />
           )}
         </button>
+        <span className={styles.brand} data-tauri-drag-region>
+          <img src={brandIcon} alt="" className={styles.brandIcon} />
+          <span className={styles.brandName}>Flashwork</span>
+        </span>
         {threeAreas ? (
           <button
             type="button"

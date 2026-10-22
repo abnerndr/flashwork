@@ -3,23 +3,34 @@ import { describe, expect, it } from 'vitest'
 import { formatEta, specProgress } from './specProgress'
 
 describe('specProgress', () => {
-  const tasks = [
-    { status: 'done' as const, title: 'API' },
-    { status: 'running' as const, title: 'Web' },
-    { status: 'pending' as const, title: 'Docs' },
-    { status: 'failed' as const, title: 'Broken' },
-  ]
-
-  it('counts finished tasks toward 100 percent and names the running task', () => {
-    const progress = specProgress(tasks, 1_000, 61_000)
+  it('counts only done tasks toward percent and keeps queued work remaining', () => {
+    const progress = specProgress(
+      [
+        { status: 'done', title: 'API' },
+        { status: 'running', title: 'Web' },
+        { status: 'pending', title: 'Docs' },
+        { status: 'failed', title: 'Broken' },
+        { status: 'queued', title: 'Queued' },
+      ],
+      1_000,
+      61_000,
+    )
     expect(progress).toMatchObject({
-      total: 4,
-      done: 2,
-      remaining: 2,
-      percent: 50,
+      total: 5,
+      done: 1,
+      remaining: 3,
+      percent: 20,
       currentTitle: 'Web',
     })
-    expect(progress.etaMs).toBe(60_000)
+    expect(progress.etaMs).toBe(180_000)
+  })
+
+  it('names a queued slice when nothing is running', () => {
+    const progress = specProgress([{ status: 'queued', title: 'Queued' }], 0, 10_000)
+    expect(progress.currentTitle).toBe('Queued')
+    expect(progress.remaining).toBe(1)
+    expect(progress.percent).toBe(0)
+    expect(progress.etaMs).toBeNull()
   })
 
   it('does not invent an estimate before the first task finishes', () => {

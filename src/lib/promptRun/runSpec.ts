@@ -47,6 +47,9 @@ import {
   specRunSettled,
   type SpecPlanContext,
 } from './specPlan'
+import { oldestQueuedCodingSlice, pickTaskForTerminal, readyTaskMustQueue } from './creditQueue'
+import { deliverFinishedSpecSlice, openQueuedCodingSliceIfIdle } from './specCreditActions'
+import { liveSpecCreditPorts } from './specCreditPorts'
 import { launchPromptRunLanes, type StartPromptRunResult } from './startPromptRun'
 
 export const SPEC_PLANNER_TIMEOUT_MS = 90_000
@@ -268,14 +271,24 @@ async function launchReadyTasks(run: {
   contextDir?: string
   tasks: SpecTask[]
   allowedAgents?: readonly AgentType[]
+  exhaustedAgents?: readonly AgentType[]
 }): Promise<{ tasks: SpecTask[]; steps: PromptRun['steps'] }> {
   const ready = readySpecTasks(run.tasks)
   if (ready.length === 0) return { tasks: run.tasks, steps: [] }
   const blocked = new Set(
     ready.filter((task) => !specWorkerAllowed(task.agent, run.allowedAgents)).map((task) => task.id),
   )
+  // A CLI that ran out of credit is not opened again in this run; its slice waits in the queue.
+  const exhaustedIds = new Set(
+    ready
+      .filter((task) => !blocked.has(task.id) && readyTaskMustQueue(task, run.exhaustedAgents))
+      .map((task) => task.id),
+  )
+  const queuedAt = Date.now()
   const createAgentTerminal = useProjectsStore.getState().createAgentTerminal
-  const cliTasks = ready.filter((task) => task.agent !== 'shell' && !blocked.has(task.id))
+  const cliTasks = ready.filter(
+    (task) => task.agent !== 'shell' && !blocked.has(task.id) && !exhaustedIds.has(task.id),
+  )
   const shellTasks = ready.filter((task) => task.agent === 'shell' && !blocked.has(task.id))
   const steps = await launchPromptRunLanes({
     projectId: run.projectId,
@@ -299,6 +312,7 @@ async function launchReadyTasks(run: {
   }
   const tasks = run.tasks.map((task) => {
     if (blocked.has(task.id)) return { ...task, status: 'failed' as const }
+    if (exhaustedIds.has(task.id)) return { ...task, status: 'queued' as const, queuedAt }
     if (!terminalByTask.has(task.id)) return task
     return {
       ...task,
@@ -406,6 +420,7 @@ export async function continueSpecRun(projectId: string): Promise<void> {
       contextDir: run.contextDir,
       tasks: run.specTasks,
       allowedAgents: run.allowedAgents,
+      exhaustedAgents: run.exhaustedAgents,
     })
     const latest = usePromptRunStore.getState().byProjectId[projectId]
     if (!latest || latest.id !== run.id) return
@@ -413,6 +428,16 @@ export async function continueSpecRun(projectId: string): Promise<void> {
       specTasks: mergeLaunched(latest.specTasks ?? [], launched.tasks),
       steps: [...latest.steps, ...launched.steps],
     })
+    // With no coding slice running, a slice queued here opens on the next CLI with credit.
+    const queuedHere = launched.tasks.find(
+      (task) => task.status === 'queued' && run.specTasks?.find((item) => item.id === task.id)?.status === 'pending',
+    )
+    if (queuedHere) {
+      const queuedSlice = oldestQueuedCodingSlice(
+        usePromptRunStore.getState().byProjectId[projectId]?.specTasks ?? [],
+      )
+      await openQueuedCodingSliceIfIdle(projectId, liveSpecCreditPorts((queuedSlice ?? queuedHere).agent))
+    }
   } catch (cause) {
     console.warn('[run-spec] continue failed:', cause)
     return
@@ -456,9 +481,15 @@ async function finishSpecRun(projectId: string): Promise<void> {
   )
 }
 
+/** Ends the run when every slice is settled; no-op otherwise. */
+export async function finishSpecRunIfSettled(projectId: string): Promise<void> {
+  const run = usePromptRunStore.getState().byProjectId[projectId]
+  if (run?.specTasks && specRunSettled(run.specTasks)) await finishSpecRun(projectId)
+}
+
 function findRunByTerminal(terminalId: string): { run: PromptRun; task: SpecTask } | null {
   for (const run of Object.values(usePromptRunStore.getState().byProjectId)) {
-    const task = run.specTasks?.find((item) => item.terminalId === terminalId)
+    const task = pickTaskForTerminal(run.specTasks, terminalId)
     if (task) return { run, task }
   }
   return null
@@ -482,11 +513,11 @@ export async function noteSpecTerminalComplete(terminalId: string): Promise<void
   } catch (cause) {
     console.warn('[run-spec] board append failed:', cause)
   }
-  if (readySpecTasks(specTasks).length > 0) {
-    await continueSpecRun(run.projectId)
+  const latest = usePromptRunStore.getState().byProjectId[run.projectId]
+  if (latest) {
+    await deliverFinishedSpecSlice(latest, terminalId, liveSpecCreditPorts(task.agent))
     return
   }
-  if (specRunSettled(specTasks)) await finishSpecRun(run.projectId)
 }
 
 /** Marks the task behind a dropped lane as failed. */

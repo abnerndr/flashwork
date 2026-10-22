@@ -16,10 +16,14 @@ export function specProgress(
   now: number,
 ): SpecProgress {
   const total = tasks.length
-  const done = tasks.filter((task) => task.status === 'done' || task.status === 'failed').length
+  const done = tasks.filter((task) => task.status === 'done').length
   const current =
-    tasks.find((task) => task.status === 'running') ?? tasks.find((task) => task.status === 'pending')
-  const remaining = Math.max(0, total - done)
+    tasks.find((task) => task.status === 'running') ??
+    tasks.find((task) => task.status === 'pending') ??
+    tasks.find((task) => task.status === 'queued')
+  const remaining = tasks.filter(
+    (task) => task.status === 'pending' || task.status === 'running' || task.status === 'queued',
+  ).length
   const percent = total === 0 ? 0 : Math.round((done / total) * 100)
   const elapsed = Math.max(0, now - startedAt)
   const etaMs = done === 0 || remaining === 0 ? null : Math.round((elapsed / done) * remaining)

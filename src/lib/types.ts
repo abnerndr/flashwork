@@ -99,7 +99,7 @@ export type FeatureId = 'git' | 'mcp'
 /** Kind of a Run SPEC task. `shell` opens a plain terminal instead of a coding CLI. */
 export type SpecTaskKind = 'implement' | 'review' | 'mechanical' | 'explore' | 'ui' | 'shell'
 
-export type SpecTaskStatus = 'pending' | 'running' | 'done' | 'failed'
+export type SpecTaskStatus = 'pending' | 'running' | 'queued' | 'done' | 'failed'
 
 /** One lane of a Run SPEC plan (one PTY pane per task). */
 export type SpecTask = {
@@ -115,6 +115,8 @@ export type SpecTask = {
   command?: string
   terminalId?: string
   status: SpecTaskStatus
+  /** Set when status is `queued`, so the oldest blocked slice is resumed first. */
+  queuedAt?: number
 }
 
 export type SubTab = {
@@ -206,6 +208,8 @@ export type PromptRun = {
   specTasks?: SpecTask[]
   /** Worker CLIs the user allowed for this SPEC run. Handoff stays inside this set. */
   allowedAgents?: AgentType[]
+  /** CLIs that ran out of credit during this run. They are not opened again until the next run. */
+  exhaustedAgents?: AgentType[]
 }
 
 export type AgentRuntimeProfile = 'full' | 'lean' | 'diagnostic'

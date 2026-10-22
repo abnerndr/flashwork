@@ -7,7 +7,10 @@ import { autoHandoffDedupeKey, claimAutoHandoff, isHandoffAborted } from '../lib
 import { detectHandoffTrigger, handoffTarget, isAgentAuthError, isAgentLoginBlock } from '../lib/promptRun/detectHandoffTrigger'
 import { executeAutoHandoff } from '../lib/promptRun/executeHandoff'
 import { excludeFailedAgents, markAgentAuthFailed } from '../lib/promptRun/failedAgents'
+import { isCreditExhausted, specLaneSkipsLegacyHandoff } from '../lib/promptRun/creditQueue'
 import { decideLaneFailure } from '../lib/promptRun/laneFailure'
+import { handleSpecCreditExhausted } from '../lib/promptRun/specCreditActions'
+import { lanePtyStatus, liveSpecCreditPorts } from '../lib/promptRun/specCreditPorts'
 import { probeInstalledAgents } from '../lib/promptRun/probeInstalled'
 import { isApiAgentId, isApiTerminalId, routedAgentLabel } from '../lib/promptRun/routedAgent'
 import { appendPromptRunJournal, ingestRunContext, listenPtyData } from '../lib/tauri'
@@ -230,6 +233,36 @@ export function usePromptRunWatcher() {
   ) => {
     if (run.status !== 'running') return
     if (isApiAgentId(sourceAgent) || isApiTerminalId(sourceTerminalId)) return
+    if (run.specTasks && !isApiAgentId(sourceAgent)) {
+      const blocked = isCreditExhausted({
+        agent: sourceAgent,
+        claudeFiveHourUtilization: usageRef.current.claudeFiveHourUtilization,
+        codexRateLimited: usageRef.current.codexRateLimited,
+        ptyChunk,
+        laneStatus: lanePtyStatus(run.projectId, sourceTerminalId),
+      })
+      if (blocked) {
+        void handleSpecCreditExhausted(
+          run,
+          sourceTerminalId,
+          sourceAgent,
+          liveSpecCreditPorts(sourceAgent),
+        ).catch((cause) => console.warn('[prompt-run] spec credit queue failed:', cause))
+        return
+      }
+      // The credit queue owns credit signals on SPEC lanes; login and auth errors still fall through.
+      if (
+        specLaneSkipsLegacyHandoff({
+          isSpecLane: true,
+          agent: sourceAgent,
+          claudeFiveHourUtilization: usageRef.current.claudeFiveHourUtilization,
+          codexRateLimited: usageRef.current.codexRateLimited,
+          ptyChunk,
+        })
+      ) {
+        return
+      }
+    }
     const trigger = detectHandoffTrigger({
       activeAgent: sourceAgent,
       claudeFiveHourUtilization: usageRef.current.claudeFiveHourUtilization,
@@ -281,6 +314,30 @@ export function usePromptRunWatcher() {
         codexRateLimited: Boolean(codex?.rate_limited),
       }
       for (const run of runningRuns()) {
+        if (run.specTasks) {
+          for (const step of runStepTerminals(run)) {
+            if (isApiAgentId(step.agent)) continue
+            const agent = step.agent
+            const laneStatus = lanePtyStatus(run.projectId, step.terminalId)
+            // No PTY yet and no output: usage alone is not a credit block for this pane.
+            if (laneStatus === 'unknown') continue
+            const blocked = isCreditExhausted({
+              agent,
+              claudeFiveHourUtilization: usageRef.current.claudeFiveHourUtilization,
+              codexRateLimited: usageRef.current.codexRateLimited,
+              ptyChunk: '',
+              laneStatus,
+            })
+            if (!blocked) continue
+            void handleSpecCreditExhausted(
+              run,
+              step.terminalId,
+              agent,
+              liveSpecCreditPorts(agent),
+            ).catch((cause) => console.warn('[prompt-run] spec credit queue failed:', cause))
+          }
+          continue
+        }
         considerTrigger(run, '')
       }
     }

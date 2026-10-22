@@ -10,7 +10,7 @@ export type HandoffTriggerInput = {
   ptyChunk: string
 }
 
-const HANDOFF_PREF: AgentType[] = [
+export const HANDOFF_PREF: AgentType[] = [
   'claude',
   'gemini',
   'codex',

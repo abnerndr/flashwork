@@ -20,6 +20,11 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Added
 
+- Run SPEC keeps a slice going when a CLI runs out of credit. The pane closes. If another CLI is
+  still working, the slice waits and is typed into that CLI when its current slice finishes. If
+  nobody is working, the next CLI that still has credit opens immediately. A CLI that ran out of
+  credit is not opened again in that run.
+
 - Windows/WSL execution preferences with distribution selection and live running status. New projects can browse WSL folders, expand `~/` paths, and create missing Linux project folders; Windows folders selected for WSL run through the selected distribution. New terminals offer an explicit environment choice.
 
 - Run SPEC shows a progress bar under the title bar: percent done, the task in progress, how many

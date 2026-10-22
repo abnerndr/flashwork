@@ -175,6 +175,12 @@ describe('scheduling', () => {
     expect(specRunSettled([task({ id: 'a', status: 'running' })])).toBe(false)
   })
 
+  it('does not treat a queued slice as settled or ready to launch', () => {
+    const plan = [task({ id: 'a', status: 'queued', queuedAt: 1 }), task({ id: 'b', dependsOn: ['a'] })]
+    expect(specRunSettled(plan)).toBe(false)
+    expect(readySpecTasks(plan)).toEqual([])
+  })
+
   it('removing a task also removes edges that pointed at it', () => {
     const next = removeSpecTask([task({ id: 'a' }), task({ id: 'b', dependsOn: ['a'] })], 'a')
     expect(next).toEqual([task({ id: 'b' })])

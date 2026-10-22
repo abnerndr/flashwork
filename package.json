@@ -1,5 +1,3 @@
-
-
 {
   "name": "flashwork-orchestrator",
   "version": "1.0.9",
@@ -21,6 +19,7 @@
     "installer:linux": "tauri build --bundles appimage,deb",
     "installer:macos": "tauri build --bundles dmg,app",
     "installer:windows": "tauri build --bundles nsis,msi",
+    "installer:vs": "cmd /c \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat\" >NUL && pnpm run installer:windows\"",
     "capture:window": "bash scripts/capture-window.sh",
     "test:rust": "cd src-tauri && cargo test --lib",
     "test": "vitest run",

@@ -1,5 +1,8 @@
+import { flattenInitialPtyInput, submitPtyLine } from '../../lib/ptySubmit'
 import { readScopedStorage } from '../../lib/storageNamespace'
 import { writePty } from '../../lib/tauri'
+
+export { flattenInitialPtyInput, submitPtyLine }
 
 export const PROMPT_HISTORY_KEY = (id: string) => `prompt-history:${id}`
 
@@ -25,18 +28,6 @@ export type PromptHistoryInputState = {
   currentLine: string
   overflow: boolean
   history: string[]
-}
-
-/**
- * ConPTY/xterm treat `\n` as Enter unless the CLI already enabled bracketed paste.
- * Auto bootstrap is several lines; without this, only the first meta line is submitted.
- */
-export function flattenInitialPtyInput(text: string): string {
-  return text
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .trim()
-    .replace(/\n+/g, ' ')
 }
 
 /** Prevents one blocked ConPTY write from holding every subsequent keystroke forever. */
@@ -94,6 +85,40 @@ export function applyPromptHistoryInput(
     }
   }
   return historyChanged
+}
+
+/** Types a bootstrap prompt and submits it. Never wraps the line in bracketed paste. */
+export async function writePtySubmitText(id: string, text: string): Promise<void> {
+  const payload = submitPtyLine(text)
+  if (!payload) return
+  if (payload.length <= PASTE_CHUNK_SIZE) {
+    await writePtyWithTimeout(id, payload)
+    return
+  }
+
+  const body = payload.slice(0, -1)
+  let index = 0
+  let chunkCount = 0
+  while (index < body.length) {
+    let end = Math.min(index + PASTE_CHUNK_SIZE, body.length)
+    if (
+      end < body.length &&
+      body.charCodeAt(end - 1) >= 0xd800 &&
+      body.charCodeAt(end - 1) <= 0xdbff &&
+      body.charCodeAt(end) >= 0xdc00 &&
+      body.charCodeAt(end) <= 0xdfff
+    ) {
+      end -= 1
+    }
+    const piece = body.slice(index, end)
+    const last = end >= body.length
+    await writePtyWithTimeout(id, last ? `${piece}\r` : piece)
+    index = end
+    chunkCount += 1
+    if (!last && chunkCount % PASTE_YIELD_EVERY_CHUNKS === 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 0))
+    }
+  }
 }
 
 export async function writePtyChunked(id: string, text: string, bracketed: boolean): Promise<void> {

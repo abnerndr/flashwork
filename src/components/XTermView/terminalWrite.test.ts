@@ -11,7 +11,9 @@ import {
   MAX_TRACKED_PROMPT_LENGTH,
   PASTE_CHUNK_SIZE,
   PTY_WRITE_TIMEOUT_MS,
+  submitPtyLine,
   writePtyChunked,
+  writePtySubmitText,
   writePtyWithTimeout,
 } from './terminalWrite'
 
@@ -27,6 +29,43 @@ describe('flattenInitialPtyInput', () => {
     expect(flattenInitialPtyInput(bootstrap)).toBe(
       '[Flashwork Auto] You are the active agent (Claude Code) for run abc. Do the user request below. Flashwork may later hand off to another CLI with a context capsule. implement login',
     )
+  })
+})
+
+describe('submitPtyLine', () => {
+  it('submits a multi-line SPEC bootstrap as one line plus Enter', () => {
+    const line = submitPtyLine('[Flashwork SPEC] task t1\n\nImplement the slice')
+
+    expect(line).toBe('[Flashwork SPEC] task t1 Implement the slice\r')
+    expect(line).not.toContain('\x1b[200~')
+    expect(line).not.toContain('\x1b[201~')
+  })
+
+  it('returns empty when the prompt is blank', () => {
+    expect(submitPtyLine('  \n\t  ')).toBe('')
+  })
+})
+
+describe('writePtySubmitText', () => {
+  beforeEach(() => {
+    writePty.mockReset().mockResolvedValue(undefined)
+  })
+
+  it('sends the flattened prompt and Enter in one write, without bracketed paste', async () => {
+    await writePtySubmitText('pty-1', 'hello\nworld')
+
+    expect(writePty).toHaveBeenCalledTimes(1)
+    expect(writePty).toHaveBeenCalledWith('pty-1', 'hello world\r')
+  })
+
+  it('keeps Enter on the last chunk of a long prompt', async () => {
+    const body = 'x'.repeat(PASTE_CHUNK_SIZE + 10)
+
+    await writePtySubmitText('pty-1', body)
+
+    const written = writePty.mock.calls.map((call) => String(call[1])).join('')
+    expect(written).toBe(`${body}\r`)
+    expect(written).not.toContain('\x1b[200~')
   })
 })
 

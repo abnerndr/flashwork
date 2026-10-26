@@ -1,9 +1,10 @@
 import { FileText, Paperclip, Terminal, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { pickFile } from '../../lib/dialog'
+import { pickFiles } from '../../lib/dialog'
 import { useT, type MessageKey } from '../../lib/i18n'
 import { launchSpecRun, planSpec, usableSpecAgents, type SpecPlanNotice } from '../../lib/promptRun/runSpec'
+import { joinSpecSources, MAX_SPEC_FILES } from '../../lib/promptRun/specSources'
 import { removeSpecTask } from '../../lib/promptRun/specPlan'
 import { readSpecMarkdown } from '../../lib/tauri'
 import { AGENT_TYPE_LABELS, type AgentType, type SpecTask, type SpecTaskKind } from '../../lib/types'
@@ -41,7 +42,7 @@ const SOURCE_KEYS: Record<Plan['source'], MessageKey> = {
   heuristic: 'runSpec.planSourceHeuristic',
 }
 
-type Attachment = { name: string; content: string }
+type Attachment = { path: string; name: string; content: string }
 
 function fileName(path: string): string {
   const parts = path.split(/[\\/]/)
@@ -57,7 +58,7 @@ export function RunSpecModal() {
   const projects = useProjectsStore((state) => state.projects)
   const [projectId, setProjectId] = useState('')
   const [text, setText] = useState('')
-  const [attachment, setAttachment] = useState<Attachment | null>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [plan, setPlan] = useState<Plan | null>(null)
   const [workers, setWorkers] = useState<AgentType[] | null>(null)
   const [selectedWorkers, setSelectedWorkers] = useState<AgentType[]>([])
@@ -93,10 +94,7 @@ export function RunSpecModal() {
       cancel = true
     }
   }, [open, cwd])
-  const spec = useMemo(() => {
-    const parts = [attachment?.content.trim() ?? '', text.trim()].filter(Boolean)
-    return parts.join('\n\n')
-  }, [attachment, text])
+  const spec = useMemo(() => joinSpecSources(text, attachments), [attachments, text])
   const launchable = plan?.tasks.length ?? 0
 
   const close = () => {
@@ -106,18 +104,31 @@ export function RunSpecModal() {
 
   const attach = async () => {
     setError(null)
-    const path = await pickFile({
+    const paths = await pickFiles({
       title: t('runSpec.attach'),
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdx'] }],
     })
-    if (!path) return
-    try {
-      const content = await readSpecMarkdown(path)
-      setAttachment({ name: fileName(path), content })
-      setPlan(null)
-    } catch (cause) {
-      setError(String(cause).includes('spec_too_large') ? t('runSpec.tooLarge') : t('runSpec.attachFailed'))
+    if (!paths || paths.length === 0) return
+    const room = MAX_SPEC_FILES - attachments.length
+    const fresh = paths.filter((path) => !attachments.some((file) => file.path === path))
+    if (room <= 0 || fresh.length > room) {
+      setError(t('runSpec.tooMany', { count: MAX_SPEC_FILES }))
     }
+    if (room <= 0) return
+    const incoming = fresh.slice(0, room)
+    const loaded: Attachment[] = []
+    for (const path of incoming) {
+      try {
+        const content = await readSpecMarkdown(path)
+        loaded.push({ path, name: fileName(path), content })
+      } catch (cause) {
+        setError(String(cause).includes('spec_too_large') ? t('runSpec.tooLarge') : t('runSpec.attachFailed'))
+        break
+      }
+    }
+    if (loaded.length === 0) return
+    setAttachments((current) => [...current, ...loaded])
+    setPlan(null)
   }
 
   const runPlanner = async () => {
@@ -192,7 +203,7 @@ export function RunSpecModal() {
         }),
       })
       setText('')
-      setAttachment(null)
+      setAttachments([])
       setPlan(null)
       closeModal()
     } catch (cause) {
@@ -220,7 +231,7 @@ export function RunSpecModal() {
       {plan ? (
         <button
           type="button"
-          className={controls.btnPrimary}
+          className={`${controls.btn} ${controls.btnPrimary}`}
           onClick={() => void launch()}
           disabled={busy !== null || launchable === 0}
         >
@@ -229,7 +240,7 @@ export function RunSpecModal() {
       ) : (
         <button
           type="button"
-          className={controls.btnPrimary}
+          className={`${controls.btn} ${controls.btnPrimary}`}
           onClick={() => void runPlanner()}
           disabled={busy !== null || !spec || !project || selectedWorkers.length === 0}
         >
@@ -318,17 +329,17 @@ export function RunSpecModal() {
             <Paperclip size={14} />
             {t('runSpec.attach')}
           </button>
-          {attachment ? (
-            <span className={styles.attachment}>
+          {attachments.map((file) => (
+            <span key={file.path} className={styles.attachment}>
               <FileText size={14} />
               <span className={styles.attachmentName}>
-                {t('runSpec.attached', { name: attachment.name })}
+                {t('runSpec.attached', { name: file.name })}
               </span>
               <button
                 type="button"
                 className={controls.iconBtnSm}
                 onClick={() => {
-                  setAttachment(null)
+                  setAttachments((current) => current.filter((item) => item.path !== file.path))
                   setPlan(null)
                 }}
                 disabled={busy !== null}
@@ -338,7 +349,7 @@ export function RunSpecModal() {
                 <X size={14} />
               </button>
             </span>
-          ) : null}
+          ))}
         </div>
       </div>
       {error ? <p className={controls.fieldError}>{error}</p> : null}

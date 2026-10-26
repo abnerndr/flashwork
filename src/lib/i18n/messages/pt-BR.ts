@@ -720,15 +720,16 @@ export const ptBR: Record<MessageKey, string> = {
   'runSpec.openHint': 'Divide uma SPEC em tarefas paralelas de CLI para este projeto',
   'runSpec.title': 'Run SPEC',
   'runSpec.lede':
-    'Cole um prompt em formato de SPEC ou anexe uma SPEC em Markdown. Com uma chave DeepSeek salva, o DeepSeek planeja primeiro; senão, o Gemini CLI planeja. Os outros CLIs de código implementam — DeepSeek e Gemini nunca abrem como painel de tarefa.',
+    'Cole um prompt em formato de SPEC ou anexe uma ou mais SPECs em Markdown. Com uma chave DeepSeek salva, o DeepSeek planeja primeiro; senão, o Gemini CLI planeja. Os outros CLIs de código implementam — DeepSeek e Gemini nunca abrem como painel de tarefa.',
   'runSpec.project': 'Projeto',
   'runSpec.specLabel': 'SPEC',
   'runSpec.specPlaceholder': 'Objetivo, áreas a alterar e critérios de aceite…',
-  'runSpec.attach': 'Anexar .md',
+  'runSpec.attach': 'Anexar arquivos .md',
   'runSpec.attached': 'Anexado: {name}',
   'runSpec.clearAttachment': 'Remover anexo',
   'runSpec.attachFailed': 'Não foi possível ler esse arquivo Markdown.',
   'runSpec.tooLarge': 'O arquivo da SPEC tem mais de 1 MiB.',
+  'runSpec.tooMany': 'Anexe no máximo {count} arquivos Markdown.',
   'runSpec.workersLabel': 'CLIs desta execução',
   'runSpec.workersHint':
     'Só os CLIs marcados abrem painel. O Gemini só planeja esta SPEC e não abre painel de tarefa, nem num handoff.',

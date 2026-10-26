@@ -711,15 +711,16 @@ export const en = {
   'runSpec.openHint': 'Split a SPEC into parallel CLI tasks for this project',
   'runSpec.title': 'Run SPEC',
   'runSpec.lede':
-    'Paste a prompt in SPEC form or attach a Markdown SPEC. When a DeepSeek key is saved, DeepSeek plans first; otherwise Gemini CLI plans. Other installed coding CLIs implement — DeepSeek and Gemini never open as a task pane.',
+    'Paste a prompt in SPEC form or attach one or more Markdown SPECs. When a DeepSeek key is saved, DeepSeek plans first; otherwise Gemini CLI plans. Other installed coding CLIs implement — DeepSeek and Gemini never open as a task pane.',
   'runSpec.project': 'Project',
   'runSpec.specLabel': 'SPEC',
   'runSpec.specPlaceholder': 'Goal, areas to change, and acceptance criteria…',
-  'runSpec.attach': 'Attach .md',
+  'runSpec.attach': 'Attach .md files',
   'runSpec.attached': 'Attached: {name}',
   'runSpec.clearAttachment': 'Remove attachment',
   'runSpec.attachFailed': 'Could not read that Markdown file.',
   'runSpec.tooLarge': 'The SPEC file is larger than 1 MiB.',
+  'runSpec.tooMany': 'Attach at most {count} Markdown files.',
   'runSpec.workersLabel': 'CLIs for this run',
   'runSpec.workersHint':
     'Only checked CLIs open panes. Gemini only plans this SPEC and does not open a task pane, including on handoff.',

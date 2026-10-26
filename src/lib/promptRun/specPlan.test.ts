@@ -201,6 +201,8 @@ describe('planner prompt and board', () => {
     expect(prompt).toContain('deepseek')
     expect(prompt).toContain('"tasks"')
     expect(prompt).toContain('No two tasks may own the same file')
+    expect(prompt).toContain('spread independent tasks across different CLIs')
+    expect(prompt).toContain('SPEC file:')
     expect(prompt).toContain('# Login')
   })
 

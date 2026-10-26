@@ -142,6 +142,8 @@ select.input {
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   transition:
     background 100ms,
     border-color 100ms;

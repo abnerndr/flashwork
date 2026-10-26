@@ -79,6 +79,8 @@
 
 .footer {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 20px 16px;

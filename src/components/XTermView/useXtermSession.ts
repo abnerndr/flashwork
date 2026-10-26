@@ -59,7 +59,6 @@ import {
   snapshotOpenCodeSessions,
   spawnPty,
   writeClipboardText,
-  writePty,
 } from '../../lib/tauri'
 import {
   agentCliCommand,
@@ -90,6 +89,7 @@ import {
   flattenInitialPtyInput,
   TERMINAL_WRITE_FRAME_BUDGET,
   writePtyChunked,
+  writePtySubmitText,
   writePtyWithTimeout,
 } from './terminalWrite'
 import { getXtermTheme, type LinkActionState } from './xtermThemes'
@@ -1395,10 +1395,8 @@ export function useXtermSession(params: {
             try {
               const payload = flattenInitialPtyInput(prompt)
               if (!payload) return
-              await writePtyChunked(response.id, payload, terminal.modes.bracketedPasteMode)
-              await new Promise((resolve) => window.setTimeout(resolve, 150))
-              await writePty(response.id, '\r')
-              window.setTimeout(() => void writePty(response.id, '\r').catch(() => {}), 1_200)
+              await writePtySubmitText(response.id, prompt)
+              completionMonitor?.handleInput(`${payload}\r`)
               onInitialInputSentRef.current?.()
             } catch (error) {
               console.warn('[pty-launch] could not send the initial prompt:', error)

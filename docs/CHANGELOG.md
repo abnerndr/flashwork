@@ -18,7 +18,17 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 - Launch development through Node on the native platform, discover Rustup's Cargo directory, and report missing Rust before starting Tauri.
 - Move the desktop app to the repository root, with unified dependencies, scripts, and documentation.
 
+### Fixed
+
+- Run SPEC submits each task prompt by itself. The text is typed into the CLI and confirmed
+  with Enter, so a planned run no longer sits in the composer until someone clicks the terminal
+  and presses Enter.
+
 ### Added
+
+- Run SPEC accepts several Markdown files at once. DeepSeek, or Gemini when no DeepSeek key
+  is saved, plans them as separate sections and spreads independent tasks across the selected CLIs.
+- The Plan tasks button uses the same shape as the other modal actions.
 
 - Run SPEC keeps a slice going when a CLI runs out of credit. The pane closes. If another CLI is
   still working, the slice waits and is typed into that CLI when its current slice finishes. If

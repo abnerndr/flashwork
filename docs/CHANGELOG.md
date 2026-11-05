@@ -23,6 +23,12 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Run SPEC types the task prompt into the CLI, waits briefly, then sends Enter in a separate PTY
+  write. On Linux/WSL, Ink composers (Claude Code and similar) were leaving the prompt unsubmitted
+  when the trailing Enter arrived in the same payload as the text.
+- Codex: fresh Run SPEC panes pass the bootstrap as `codex [PROMPT]` so the turn starts submitted.
+  When the prompt must be typed (resume / oversized), Enter waits ~300ms so Codex PasteBurst no
+  longer treats it as a newline inside an unsubmitted draft.
 - Run SPEC planner keys: release launches (including the Windows → WSL shortcut) now also load
   `~/.config/flashwork/.env`, so `DEEPSEEK_API_KEY` works without opening the app from the repo
   folder. When DeepSeek and Gemini both fail, the notice says so, and the plan preview offers

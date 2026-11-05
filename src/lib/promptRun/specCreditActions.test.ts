@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const { writePtySubmitText } = vi.hoisted(() => ({
+  writePtySubmitText: vi.fn(async () => undefined),
+}))
+
+vi.mock('../../components/XTermView/terminalWrite', () => ({ writePtySubmitText }))
+
 import type { PromptRun, SpecTask } from '../types'
 import {
   deliverFinishedSpecSlice,
@@ -382,6 +388,10 @@ describe('openQueuedCodingSliceIfIdle', () => {
 })
 
 describe('deliverFinishedSpecSlice', () => {
+  beforeEach(() => {
+    writePtySubmitText.mockClear()
+  })
+
   it('types the oldest queued slice into the pane that just finished', async () => {
     const used = ports()
     await deliverFinishedSpecSlice(
@@ -392,7 +402,12 @@ describe('deliverFinishedSpecSlice', () => {
       'term-b',
       used,
     )
-    expect(used.writePty).toHaveBeenCalledWith('pty-b', expect.stringContaining('finish old\r'))
+    expect(writePtySubmitText).toHaveBeenCalledWith(
+      'pty-b',
+      expect.stringContaining('finish old'),
+      { agent: 'codex' },
+    )
+    expect(used.writePty).not.toHaveBeenCalled()
     expect(used.launchPane).not.toHaveBeenCalled()
     expect(used.continueRun).toHaveBeenCalledWith('proj')
   })

@@ -7,9 +7,8 @@ import {
   stalledSpecTasks,
 } from '../lib/promptRun/specContinue'
 import { getModelCatalog } from '../lib/providers/catalogOverlay'
-import { submitPtyLine } from '../lib/ptySubmit'
+import { writePtySubmitText } from '../components/XTermView/terminalWrite'
 import { providerChat, providerKeyStatus } from '../lib/tauri'
-import { writePty } from '../lib/tauri/pty'
 import type { PtyStatus } from '../lib/types'
 import { useProjectsStore } from '../stores/projectsStore'
 import { usePromptRunStore } from '../stores/promptRunStore'
@@ -59,8 +58,8 @@ async function nudgeStalledSpec(): Promise<void> {
     if (!task.terminalId) continue
     const ptyId = terminalPtyId(run.projectId, task.terminalId)
     if (!ptyId) continue
-    const line = submitPtyLine(nudges[task.id] ?? '')
-    if (line) await writePty(ptyId, line)
+    const nudge = nudges[task.id] ?? ''
+    if (nudge.trim()) await writePtySubmitText(ptyId, nudge, { agent: task.agent })
     lastNudgeAt.set(task.terminalId, now)
   }
 }

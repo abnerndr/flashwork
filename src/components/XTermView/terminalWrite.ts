@@ -1,6 +1,7 @@
 import { flattenInitialPtyInput, submitPtyLine } from '../../lib/ptySubmit'
 import { readScopedStorage } from '../../lib/storageNamespace'
 import { writePty } from '../../lib/tauri'
+import type { AgentType } from '../../lib/types'
 
 export { flattenInitialPtyInput, submitPtyLine }
 
@@ -11,6 +12,30 @@ export const PASTE_CHUNK_SIZE = 64 * 1024
 export const PASTE_YIELD_EVERY_CHUNKS = 4
 export const MAX_TRACKED_PROMPT_LENGTH = 4 * 1024
 export const PTY_WRITE_TIMEOUT_MS = 5_000
+/** Pause between typing a bootstrap prompt and sending Enter (Linux/WSL Ink composers). */
+export const PTY_SUBMIT_ENTER_DELAY_MS = 100
+/**
+ * Codex PasteBurst treats Enter as newline for ~120ms after a fast char stream
+ * (`PASTE_ENTER_SUPPRESS_WINDOW`). Wait past that window before submitting.
+ */
+export const PTY_SUBMIT_ENTER_DELAY_CODEX_MS = 300
+/** Prefer `codex [PROMPT]` over typing when the bootstrap fits (fresh sessions only). */
+export const CODEX_ARGV_PROMPT_MAX_CHARS = 80_000
+
+export function ptySubmitEnterDelayMs(agent?: AgentType | null): number {
+  return agent === 'codex' ? PTY_SUBMIT_ENTER_DELAY_CODEX_MS : PTY_SUBMIT_ENTER_DELAY_MS
+}
+
+/** True when a fresh Codex pane should receive the bootstrap as a CLI positional prompt. */
+export function shouldPassCodexPromptAsArgv(
+  agent: AgentType | null | undefined,
+  prompt: string,
+  resumeId?: string | null,
+): boolean {
+  if (agent !== 'codex' || resumeId) return false
+  const flat = flattenInitialPtyInput(prompt)
+  return flat.length > 0 && flat.length <= CODEX_ARGV_PROMPT_MAX_CHARS
+}
 
 // muita cor/movimento) custam bem mais tempo de parse+render por byte do que
 
@@ -87,16 +112,21 @@ export function applyPromptHistoryInput(
   return historyChanged
 }
 
-/** Types a bootstrap prompt and submits it. Never wraps the line in bracketed paste. */
-export async function writePtySubmitText(id: string, text: string): Promise<void> {
-  const payload = submitPtyLine(text)
-  if (!payload) return
-  if (payload.length <= PASTE_CHUNK_SIZE) {
-    await writePtyWithTimeout(id, payload)
-    return
-  }
+/**
+ * Types a bootstrap prompt and submits it. Never wraps the line in bracketed paste.
+ * Enter is a separate write: Ink-based CLIs on Linux/WSL often leave a trailing `\r`
+ * sitting in the composer when it arrives in the same PTY payload as a long prompt.
+ * Codex needs a longer pause — its PasteBurst treats Enter as newline for ~120ms after
+ * a rapid character stream.
+ */
+export async function writePtySubmitText(
+  id: string,
+  text: string,
+  options?: { agent?: AgentType | null },
+): Promise<void> {
+  const body = flattenInitialPtyInput(text)
+  if (!body) return
 
-  const body = payload.slice(0, -1)
   let index = 0
   let chunkCount = 0
   while (index < body.length) {
@@ -110,15 +140,18 @@ export async function writePtySubmitText(id: string, text: string): Promise<void
     ) {
       end -= 1
     }
-    const piece = body.slice(index, end)
-    const last = end >= body.length
-    await writePtyWithTimeout(id, last ? `${piece}\r` : piece)
+    await writePtyWithTimeout(id, body.slice(index, end))
     index = end
     chunkCount += 1
-    if (!last && chunkCount % PASTE_YIELD_EVERY_CHUNKS === 0) {
+    if (index < body.length && chunkCount % PASTE_YIELD_EVERY_CHUNKS === 0) {
       await new Promise((resolve) => window.setTimeout(resolve, 0))
     }
   }
+
+  await new Promise((resolve) =>
+    window.setTimeout(resolve, ptySubmitEnterDelayMs(options?.agent)),
+  )
+  await writePtyWithTimeout(id, '\r')
 }
 
 export async function writePtyChunked(id: string, text: string, bracketed: boolean): Promise<void> {

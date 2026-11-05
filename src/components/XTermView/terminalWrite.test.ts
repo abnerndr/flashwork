@@ -15,6 +15,10 @@ import {
   writePtyChunked,
   writePtySubmitText,
   writePtyWithTimeout,
+  PTY_SUBMIT_ENTER_DELAY_MS,
+  PTY_SUBMIT_ENTER_DELAY_CODEX_MS,
+  ptySubmitEnterDelayMs,
+  shouldPassCodexPromptAsArgv,
 } from './terminalWrite'
 
 describe('flattenInitialPtyInput', () => {
@@ -51,21 +55,37 @@ describe('writePtySubmitText', () => {
     writePty.mockReset().mockResolvedValue(undefined)
   })
 
-  it('sends the flattened prompt and Enter in one write, without bracketed paste', async () => {
+  it('types the flattened prompt then sends Enter in a separate write', async () => {
     await writePtySubmitText('pty-1', 'hello\nworld')
 
-    expect(writePty).toHaveBeenCalledTimes(1)
-    expect(writePty).toHaveBeenCalledWith('pty-1', 'hello world\r')
+    expect(writePty).toHaveBeenCalledTimes(2)
+    expect(writePty).toHaveBeenNthCalledWith(1, 'pty-1', 'hello world')
+    expect(writePty).toHaveBeenNthCalledWith(2, 'pty-1', '\r')
+    expect(writePty.mock.calls.some((call) => String(call[1]).includes('\x1b[200~'))).toBe(false)
   })
 
-  it('keeps Enter on the last chunk of a long prompt', async () => {
+  it('waits longer before Enter for Codex PasteBurst', async () => {
+    expect(ptySubmitEnterDelayMs('codex')).toBe(PTY_SUBMIT_ENTER_DELAY_CODEX_MS)
+    expect(ptySubmitEnterDelayMs('claude')).toBe(PTY_SUBMIT_ENTER_DELAY_MS)
+    expect(PTY_SUBMIT_ENTER_DELAY_CODEX_MS).toBeGreaterThan(120)
+  })
+
+  it('passes a fresh Codex bootstrap as argv instead of typing', () => {
+    expect(shouldPassCodexPromptAsArgv('codex', 'implement login', null)).toBe(true)
+    expect(shouldPassCodexPromptAsArgv('codex', 'implement login', 'session-1')).toBe(false)
+    expect(shouldPassCodexPromptAsArgv('claude', 'implement login', null)).toBe(false)
+  })
+
+  it('keeps Enter as its own write after a long prompt', async () => {
     const body = 'x'.repeat(PASTE_CHUNK_SIZE + 10)
 
     await writePtySubmitText('pty-1', body)
 
-    const written = writePty.mock.calls.map((call) => String(call[1])).join('')
-    expect(written).toBe(`${body}\r`)
-    expect(written).not.toContain('\x1b[200~')
+    const written = writePty.mock.calls.map((call) => String(call[1]))
+    expect(written.at(-1)).toBe('\r')
+    expect(written.slice(0, -1).join('')).toBe(body)
+    expect(written.join('')).not.toContain('\x1b[200~')
+    expect(PTY_SUBMIT_ENTER_DELAY_MS).toBeGreaterThan(0)
   })
 })
 

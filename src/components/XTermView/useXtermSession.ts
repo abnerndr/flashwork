@@ -87,6 +87,7 @@ import {
 } from './terminalLinks'
 import {
   flattenInitialPtyInput,
+  shouldPassCodexPromptAsArgv,
   TERMINAL_WRITE_FRAME_BUDGET,
   writePtyChunked,
   writePtySubmitText,
@@ -1065,10 +1066,29 @@ export function useXtermSession(params: {
                 claudeCreateKnownId,
             )
           : { args: preparedRuntime.args, sessionId: undefined, createdSession: false }
-        const spawnArgs = launch.args.length > 0 ? launch.args : undefined
+        const initialPromptFlat = initialInput?.trim()
+          ? flattenInitialPtyInput(initialInput)
+          : ''
+        // Codex accepts `codex [PROMPT]` and starts with that turn already submitted.
+        // Prefer argv over typing: PasteBurst turns a fast PTY dump into an unsubmitted draft.
+        const passCodexPromptAsArgv = shouldPassCodexPromptAsArgv(
+          command,
+          initialInput ?? '',
+          resumeId,
+        )
+        const spawnArgs = passCodexPromptAsArgv
+          ? [...(launch.args ?? []), initialPromptFlat]
+          : launch.args.length > 0
+            ? launch.args
+            : undefined
+        const typedInitialInput = passCodexPromptAsArgv ? '' : initialInput?.trim() || ''
         if (command && command !== 'shell') {
           console.info(
-            `[pty-launch] ${command} args=${JSON.stringify(spawnArgs ?? [])} resumeId=${resumeId ?? '—'} launcherOverride=${launcherOverride ?? '(auto/PATH)'}`,
+            `[pty-launch] ${command} args=${JSON.stringify(
+              passCodexPromptAsArgv
+                ? [...(launch.args ?? []), `<prompt ${initialPromptFlat.length} chars>`]
+                : (spawnArgs ?? []),
+            )} resumeId=${resumeId ?? '—'} launcherOverride=${launcherOverride ?? '(auto/PATH)'}`,
           )
         }
         if (launch.sessionId && launch.sessionId !== sessionId) {
@@ -1372,7 +1392,13 @@ export function useXtermSession(params: {
         }
         unlistenExit = exitUnlisten
 
-        const prompt = initialInput?.trim()
+        if (passCodexPromptAsArgv) {
+          // Prompt already submitted via argv; still mark the monitor as if the user sent it.
+          completionMonitor?.handleInput(`${initialPromptFlat}\r`)
+          onInitialInputSentRef.current?.()
+        }
+
+        const prompt = typedInitialInput
         if (prompt) {
           const sendInitialInput = async () => {
             const startedAt = Date.now()
@@ -1395,7 +1421,7 @@ export function useXtermSession(params: {
             try {
               const payload = flattenInitialPtyInput(prompt)
               if (!payload) return
-              await writePtySubmitText(response.id, prompt)
+              await writePtySubmitText(response.id, prompt, { agent: command })
               completionMonitor?.handleInput(`${payload}\r`)
               onInitialInputSentRef.current?.()
             } catch (error) {

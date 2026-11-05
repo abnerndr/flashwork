@@ -1,4 +1,4 @@
-import { submitPtyLine } from '../ptySubmit'
+import { writePtySubmitText } from '../../components/XTermView/terminalWrite'
 import { AGENT_TYPE_LABELS, type AgentType, type PromptRun, type PromptRunStep } from '../types'
 import {
   codingSliceRunning,
@@ -232,8 +232,9 @@ export async function deliverFinishedSpecSlice(
   if (delivery.kind === 'type') {
     ports.patchRun(run.projectId, { specTasks: delivery.tasks })
     const ptyId = ports.ptyIdFor(run.projectId, delivery.terminalId)
-    const line = submitPtyLine(delivery.text)
-    if (ptyId && line) await ports.writePty(ptyId, line)
+    if (ptyId && delivery.text.trim()) {
+      await writePtySubmitText(ptyId, delivery.text, { agent: finished?.agent })
+    }
     await ports.continueRun(run.projectId)
     return
   }

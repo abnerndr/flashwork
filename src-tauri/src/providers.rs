@@ -80,6 +80,8 @@ pub fn provider_key_set(id: String, key: String) -> Result<(), String> {
 
 /// `.env` files to load at startup. `tauri dev` runs the binary with cwd `src-tauri`,
 /// while the repo `.env` (including `DEEPSEEK_API_KEY`) lives one directory up.
+/// Release launches (shortcut / `.desktop`) often start with cwd `$HOME`, so we also
+/// read `~/.config/flashwork/.env` (and `$XDG_CONFIG_HOME/flashwork/.env`).
 pub(crate) fn app_dotenv_paths(cwd: &std::path::Path, manifest_dir: Option<&std::path::Path>) -> Vec<std::path::PathBuf> {
     let mut paths = Vec::new();
     let mut push = |path: std::path::PathBuf| {
@@ -94,6 +96,20 @@ pub(crate) fn app_dotenv_paths(cwd: &std::path::Path, manifest_dir: Option<&std:
     if let Some(dir) = manifest_dir {
         push(dir.join(".env"));
         push(dir.join("..").join(".env"));
+    }
+    for path in flashwork_config_dotenv_paths() {
+        push(path);
+    }
+    paths
+}
+
+fn flashwork_config_dotenv_paths() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+        paths.push(std::path::PathBuf::from(xdg).join("flashwork").join(".env"));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        paths.push(std::path::PathBuf::from(home).join(".config").join("flashwork").join(".env"));
     }
     paths
 }
@@ -674,6 +690,22 @@ mod tests {
         let paths = app_dotenv_paths(cwd, Some(manifest));
         assert!(paths.iter().any(|path| path.ends_with("src-tauri/.env") || path.ends_with("src-tauri\\.env")));
         assert!(paths.iter().any(|path| path.ends_with("../.env") || path.ends_with("..\\.env")));
+    }
+
+    #[test]
+    fn dotenv_paths_include_the_user_flashwork_config_env() {
+        let home = std::env::var_os("HOME");
+        std::env::set_var("HOME", "/tmp/flashwork-home-dotenv");
+        std::env::remove_var("XDG_CONFIG_HOME");
+        let paths = app_dotenv_paths(std::path::Path::new("/tmp"), None);
+        if let Some(value) = home {
+            std::env::set_var("HOME", value);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        assert!(paths.iter().any(|path| {
+            path.ends_with("flashwork/.env") || path.ends_with("flashwork\\.env")
+        }));
     }
 
     #[test]

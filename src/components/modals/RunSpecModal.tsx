@@ -26,19 +26,23 @@ const KIND_KEYS: Record<SpecTaskKind, MessageKey> = {
 const NOTICE_KEYS: Record<SpecPlanNotice, MessageKey> = {
   'gemini-missing': 'runSpec.noticeGeminiMissing',
   'gemini-failed': 'runSpec.noticeGeminiFailed',
+  'deepseek-failed': 'runSpec.noticeDeepseekFailed',
+  'cli-failed': 'runSpec.noticeCliFailed',
 }
 
 type Plan = {
   tasks: SpecTask[]
   agents: AgentType[]
-  source: 'deepseek' | 'gemini' | 'heuristic'
+  source: 'deepseek' | 'gemini' | 'cli' | 'heuristic'
   notice?: SpecPlanNotice
+  plannerAgent?: AgentType
   spec: string
 }
 
 const SOURCE_KEYS: Record<Plan['source'], MessageKey> = {
   deepseek: 'runSpec.planSourceDeepseek',
   gemini: 'runSpec.planSourceGemini',
+  cli: 'runSpec.planSourceCli',
   heuristic: 'runSpec.planSourceHeuristic',
 }
 
@@ -64,6 +68,7 @@ export function RunSpecModal() {
   const [selectedWorkers, setSelectedWorkers] = useState<AgentType[]>([])
   const [busy, setBusy] = useState<'planning' | 'launching' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fallbackPlanner, setFallbackPlanner] = useState<AgentType | ''>('')
 
   useEffect(() => {
     if (!open) return
@@ -131,12 +136,18 @@ export function RunSpecModal() {
     setPlan(null)
   }
 
-  const runPlanner = async () => {
+  const runPlanner = async (plannerAgent?: AgentType) => {
     if (!project || !spec || busy) return
     setBusy('planning')
     setError(null)
     try {
-      const result = await planSpec({ project, cwd, spec, allowedAgents: selectedWorkers })
+      const result = await planSpec({
+        project,
+        cwd,
+        spec,
+        allowedAgents: selectedWorkers,
+        plannerAgent,
+      })
       if (!result.ok) {
         setError(
           result.code === 'no-cwd' ? t('promptRun.noCwdBody') : t('promptRun.needsInstallBody'),
@@ -144,6 +155,11 @@ export function RunSpecModal() {
         return
       }
       setPlan({ ...result, spec })
+      if (result.source === 'heuristic' && result.agents.length > 0) {
+        setFallbackPlanner((current) =>
+          current && result.agents.includes(current) ? current : (result.agents[0] ?? ''),
+        )
+      }
     } catch (cause) {
       setError(String(cause))
     } finally {
@@ -362,6 +378,40 @@ export function RunSpecModal() {
             </span>
           </header>
           {plan.notice ? <p className={styles.notice}>{t(NOTICE_KEYS[plan.notice])}</p> : null}
+          {plan.source === 'cli' && plan.plannerAgent ? (
+            <p className={styles.notice}>
+              {t('runSpec.planSourceCliDetail', { agent: AGENT_TYPE_LABELS[plan.plannerAgent] })}
+            </p>
+          ) : null}
+          {plan.source === 'heuristic' && plan.agents.length > 0 ? (
+            <div className={styles.fallbackRow}>
+              <label className={styles.cliRow}>
+                <span className={controls.label}>{t('runSpec.fallbackPlanner')}</span>
+                <select
+                  className={`${controls.input} ${styles.cliSelect}`}
+                  value={fallbackPlanner || plan.agents[0]}
+                  disabled={busy !== null}
+                  onChange={(event) => setFallbackPlanner(event.currentTarget.value as AgentType)}
+                >
+                  {plan.agents.map((agent) => (
+                    <option key={agent} value={agent}>
+                      {AGENT_TYPE_LABELS[agent]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className={controls.btnSm}
+                disabled={busy !== null || !spec}
+                onClick={() =>
+                  void runPlanner((fallbackPlanner || plan.agents[0]) as AgentType)
+                }
+              >
+                {t('runSpec.fallbackPlan')}
+              </button>
+            </div>
+          ) : null}
           {plan.tasks.length === 0 ? <p className={styles.notice}>{t('runSpec.noTasks')}</p> : null}
           <ul className={styles.tasks}>
             {plan.tasks.map((task) => (

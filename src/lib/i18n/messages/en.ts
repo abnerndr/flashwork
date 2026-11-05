@@ -744,9 +744,19 @@ export const en = {
   'runSpec.replan': 'Plan again',
   'runSpec.planSourceDeepseek': 'Planned by DeepSeek',
   'runSpec.planSourceGemini': 'Planned by Gemini CLI',
+  'runSpec.planSourceCli': 'Planned by an installed CLI',
+  'runSpec.planSourceCliDetail': 'Planned by {agent}',
   'runSpec.planSourceHeuristic': 'Planned locally',
-  'runSpec.noticeGeminiMissing': 'Gemini CLI is not installed, so the plan comes from the local heuristic.',
-  'runSpec.noticeGeminiFailed': 'Gemini CLI did not return a usable plan, so the plan comes from the local heuristic.',
+  'runSpec.noticeGeminiMissing':
+    'Gemini CLI is not installed, so the plan comes from the local heuristic. You can replan with an installed coding CLI below.',
+  'runSpec.noticeGeminiFailed':
+    'Gemini CLI did not return a usable plan, so the plan comes from the local heuristic. You can replan with an installed coding CLI below.',
+  'runSpec.noticeDeepseekFailed':
+    'DeepSeek did not return a usable plan and Gemini CLI also failed, so the plan comes from the local heuristic. You can replan with an installed coding CLI below.',
+  'runSpec.noticeCliFailed':
+    'That coding CLI did not return a usable plan, so the local heuristic stays. Pick another CLI or edit the tasks by hand.',
+  'runSpec.fallbackPlanner': 'Replan with CLI',
+  'runSpec.fallbackPlan': 'Plan with CLI',
   'runSpec.tasksHeading': 'Tasks ({count})',
   'runSpec.taskFiles': 'Files',
   'runSpec.wholeRepo': 'whole repo',

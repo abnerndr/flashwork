@@ -23,6 +23,10 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Fixed
 
+- Run SPEC planner keys: release launches (including the Windows → WSL shortcut) now also load
+  `~/.config/flashwork/.env`, so `DEEPSEEK_API_KEY` works without opening the app from the repo
+  folder. When DeepSeek and Gemini both fail, the notice says so, and the plan preview offers
+  **Replan with CLI** using an installed coding CLI.
 - Run SPEC submits each task prompt by itself. The text is typed into the CLI and confirmed
   with Enter, so a planned run no longer sits in the composer until someone clicks the terminal
   and presses Enter.

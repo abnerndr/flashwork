@@ -148,4 +148,44 @@ describe('planSpec DeepSeek order', () => {
     expect(result).toMatchObject({ ok: true, source: 'heuristic', notice: 'gemini-missing' })
     expect(planned.chat).not.toHaveBeenCalled()
   })
+
+  it('names DeepSeek when both DeepSeek and Gemini fail before the heuristic', async () => {
+    const planned = deps({
+      chat: vi.fn(async () => {
+        throw new Error('insufficient_quota')
+      }),
+      gemini: vi.fn(async () => ({ notice: 'gemini-failed' as const })),
+    })
+    const result = await planSpec(
+      { project, cwd: '/repo', spec: 'Review the README and summarize the architecture.' },
+      planned,
+    )
+    expect(result).toMatchObject({ ok: true, source: 'heuristic', notice: 'deepseek-failed' })
+  })
+
+  it('plans with an installed CLI when the user picks a fallback planner', async () => {
+    const cliPlanner = vi.fn(async () => ({ text: PLAN }))
+    const planned = deps({
+      keyStatus: async () => ({ saved: false }),
+      gemini: vi.fn(async () => ({ notice: 'gemini-failed' as const })),
+      cliPlanner,
+    })
+    const result = await planSpec(
+      {
+        project,
+        cwd: '/repo',
+        spec: 'Review the README and summarize the architecture.',
+        plannerAgent: 'claude',
+      },
+      planned,
+    )
+    expect(planned.chat).not.toHaveBeenCalled()
+    expect(planned.gemini).not.toHaveBeenCalled()
+    expect(cliPlanner).toHaveBeenCalledWith(
+      '/repo',
+      'claude',
+      expect.stringContaining('Review the README'),
+    )
+    expect(result).toMatchObject({ ok: true, source: 'cli', plannerAgent: 'claude' })
+  })
 })

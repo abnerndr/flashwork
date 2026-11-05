@@ -76,6 +76,18 @@
   font-size: 11px;
 }
 
+.fallbackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.fallbackRow .cliRow {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
 .notice {
   margin: 0;
   padding: 8px 10px;

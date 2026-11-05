@@ -54,27 +54,37 @@ import { launchPromptRunLanes, type StartPromptRunResult } from './startPromptRu
 
 export const SPEC_PLANNER_TIMEOUT_MS = 90_000
 
+const PLANNER_INSTRUCTION = 'Plan the SPEC given on stdin. Reply with the JSON object only.'
+
 const PLANNER_ARGS_FULL = [
   '-p',
-  'Plan the SPEC given on stdin. Reply with the JSON object only.',
+  PLANNER_INSTRUCTION,
   '--approval-mode',
   'plan',
   '--skip-trust',
   '-o',
   'text',
 ]
-const PLANNER_ARGS_MINIMAL = ['-p', 'Plan the SPEC given on stdin. Reply with the JSON object only.']
+const PLANNER_ARGS_MINIMAL = ['-p', PLANNER_INSTRUCTION]
 
-export type SpecPlanNotice = 'gemini-missing' | 'gemini-failed'
+export type SpecPlanNotice =
+  | 'gemini-missing'
+  | 'gemini-failed'
+  | 'deepseek-failed'
+  | 'cli-failed'
+
+export type SpecPlanSource = 'deepseek' | 'gemini' | 'cli' | 'heuristic'
 
 export type SpecPlanResult =
   | {
       ok: true
       tasks: SpecTask[]
-      source: 'deepseek' | 'gemini' | 'heuristic'
+      source: SpecPlanSource
       notice?: SpecPlanNotice
       /** Installed and configured coding CLIs the user may reassign tasks to. */
       agents: AgentType[]
+      /** When source is `cli`, which coding CLI produced the plan. */
+      plannerAgent?: AgentType
     }
   | { ok: false; code: 'no-cwd' | 'needs-install' }
 
@@ -157,19 +167,26 @@ export type PlanSpecDeps = {
     timeoutMs?: number,
   ) => Promise<{ text: string }>
   gemini?: (cwd: string, prompt: string) => Promise<{ text: string } | { notice: SpecPlanNotice }>
+  cliPlanner?: (
+    cwd: string,
+    agent: AgentType,
+    prompt: string,
+  ) => Promise<{ text: string } | { notice: 'cli-failed' }>
 }
+
+type DeepseekPlannerOutcome = { text: string } | { skipped: true } | { failed: true }
 
 /**
  * DeepSeek direct API when a key is saved and the call returns a usable plan.
  * A failed call is skipped for the rest of this process. Otherwise Gemini CLI,
- * then the local heuristic.
+ * then the local heuristic (with an optional installed-CLI replan from the UI).
  */
 async function runDeepseekPlanner(
   spec: string,
   prompt: string,
   deps: PlanSpecDeps,
-): Promise<{ text: string } | { skipped: true }> {
-  if (isDeepseekPlannerUnavailable()) return { skipped: true }
+): Promise<DeepseekPlannerOutcome> {
+  if (isDeepseekPlannerUnavailable()) return { failed: true }
   const keyStatus = deps.keyStatus ?? providerKeyStatus
   let saved = false
   try {
@@ -192,11 +209,65 @@ async function runDeepseekPlanner(
   } catch (cause) {
     console.warn('[run-spec] deepseek planner failed:', cause)
     markDeepseekPlannerUnavailable()
-    return { skipped: true }
+    return { failed: true }
   }
 }
 
-/** Splits a SPEC into tasks: DeepSeek, then Gemini, then the local heuristic. */
+/** Headless args for an installed coding CLI used as a SPEC planner fallback. */
+export function cliPlannerArgs(agent: AgentType): string[] {
+  switch (agent) {
+    case 'claude':
+      return ['-p', PLANNER_INSTRUCTION, '--dangerously-skip-permissions']
+    case 'antigravity':
+      return ['-p', PLANNER_INSTRUCTION, '--dangerously-skip-permissions']
+    case 'copilot':
+      return ['-p', PLANNER_INSTRUCTION, '--allow-all']
+    case 'codex':
+      return ['exec', '--skip-git-repo-check', PLANNER_INSTRUCTION]
+    case 'opencode':
+      return ['run', PLANNER_INSTRUCTION]
+    case 'gemini':
+      return PLANNER_ARGS_MINIMAL
+    default:
+      return ['-p', PLANNER_INSTRUCTION]
+  }
+}
+
+async function runCliPlanner(
+  cwd: string,
+  agent: AgentType,
+  prompt: string,
+): Promise<{ text: string } | { notice: 'cli-failed' }> {
+  if (agent === 'shell' || agent === 'gemini') return { notice: 'cli-failed' }
+  if (excludeFailedAgents([agent]).length === 0) return { notice: 'cli-failed' }
+  const detection = await detectAgentsForCwd(cwd, [agent]).catch(() => [])
+  const bin = detection.find((entry) => entry.installed && entry.path)?.path ?? null
+  if (!bin) return { notice: 'cli-failed' }
+  try {
+    const text = await runPlannerCli(bin, cliPlannerArgs(agent), cwd, SPEC_PLANNER_TIMEOUT_MS, prompt)
+    if (isAgentAuthError(text) && !text.includes('"tasks"')) {
+      markAgentAuthFailed(agent)
+      return { notice: 'cli-failed' }
+    }
+    return { text }
+  } catch (cause) {
+    console.warn('[run-spec] cli planner failed:', agent, cause)
+    if (isAgentAuthError(String(cause))) markAgentAuthFailed(agent)
+    return { notice: 'cli-failed' }
+  }
+}
+
+function heuristicFallback(
+  ctx: SpecPlanContext,
+  agents: AgentType[],
+  notice: SpecPlanNotice,
+): SpecPlanResult {
+  const tasks = heuristicSpecTasks(ctx)
+  if (tasks.length === 0) return { ok: false, code: 'needs-install' }
+  return { ok: true, tasks, source: 'heuristic', notice, agents }
+}
+
+/** Splits a SPEC into tasks: DeepSeek → Gemini → local heuristic (or a chosen coding CLI). */
 export async function planSpec(
   args: {
     project: SpecProject
@@ -204,6 +275,11 @@ export async function planSpec(
     spec: string
     /** Installed worker CLIs the user turned on for this run. Gemini is never included. */
     allowedAgents?: readonly AgentType[]
+    /**
+     * Skip DeepSeek/Gemini and plan with this installed coding CLI.
+     * Used when API/Gemini planners failed and the user picks a fallback.
+     */
+    plannerAgent?: AgentType
   },
   deps: PlanSpecDeps = {},
 ): Promise<SpecPlanResult> {
@@ -217,25 +293,45 @@ export async function planSpec(
   if (agents.length === 0) return { ok: false, code: 'needs-install' }
   const ctx = await specContext(args.project, args.spec, agents)
   const prompt = buildSpecPlannerPrompt({ spec: args.spec, agents })
+
+  if (args.plannerAgent) {
+    if (!agents.includes(args.plannerAgent) && args.plannerAgent !== 'shell') {
+      return heuristicFallback(ctx, agents, 'cli-failed')
+    }
+    const cli = deps.cliPlanner ?? runCliPlanner
+    const planned = await cli(cwd, args.plannerAgent, prompt)
+    if ('text' in planned) {
+      const tasks = parseSpecPlan(planned.text, ctx)
+      if (tasks.length > 0) {
+        return { ok: true, tasks, source: 'cli', agents, plannerAgent: args.plannerAgent }
+      }
+    }
+    return heuristicFallback(ctx, agents, 'cli-failed')
+  }
+
   const deepseek = await runDeepseekPlanner(args.spec, prompt, deps)
+  let deepseekFailed = false
   if ('text' in deepseek) {
     const tasks = parseSpecPlan(deepseek.text, ctx)
     if (tasks.length > 0) return { ok: true, tasks, source: 'deepseek', agents }
     markDeepseekPlannerUnavailable()
+    deepseekFailed = true
+  } else if ('failed' in deepseek) {
+    deepseekFailed = true
   }
+
   const gemini = deps.gemini ?? runGeminiPlanner
   const planner = await gemini(cwd, prompt)
-  let notice: SpecPlanNotice | undefined
   if ('text' in planner) {
     const tasks = parseSpecPlan(planner.text, ctx)
     if (tasks.length > 0) return { ok: true, tasks, source: 'gemini', agents }
-    notice = 'gemini-failed'
-  } else {
-    notice = planner.notice
   }
-  const tasks = heuristicSpecTasks(ctx)
-  if (tasks.length === 0) return { ok: false, code: 'needs-install' }
-  return { ok: true, tasks, source: 'heuristic', notice, agents }
+  const notice: SpecPlanNotice = deepseekFailed
+    ? 'deepseek-failed'
+    : 'notice' in planner
+      ? planner.notice
+      : 'gemini-failed'
+  return heuristicFallback(ctx, agents, notice)
 }
 
 function taskLane(runId: string, task: SpecTask, tasks: readonly SpecTask[], boardPath?: string): AutoLane {

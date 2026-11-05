@@ -753,9 +753,19 @@ export const ptBR: Record<MessageKey, string> = {
   'runSpec.replan': 'Planejar de novo',
   'runSpec.planSourceDeepseek': 'Planejado pelo DeepSeek',
   'runSpec.planSourceGemini': 'Planejado pelo Gemini CLI',
+  'runSpec.planSourceCli': 'Planejado por um CLI instalado',
+  'runSpec.planSourceCliDetail': 'Planejado por {agent}',
   'runSpec.planSourceHeuristic': 'Planejado localmente',
-  'runSpec.noticeGeminiMissing': 'O Gemini CLI não está instalado, então o plano vem da heurística local.',
-  'runSpec.noticeGeminiFailed': 'O Gemini CLI não retornou um plano utilizável, então o plano vem da heurística local.',
+  'runSpec.noticeGeminiMissing':
+    'O Gemini CLI não está instalado, então o plano vem da heurística local. Você pode replanejar com um CLI de código instalado abaixo.',
+  'runSpec.noticeGeminiFailed':
+    'O Gemini CLI não retornou um plano utilizável, então o plano vem da heurística local. Você pode replanejar com um CLI de código instalado abaixo.',
+  'runSpec.noticeDeepseekFailed':
+    'O DeepSeek não retornou um plano utilizável e o Gemini CLI também falhou, então o plano vem da heurística local. Você pode replanejar com um CLI de código instalado abaixo.',
+  'runSpec.noticeCliFailed':
+    'Esse CLI de código não retornou um plano utilizável, então a heurística local permanece. Escolha outro CLI ou edite as tarefas à mão.',
+  'runSpec.fallbackPlanner': 'Replanejar com CLI',
+  'runSpec.fallbackPlan': 'Planejar com CLI',
   'runSpec.tasksHeading': 'Tarefas ({count})',
   'runSpec.taskFiles': 'Arquivos',
   'runSpec.wholeRepo': 'repositório inteiro',

@@ -12,6 +12,9 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 
 ### Repository
 
+- README rewritten around the current product: Run SPEC (DeepSeek → Gemini CLI → heuristic),
+  per-folder `.flashwork/` + Graphify MCP, WSL projects, coding-CLI roster, Git / MCP Marketplace,
+  Providers in the OS keyring, and VS Code for editing — no Task Board, Auto bar, Flows, or in-app IDE.
 - Cross-platform `pnpm run setup` (`scripts/setup.mjs`): installs pnpm (Corepack), Rust when
   missing, Tauri OS packages (apt / Xcode CLT / Windows MSVC notes), then `pnpm install`. Works on
   Linux/WSL, macOS, and Windows; `setup:deps` skips system packages. Per-OS scripts delegate to it.

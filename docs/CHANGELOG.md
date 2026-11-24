@@ -21,8 +21,16 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
 - Launch development through Node on the native platform, discover Rustup's Cargo directory, and report missing Rust before starting Tauri.
 - Move the desktop app to the repository root, with unified dependencies, scripts, and documentation.
 
+### Changed
+
+- Run SPEC planner and task bootstrap prompts are shorter (deduped planner rules, capped sibling
+  lists, board-first ownership) to cut redundant tokens for coding CLIs.
+
 ### Fixed
 
+- Linux/WSL setup and launch no longer assume `node` is already on PATH in a non-interactive
+  shell. `setup-linux.sh`, `flashwork-wsl.sh`, and `lib.sh` load nvm/fnm/asdf/volta and fall back
+  to the newest nvm Node binary so Windows→WSL shortcuts work.
 - Run SPEC types the task prompt into the CLI, waits briefly, then sends Enter in a separate PTY
   write. On Linux/WSL, Ink composers (Claude Code and similar) were leaving the prompt unsubmitted
   when the trailing Enter arrived in the same payload as the text.
@@ -38,6 +46,15 @@ Notable user-facing changes to **Flashwork** are documented here. The format is 
   and presses Enter.
 
 ### Added
+
+- Windows Desktop + Start Menu shortcuts that launch Flashwork **through WSL** (`wsl.exe` →
+  `scripts/flashwork-wsl.sh`), plus install/uninstall scripts and `pnpm run shortcut:windows-wsl`.
+- `scripts/wsl-path.sh` for Windows↔Linux path bridging and default distro detection.
+- Flashwork dotenv loader in WSL launch scripts (`~/.config/flashwork/.env` and repo `.env`).
+- Open the project folder in **VS Code** or **Cursor** from the project menu, the workspace
+  container header, terminal actions, the inspector, and the file explorer context menu.
+- When a Run SPEC plan finishes at **100%** (every task done), Flashwork closes the panes that
+  run opened for that SPEC.
 
 - Run SPEC accepts several Markdown files at once. DeepSeek, or Gemini when no DeepSeek key
   is saved, plans them as separate sections and spreads independent tasks across the selected CLIs.

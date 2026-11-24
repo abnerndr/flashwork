@@ -257,6 +257,8 @@ function verify(env) {
     const proc = readFileSync('/proc/version', 'utf8')
     if (/microsoft/i.test(proc)) {
       log('    WSL detected — GUI uses WSLg Wayland with the D3D12 GL driver.')
+      log('    Launch: ./scripts/flashwork-wsl.sh  (or pnpm run dev:wsl)')
+      log('    Windows Desktop shortcut: pnpm run shortcut:windows-wsl')
     }
   }
 }

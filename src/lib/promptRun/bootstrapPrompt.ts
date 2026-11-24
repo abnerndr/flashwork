@@ -2,7 +2,10 @@ import type { RoutedAgent, SpecTask } from '../types'
 import { routedAgentLabel } from './routedAgent'
 
 export const GRAPHIFY_BOOTSTRAP_NOTE =
-  'Use the graphify MCP / `graphify query` to understand the codebase before reading files.'
+  'Prefer `graphify query` / Graphify MCP before broad file reads.'
+
+/** Max siblings inlined into a SPEC bootstrap; the rest live on the board only. */
+export const SPEC_BOOTSTRAP_SIBLING_CAP = 6
 
 export function buildRunBootstrapInput(args: {
   runId: string
@@ -17,30 +20,26 @@ export function buildRunBootstrapInput(args: {
   const label = routedAgentLabel(args.agent)
   if (args.role === 'orchestrator') {
     return [
-      `[Flashwork Auto] You orchestrate run ${args.runId} as ${label}.`,
-      'Do not implement the whole request yourself. Keep workers unblocked and summarize progress.',
+      `[Flashwork Auto] Orchestrator ${label} for run ${args.runId}. Coordinate; do not implement everything.`,
       '',
       args.prompt,
     ].join('\n')
   }
   const skills =
     args.skillNames && args.skillNames.length > 0
-      ? `Prefer these installed skills: ${args.skillNames.join(', ')}.`
-      : 'Do the assigned slice. Do not paste or request the sibling transcript.'
-  const lines = [`[Flashwork Auto] You are a worker (${label}) for run ${args.runId}.`, skills]
+      ? `Skills: ${args.skillNames.join(', ')}.`
+      : 'Do your slice only. Do not paste sibling transcripts.'
+  const lines = [`[Flashwork Auto] Worker ${label} · run ${args.runId}.`, skills]
   if (args.contextDir) {
     lines.push(
-      `Shared context is on disk at "${args.contextDir}". Read manifest.json and only the chunks that match your files. The index was built locally with no API cost.`,
+      `Context hub: ${args.contextDir} — read manifest.json and only matching chunks (local index, no API cost).`,
     )
   }
   if (args.boardPath) {
-    lines.push(
-      `Read the shared board at "${args.boardPath}" first. Write your findings there. Do not redo sibling slices.`,
-    )
+    lines.push(`Board: ${args.boardPath} — read first, write findings, do not redo siblings.`)
   }
   if (args.allowedFiles && args.allowedFiles.length > 0) {
-    lines.push('You may only touch these files:')
-    for (const file of args.allowedFiles) lines.push(`- ${file}`)
+    lines.push(`Files only: ${args.allowedFiles.join(', ')}`)
   }
   lines.push('', args.prompt)
   return lines.join('\n')
@@ -49,6 +48,7 @@ export function buildRunBootstrapInput(args: {
 /**
  * Bootstrap typed into one Run SPEC lane. The board path is relative to the project root so a
  * CLI running inside WSL (Linux paths) resolves it the same way as a Windows one.
+ * Keep this short: sibling ownership details live on the board when the roster is large.
  */
 export function buildSpecTaskBootstrap(args: {
   runId: string
@@ -58,25 +58,28 @@ export function buildSpecTaskBootstrap(args: {
 }): string {
   const { task } = args
   const lines = [
-    `[Flashwork SPEC] You are task ${task.id} "${task.title}" (${routedAgentLabel(task.agent)}) of run ${args.runId}.`,
+    `[Flashwork SPEC] ${task.id} "${task.title}" (${routedAgentLabel(task.agent)}) · run ${args.runId}.`,
     GRAPHIFY_BOOTSTRAP_NOTE,
   ]
   if (args.boardPath) {
     lines.push(
-      `Shared board: ${args.boardPath} (path relative to the project root). Read it first: it lists every sibling task and the files each one owns.`,
-      'Do not redo sibling tasks. When you finish, append your status and findings to the board under a heading with your task id.',
+      `Board (project-relative): ${args.boardPath} — read first; append status under your task id; do not redo siblings.`,
     )
   }
   if (task.files.length > 0) {
-    lines.push('You own only these files (do not edit files owned by siblings):')
-    for (const file of task.files) lines.push(`- ${file}`)
+    lines.push(`Own files only: ${task.files.join(', ')}`)
   }
   const others = args.siblings.filter((sibling) => sibling.id !== task.id)
   if (others.length > 0) {
-    lines.push('Sibling tasks:')
-    for (const sibling of others) {
+    const shown = others.slice(0, SPEC_BOOTSTRAP_SIBLING_CAP)
+    lines.push('Siblings:')
+    for (const sibling of shown) {
       const files = sibling.files.length > 0 ? sibling.files.join(', ') : 'whole repo'
       lines.push(`- ${sibling.id} · ${sibling.title} · ${routedAgentLabel(sibling.agent)} · ${files}`)
+    }
+    const rest = others.length - shown.length
+    if (rest > 0) {
+      lines.push(`- … +${rest} more on the board (not repeated here to save tokens)`)
     }
   }
   lines.push('', task.prompt)

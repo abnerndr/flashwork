@@ -1,6 +1,6 @@
 {
   "name": "flashwork-orchestrator",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "Flashwork AI orchestrator. Scripts: `app` launches Tauri (dev overlay).",
   "license": "SEE LICENSE IN LICENSE",
   "private": true,
@@ -28,6 +28,9 @@
     "setup": "node scripts/setup.mjs",
     "setup:deps": "node scripts/setup.mjs --deps-only",
     "dev:ui": "vite",
+    "dev:wsl": "bash scripts/flashwork-wsl.sh",
+    "shortcut:windows-wsl": "powershell -ExecutionPolicy Bypass -File ./scripts/install-windows-wsl-shortcut.ps1",
+    "shortcut:windows-wsl:uninstall": "powershell -ExecutionPolicy Bypass -File ./scripts/uninstall-windows-wsl-shortcut.ps1",
     "test:local": "pnpm run setup:deps && pnpm run lint && pnpm test && pnpm run build",
     "bump": "node scripts/bump-version.mjs"
   },

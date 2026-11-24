@@ -176,12 +176,29 @@ pnpm run setup
 Atalhos por SO (mesmo script por baixo):
 
 ```bash
-./scripts/setup-linux.sh      # Ubuntu/Debian e WSL (apt + webkit/gtk)
+./scripts/setup-linux.sh      # Ubuntu/Debian e WSL (apt + webkit/gtk; carrega nvm)
 ./scripts/setup-macos.sh      # Xcode CLT
 .\scripts\setup-windows.ps1   # checa MSVC / WebView2; rustup via winget se faltar
 ```
 
 Só deps do repo (sem apt/Xcode): `pnpm run setup:deps`.
+
+### Windows → WSL (atalho Desktop / Start Menu)
+
+Se o checkout vive no Ubuntu/WSL, **não** aponte o atalho para um `.exe` via `\\wsl.localhost\…` (quebra). Lance pelo `wsl.exe`:
+
+```powershell
+# No Windows, a partir do checkout (UNC ou espelho):
+powershell -ExecutionPolicy Bypass -File .\scripts\install-windows-wsl-shortcut.ps1
+# ou:
+pnpm run shortcut:windows-wsl
+```
+
+Isso cria `Flashwork.lnk` no Desktop e no Start Menu apontando para
+`wsl.exe -d <distro> -- bash <repo>/scripts/flashwork-wsl.sh`, que carrega nvm/cargo,
+dotenv (`~/.config/flashwork/.env`) e sobe o app. Remover: `pnpm run shortcut:windows-wsl:uninstall`.
+
+Dentro do WSL: `./scripts/flashwork-wsl.sh` ou `pnpm run dev:wsl`. Bridge de paths: `./scripts/wsl-path.sh to-linux 'C:\…'`.
 
 ---
 
@@ -193,6 +210,7 @@ Na raiz do repositório:
 pnpm run setup         # bootstrap completo (primeira vez)
 pnpm run test:local    # lint + testes + build do frontend
 pnpm run app           # abre o app (Tauri) — teste local
+pnpm run dev:wsl       # mesmo via scripts/flashwork-wsl.sh (nvm-safe)
 pnpm run dev:ui        # só o visual no browser (sem PTY)
 ```
 
